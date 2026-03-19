@@ -24,7 +24,7 @@ import {
   ChevronDown,
 } from 'lucide-react-native';
 import { useStopwatch } from '@/contexts/StopwatchContext';
-import { Stopwatch, getElapsedMs, formatTime } from '@/types/stopwatch';
+import { Stopwatch, getElapsedMs, formatTime, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
@@ -136,14 +136,15 @@ function StopwatchCard({
 
   const elapsedMs = getElapsedMs(sw);
   const timeDisplay = formatTime(elapsedMs);
+  const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
   const statusText = sw.isRunning ? 'Running' : 'Paused';
-  const statusBadgeBg = sw.isRunning ? C.accentMuted : C.surfaceSecondary;
-  const statusBadgeColor = sw.isRunning ? C.accent : C.textSecondary;
-  const cardBg = sw.isRunning ? 'rgba(0,201,167,0.04)' : C.surface;
-  const cardBorderColor = sw.isRunning ? 'rgba(0,201,167,0.25)' : C.border;
-  const startPauseBg = sw.isRunning ? C.accent : C.primary;
+  const statusBadgeBg = sw.isRunning ? `${swColor}22` : C.surfaceSecondary;
+  const statusBadgeColor = sw.isRunning ? swColor : C.textSecondary;
+  const cardBg = sw.isRunning ? `${swColor}0a` : C.surface;
+  const cardBorderColor = sw.isRunning ? `${swColor}40` : C.border;
+  const startPauseBg = sw.isRunning ? swColor : C.primary;
   const startPauseLabel = sw.isRunning ? 'Pause' : 'Start';
-  const timerColor = sw.isRunning ? C.accent : C.text;
+  const timerColor = sw.isRunning ? swColor : C.text;
   const isFirst = index === 0;
   const isLast = index === total - 1;
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
@@ -245,7 +246,7 @@ function StopwatchCard({
                 top: 0,
                 bottom: 0,
                 width: 3,
-                backgroundColor: C.accent,
+                backgroundColor: swColor,
                 zIndex: 1,
               }}
             />
@@ -268,7 +269,7 @@ function StopwatchCard({
                   {sw.name}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {sw.isRunning && <PulsingDot color={C.accent} />}
+                  {sw.isRunning && <PulsingDot color={swColor} />}
                   <View
                     style={{
                       paddingHorizontal: 8,

@@ -6,7 +6,10 @@ export interface Stopwatch {
   isRunning: boolean;
   order: number;
   createdAt: number;
+  color?: string;
 }
+
+export const DEFAULT_STOPWATCH_COLOR = '#22c55e';
 
 export function getElapsedMs(sw: Stopwatch): number {
   if (sw.isRunning && sw.startedAt !== null) return sw.accumulatedMs + (Date.now() - sw.startedAt);

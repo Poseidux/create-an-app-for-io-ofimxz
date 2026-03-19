@@ -23,7 +23,7 @@ import {
   ChevronDown,
 } from 'lucide-react-native';
 import { useStopwatch } from '@/contexts/StopwatchContext';
-import { Stopwatch, getElapsedMs, formatTime } from '@/types/stopwatch';
+import { Stopwatch, getElapsedMs, formatTime, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
@@ -137,14 +137,15 @@ function StopwatchCard({
 
   const elapsedMs = getElapsedMs(sw);
   const timeDisplay = formatTime(elapsedMs);
+  const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
   const statusText = sw.isRunning ? 'Running' : 'Paused';
-  const statusColor = sw.isRunning ? C.accent : C.textTertiary;
-  const cardBg = sw.isRunning ? C.accentMuted : C.surface;
-  const cardBorderColor = sw.isRunning ? C.accent : C.border;
-  const leftBorderColor = sw.isRunning ? C.accent : 'transparent';
-  const startPauseBg = sw.isRunning ? C.accent : C.primary;
+  const statusColor = sw.isRunning ? swColor : C.textTertiary;
+  const cardBg = sw.isRunning ? `${swColor}26` : C.surface;
+  const cardBorderColor = sw.isRunning ? swColor : C.border;
+  const leftBorderColor = sw.isRunning ? swColor : 'transparent';
+  const startPauseBg = sw.isRunning ? swColor : C.primary;
   const startPauseLabel = sw.isRunning ? 'Pause' : 'Start';
-  const timerColor = sw.isRunning ? C.accent : C.text;
+  const timerColor = sw.isRunning ? swColor : C.text;
   const isFirst = index === 0;
   const isLast = index === total - 1;
 
@@ -250,13 +251,13 @@ function StopwatchCard({
                 {sw.name}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {sw.isRunning && <PulsingDot color={C.accent} />}
+                {sw.isRunning && <PulsingDot color={swColor} />}
                 <View
                   style={{
                     paddingHorizontal: 8,
                     paddingVertical: 3,
                     borderRadius: 20,
-                    backgroundColor: sw.isRunning ? C.accentMuted : C.surfaceSecondary,
+                    backgroundColor: sw.isRunning ? `${swColor}26` : C.surfaceSecondary,
                   }}
                 >
                   <Text

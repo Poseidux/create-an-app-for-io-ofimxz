@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react';
-import { Stopwatch } from '../types/stopwatch';
+import { Stopwatch, DEFAULT_STOPWATCH_COLOR } from '../types/stopwatch';
 import { loadStopwatches, saveStopwatches } from '../utils/stopwatch-storage';
 
 // ─── State & Actions ──────────────────────────────────────────────────────────
@@ -11,12 +11,12 @@ interface State {
 
 type Action =
   | { type: 'LOAD'; payload: Stopwatch[] }
-  | { type: 'ADD'; name: string }
+  | { type: 'ADD'; name: string; color: string }
   | { type: 'START'; id: string }
   | { type: 'PAUSE'; id: string }
   | { type: 'RESET'; id: string }
   | { type: 'DELETE'; id: string }
-  | { type: 'RENAME'; id: string; name: string }
+  | { type: 'RENAME'; id: string; name: string; color: string }
   | { type: 'MOVE_UP'; id: string }
   | { type: 'MOVE_DOWN'; id: string };
 
@@ -34,6 +34,7 @@ function reducer(state: State, action: Action): State {
         isRunning: false,
         order: state.stopwatches.length,
         createdAt: Date.now(),
+        color: action.color,
       };
       return { ...state, stopwatches: [...state.stopwatches, newItem] };
     }
@@ -73,7 +74,7 @@ function reducer(state: State, action: Action): State {
 
     case 'RENAME': {
       const stopwatches = state.stopwatches.map(sw =>
-        sw.id === action.id ? { ...sw, name: action.name } : sw
+        sw.id === action.id ? { ...sw, name: action.name, color: action.color } : sw
       );
       return { ...state, stopwatches };
     }
@@ -112,12 +113,12 @@ function reducer(state: State, action: Action): State {
 interface StopwatchContextValue {
   stopwatches: Stopwatch[];
   isLoaded: boolean;
-  addStopwatch: (name: string) => void;
+  addStopwatch: (name: string, color: string) => void;
   startStopwatch: (id: string) => void;
   pauseStopwatch: (id: string) => void;
   resetStopwatch: (id: string) => void;
   deleteStopwatch: (id: string) => void;
-  renameStopwatch: (id: string, name: string) => void;
+  renameStopwatch: (id: string, name: string, color: string) => void;
   moveUp: (id: string) => void;
   moveDown: (id: string) => void;
 }
@@ -153,9 +154,9 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
   const value: StopwatchContextValue = {
     stopwatches: sorted,
     isLoaded: state.isLoaded,
-    addStopwatch: (name) => {
-      console.log(`[StopwatchContext] ADD name="${name}"`);
-      dispatchAndSave({ type: 'ADD', name });
+    addStopwatch: (name, color) => {
+      console.log(`[StopwatchContext] ADD name="${name}" color="${color}"`);
+      dispatchAndSave({ type: 'ADD', name, color });
     },
     startStopwatch: (id) => {
       console.log(`[StopwatchContext] START id=${id}`);
@@ -173,9 +174,9 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
       console.log(`[StopwatchContext] DELETE id=${id}`);
       dispatchAndSave({ type: 'DELETE', id });
     },
-    renameStopwatch: (id, name) => {
-      console.log(`[StopwatchContext] RENAME id=${id} name="${name}"`);
-      dispatchAndSave({ type: 'RENAME', id, name });
+    renameStopwatch: (id, name, color) => {
+      console.log(`[StopwatchContext] RENAME id=${id} name="${name}" color="${color}"`);
+      dispatchAndSave({ type: 'RENAME', id, name, color });
     },
     moveUp: (id) => {
       console.log(`[StopwatchContext] MOVE_UP id=${id}`);
