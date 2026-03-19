@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Natively App",
-    "slug": "natively-app",
+    "name": "create-an-app-for-io",
+    "slug": "create-an-app-for-io",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-qme.png",
@@ -35,7 +35,7 @@
       "expo-web-browser",
       "expo-secure-store"
     ],
-    "scheme": "nativelyapp",
+    "scheme": "createanappforio",
     "experiments": {
       "typedRoutes": true
     },
