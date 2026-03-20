@@ -62,26 +62,24 @@ function PulsingDot({ color }: { color: string }) {
 // ─── Category Chips ───────────────────────────────────────────────────────────
 
 function CategoryChips() {
-  const C = useColors();
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
+  const C = useColors();
+  const allCategories = [{ id: 'all', name: 'All' }, ...categories.filter(c => c.id !== 'all')];
 
   return (
-    <View style={{ height: 44, flexShrink: 0 }}>
+    <View style={{ height: 48, overflow: 'hidden' }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
           gap: 8,
+          height: 48,
         }}
-        style={{ flex: 1 }}
       >
-        {categories.map(cat => {
+        {allCategories.map((cat) => {
           const isSelected = selectedCategory === cat.id;
-          const chipBg = isSelected ? C.chipSelected : C.chipBackground;
-          const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
           return (
             <Pressable
               key={cat.id}
@@ -89,17 +87,26 @@ function CategoryChips() {
                 console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
                 setSelectedCategory(cat.id);
               }}
-              style={({ pressed }) => ({
+              style={{
                 flexShrink: 0,
                 flexGrow: 0,
                 paddingHorizontal: 14,
-                paddingVertical: 7,
+                paddingVertical: 8,
                 borderRadius: 20,
-                backgroundColor: chipBg,
-                opacity: pressed ? 0.7 : 1,
-              })}
+                backgroundColor: isSelected ? C.tint : 'transparent',
+                borderWidth: 1,
+                borderColor: isSelected ? C.tint : C.border,
+              }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: isSelected ? '700' : '400',
+                  color: isSelected ? '#ffffff' : C.tabIconDefault,
+                  flexShrink: 0,
+                }}
+                numberOfLines={1}
+              >
                 {cat.name}
               </Text>
             </Pressable>
@@ -138,6 +145,7 @@ function StopwatchCard({
   onLongPress,
 }: CardProps) {
   const C = useColors();
+  const { categories } = useCategory();
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -156,12 +164,11 @@ function StopwatchCard({
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
 
   // Detect white indicator color for contrast fix
-  const normalizedColor = swColor.toUpperCase().replace(/\s/g, '');
-  const isWhiteIndicator =
-    normalizedColor === '#FFFFFF' ||
-    normalizedColor === '#FFF' ||
-    normalizedColor === 'WHITE';
-  const startPauseTextColor = isWhiteIndicator && sw.isRunning ? '#000000' : '#fff';
+  const isWhiteIndicator = ['#ffffff', '#fff', '#FFFFFF', '#FFF'].includes(swColor.trim());
+  const pauseTextColor = isWhiteIndicator ? '#000000' : '#ffffff';
+
+  // When running (Pause state): use pauseTextColor; when not running (Start state): always white
+  const startPauseTextColor = sw.isRunning ? pauseTextColor : '#ffffff';
 
   const statusText = sw.isRunning ? 'Running' : 'Paused';
   const statusBadgeBg = sw.isRunning ? `${swColor}22` : C.surfaceSecondary;
@@ -174,6 +181,11 @@ function StopwatchCard({
   const isFirst = index === 0;
   const isLast = index === total - 1;
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+  // Resolve category name from id
+  const categoryLabel = sw.category
+    ? (categories.find(c => c.id === sw.category)?.name ?? null)
+    : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -236,8 +248,6 @@ function StopwatchCard({
     inputRange: [0, 1],
     outputRange: [16, 0],
   });
-
-  const categoryLabel = sw.category && sw.category !== 'all' ? sw.category : null;
 
   return (
     <Animated.View

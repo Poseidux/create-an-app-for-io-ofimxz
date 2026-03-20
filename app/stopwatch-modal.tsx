@@ -207,230 +207,230 @@ export default function StopwatchModal() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: C.card }}
     >
+      {/* Header — pinned outside ScrollView */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: insets.top + 16,
+          paddingBottom: 16,
+          backgroundColor: C.card,
+          borderBottomWidth: 1,
+          borderBottomColor: C.border,
+        }}
+      >
+        <Pressable
+          onPress={handleCancel}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
+        >
+          <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>
+            Cancel
+          </Text>
+        </Pressable>
+
+        <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>
+          {title}
+        </Text>
+
+        <Pressable
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          style={({ pressed }) => ({
+            opacity: !canSubmit ? 0.4 : pressed ? 0.6 : 1,
+            padding: 4,
+          })}
+        >
+          <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
+            {submitLabel}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Scrollable body */}
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingBottom: insets.bottom + 40,
-        }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 24,
+          paddingBottom: insets.bottom + 100,
+        }}
       >
+        {/* Name Input */}
         <View
           style={{
-            backgroundColor: C.card,
-            paddingHorizontal: 20,
-            paddingTop: 28,
+            backgroundColor: C.inputBg,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: C.border,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            marginBottom: 8,
           }}
         >
-          {/* Header */}
-          <View
+          <TextInput
+            autoFocus
+            value={name}
+            onChangeText={setName}
+            placeholder="Stopwatch name"
+            placeholderTextColor={C.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 28,
+              fontSize: 17,
+              color: C.text,
+              padding: 0,
+              margin: 0,
             }}
-          >
-            <Pressable
-              onPress={handleCancel}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
-            >
-              <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>
-                Cancel
-              </Text>
-            </Pressable>
+          />
+        </View>
 
-            <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>
-              {title}
-            </Text>
+        <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24 }}>
+          Give your stopwatch a descriptive name like "Morning Run" or "Sprint 1".
+        </Text>
 
-            <Pressable
-              onPress={handleSubmit}
-              disabled={!canSubmit}
-              style={({ pressed }) => ({
-                opacity: !canSubmit ? 0.4 : pressed ? 0.6 : 1,
-                padding: 4,
-              })}
-            >
-              <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
-                {submitLabel}
-              </Text>
-            </Pressable>
-          </View>
+        {/* Category picker */}
+        <Text style={sectionLabel}>Category</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4, marginBottom: 12 }}
+          style={{ flexShrink: 0 }}
+        >
+          {categories.map(cat => {
+            const isSelected = selectedCategoryId === cat.id;
+            const chipBg = isSelected ? C.chipSelected : C.chipBackground;
+            const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
+            return (
+              <Pressable
+                key={cat.id}
+                onPress={() => handleCategoryPress(cat.id)}
+                style={({ pressed }) => ({
+                  flexShrink: 0,
+                  flexGrow: 0,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 20,
+                  backgroundColor: chipBg,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+                  {cat.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-          {/* Name Input */}
+        {/* Inline add category */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 28,
+            paddingHorizontal: 4,
+          }}
+        >
           <View
             style={{
+              flex: 1,
               backgroundColor: C.inputBg,
-              borderRadius: 14,
-              borderCurve: 'continuous',
+              borderRadius: 10,
               borderWidth: 1,
               borderColor: C.border,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              marginBottom: 8,
+              paddingHorizontal: 12,
+              paddingVertical: Platform.OS === 'ios' ? 8 : 4,
             }}
           >
             <TextInput
-              autoFocus
-              value={name}
-              onChangeText={setName}
-              placeholder="Stopwatch name"
+              value={newCatName}
+              onChangeText={setNewCatName}
+              placeholder="New category..."
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
-              onSubmitEditing={handleSubmit}
+              onSubmitEditing={handleAddCategoryWithPending}
               style={{
-                fontSize: 17,
+                fontSize: 14,
                 color: C.text,
                 padding: 0,
                 margin: 0,
               }}
             />
           </View>
-
-          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24 }}>
-            Give your stopwatch a descriptive name like "Morning Run" or "Sprint 1".
-          </Text>
-
-          {/* Category picker */}
-          <Text style={sectionLabel}>Category</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4, marginBottom: 12 }}
-            style={{ flexShrink: 0 }}
-          >
-            {categories.map(cat => {
-              const isSelected = selectedCategoryId === cat.id;
-              const chipBg = isSelected ? C.chipSelected : C.chipBackground;
-              const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
-              return (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => handleCategoryPress(cat.id)}
-                  style={({ pressed }) => ({
-                    flexShrink: 0,
-                    flexGrow: 0,
-                    paddingHorizontal: 14,
-                    paddingVertical: 7,
-                    borderRadius: 20,
-                    backgroundColor: chipBg,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
-                    {cat.name}
-                  </Text>
-                </Pressable>
-              );
+          <Pressable
+            onPress={handleAddCategoryWithPending}
+            disabled={!canAddCat}
+            style={({ pressed }) => ({
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 10,
+              backgroundColor: canAddCat ? C.tint : C.chipBackground,
+              opacity: pressed ? 0.7 : 1,
             })}
-          </ScrollView>
-
-          {/* Inline add category */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: 28,
-              paddingHorizontal: 4,
-            }}
           >
-            <View
+            <Text
               style={{
-                flex: 1,
-                backgroundColor: C.inputBg,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: C.border,
-                paddingHorizontal: 12,
-                paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                fontSize: 14,
+                fontWeight: '600',
+                color: canAddCat ? '#fff' : C.subtext,
               }}
             >
-              <TextInput
-                value={newCatName}
-                onChangeText={setNewCatName}
-                placeholder="New category..."
-                placeholderTextColor={C.placeholder}
-                returnKeyType="done"
-                onSubmitEditing={handleAddCategoryWithPending}
-                style={{
-                  fontSize: 14,
-                  color: C.text,
-                  padding: 0,
-                  margin: 0,
-                }}
-              />
-            </View>
-            <Pressable
-              onPress={handleAddCategoryWithPending}
-              disabled={!canAddCat}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 10,
-                backgroundColor: canAddCat ? C.tint : C.chipBackground,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: canAddCat ? '#fff' : C.subtext,
-                }}
-              >
-                Add
-              </Text>
-            </Pressable>
-          </View>
+              Add
+            </Text>
+          </Pressable>
+        </View>
 
-          {/* Color picker — Primary */}
-          <Text style={sectionLabel}>Indicator Color</Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: 12,
-              paddingHorizontal: 4,
-              marginBottom: 20,
-            }}
-          >
-            {PALETTE_PRIMARY.map((swatch) => (
-              <ColorSwatch
-                key={swatch.hex}
-                hex={swatch.hex}
-                label={swatch.label}
-                isSelected={selectedColor === swatch.hex}
-                onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
-                size={36}
-              />
-            ))}
-          </View>
+        {/* Color picker — Primary */}
+        <Text style={sectionLabel}>Indicator Color</Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 12,
+            paddingHorizontal: 4,
+            marginBottom: 20,
+          }}
+        >
+          {PALETTE_PRIMARY.map((swatch) => (
+            <ColorSwatch
+              key={swatch.hex}
+              hex={swatch.hex}
+              label={swatch.label}
+              isSelected={selectedColor === swatch.hex}
+              onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
+              size={36}
+            />
+          ))}
+        </View>
 
-          {/* Color picker — Additional */}
-          <Text style={sectionLabel}>Additional Colors</Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: 10,
-              paddingHorizontal: 4,
-            }}
-          >
-            {PALETTE_ADDITIONAL.map((swatch) => (
-              <ColorSwatch
-                key={swatch.hex}
-                hex={swatch.hex}
-                label={swatch.label}
-                isSelected={selectedColor === swatch.hex}
-                onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
-                size={32}
-              />
-            ))}
-          </View>
+        {/* Color picker — Additional */}
+        <Text style={sectionLabel}>Additional Colors</Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            paddingHorizontal: 4,
+          }}
+        >
+          {PALETTE_ADDITIONAL.map((swatch) => (
+            <ColorSwatch
+              key={swatch.hex}
+              hex={swatch.hex}
+              label={swatch.label}
+              isSelected={selectedColor === swatch.hex}
+              onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
+              size={32}
+            />
+          ))}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
