@@ -1,3 +1,5 @@
+import { useThemeContext } from '@/contexts/ThemeContext';
+
 const tintColorLight = "#0a7ea4";
 const tintColorDark = "#fff";
 
@@ -20,6 +22,7 @@ export const appleRed = "#FF3B30";
 
 export const borderColor = "#A1A1AA80";
 export const appleGreen = "#34C759";
+
 export const Colors = {
   light: {
     text: "#11181C",
@@ -38,6 +41,74 @@ export const Colors = {
     tabIconSelected: tintColorDark,
   },
 };
+
+export const AppColors = {
+  light: {
+    background: '#F2F2F7',
+    card: '#FFFFFF',
+    text: '#000000',
+    subtext: '#6C6C70',
+    border: '#C6C6C8',
+    tint: '#007AFF',
+    destructive: '#FF3B30',
+    icon: '#3C3C43',
+    tabBar: '#FFFFFF',
+    tabBarBorder: '#C6C6C8',
+    headerBackground: '#F2F2F7',
+    chipBackground: '#E5E5EA',
+    chipSelected: '#007AFF',
+    chipSelectedText: '#FFFFFF',
+    chipText: '#3C3C43',
+    separator: '#C6C6C8',
+    // extras for cards
+    surface: '#FFFFFF',
+    surfaceSecondary: '#EEF1F5',
+    primary: '#007AFF',
+    primaryMuted: 'rgba(0,122,255,0.10)',
+    danger: '#FF3B30',
+    dangerMuted: 'rgba(255,59,48,0.10)',
+    divider: 'rgba(0,0,0,0.04)',
+    textSecondary: '#6C6C70',
+    placeholder: '#9AABB8',
+    inputBg: '#FFFFFF',
+  },
+  dark: {
+    background: '#000000',
+    card: '#1C1C1E',
+    text: '#FFFFFF',
+    subtext: '#8E8E93',
+    border: '#38383A',
+    tint: '#0A84FF',
+    destructive: '#FF453A',
+    icon: '#EBEBF5',
+    tabBar: '#1C1C1E',
+    tabBarBorder: '#38383A',
+    headerBackground: '#000000',
+    chipBackground: '#2C2C2E',
+    chipSelected: '#0A84FF',
+    chipSelectedText: '#FFFFFF',
+    chipText: '#EBEBF5',
+    separator: '#38383A',
+    // extras for cards
+    surface: '#1C1C1E',
+    surfaceSecondary: '#2C2C2E',
+    primary: '#0A84FF',
+    primaryMuted: 'rgba(10,132,255,0.15)',
+    danger: '#FF453A',
+    dangerMuted: 'rgba(255,69,58,0.15)',
+    divider: 'rgba(255,255,255,0.04)',
+    textSecondary: '#8E8E93',
+    placeholder: '#4A5568',
+    inputBg: '#2C2C2E',
+  },
+};
+
+export type AppColorPalette = typeof AppColors.light;
+
+export function useColors(): AppColorPalette {
+  const { colorScheme } = useThemeContext();
+  return AppColors[colorScheme];
+}
 
 export const backgroundColors = [
   "#fef2f2",
@@ -218,244 +289,25 @@ export const backgroundColors = [
 ];
 
 export const emojies = [
-  // Fruits
-  "🍏",
-  "🍎",
-  "🍐",
-  "🍊",
-  "🍋",
-  "🍌",
-  "🍉",
-  "🍇",
-  "🍓",
-  "🫐",
-  "🍈",
-  "🍒",
-  "🍑",
-  "🥭",
-  "🍍",
-  "🥥",
-  "🥝",
-
-  // Vegetables
-  "🍅",
-  "🍆",
-  "🥑",
-  "🥦",
-  "🥬",
-  "🥒",
-  "🌶",
-  "🫑",
-  "🌽",
-  "🥕",
-  "🥔",
-  "🧄",
-  "🧅",
-  "🍄",
-
-  // Breads & Bakery
-  "🍞",
-  "🥖",
-  "🥨",
-  "🥐",
-  "🥯",
-
-  // Dairy & Eggs
-  "🧀",
-  "🥚",
-  "🍳",
-  "🥞",
-  "🧇",
-
-  // Meats
-  "🥓",
-  "🥩",
-  "🍗",
-  "🍖",
-
-  // Fast Foods
-  "🌭",
-  "🍔",
-  "🍟",
-  "🍕",
-
-  // Wraps, Sandwiches & Ethnic Foods
-  "🥪",
-  "🌮",
-  "🌯",
-  "🫔",
-  "🥙",
-  "🧆",
-
-  // Pasta, Rice & Asian Foods
-  "🍜",
-  "🍝",
-  "🍣",
-  "🍤",
-  "🍙",
-  "🍚",
-  "🍛",
-  "🍲",
-  "🥘",
-  "🥗",
-
-  // Snacks & Misc
-  "🍿",
-  "🧈",
-  "🥫",
-  "🍱",
-  "🥮",
-  "🍠",
-  "🍥",
-  "🥟",
-  "🥠",
-  "🥡",
-
-  // Desserts & Sweets
-  "🍦",
-  "🍧",
-  "🍨",
-  "🍩",
-  "🍪",
-  "🧁",
-  "🍰",
-  "🎂",
-  "🍮",
-  "🍭",
-  "🍬",
-  "🍫",
-  "🍯",
-
-  // Nuts
-  "🥜",
-  "🌰",
-
-  // Drinks
-  "🥛",
-  "🧃",
-  "🧉",
-  "🥤",
-  "🍶",
-  "🍵",
-  "🍺",
-  "🍻",
-  "🥂",
-  "🍷",
-  "🍸",
-  "🍹",
-  "🥃",
-  "🍾",
-  "☕️",
-  "🫖",
-
-  // Utensils & Condiments
-  "🥄",
-  "🍴",
-  "🍽",
-  "🥢",
-  "🧂",
-
-  // Shopping & Payment
-  "🛒",
-  "🛍️",
-  "🧺",
-  "💳",
-  "💸",
-  "💵",
-  "💰",
-  "💲",
-  "🧾",
-  "🔖",
-  "🏪",
-  "🏬",
-  "🏦",
-  "🏧",
-  "📦",
-  "📮",
-  "🏷️",
-
-  // Organizational / Utility
-  "✅",
-  "📋",
-  "📜",
-  "✏️",
-  "📝",
-  "🔍",
-  "📆",
-  "⏰",
-  "📱",
-  "💻",
-  "🌐",
-  "🔗",
-  "🔒",
-  "🔑",
-  "🗃️",
-  "🗂️",
-  "🔄",
-  "💡",
-  "⭐️",
-  "📌",
-  "📍",
-  "📊",
-  "💯",
-  "🎉",
-  "🎊",
-  "🎁",
-  "🏆",
-  "⚖️",
-  "🏠",
-
-  // Transportation & Movement (for shopping trips)
-  "🚗",
-  "🏃‍♂️",
-  "🏃‍♀️",
-  "🚶‍♂️",
-  "🚶‍♀️",
-
-  // Clothing (Items to buy)
-  "👕",
-  "👖",
-  "👗",
-  "👔",
-  "🩳",
-  "👠",
-  "👟",
-  "🧥",
-  "🧤",
-  "🧣",
-  "🧦",
-  "🎒",
-  "👜",
-  "👛",
-  "👓",
-  "🕶️",
-  "👒",
-
-  // Household Items (Things you might add to a shopping list)
-  "🪣",
-  "🪑",
-  "🛋️",
-  "🚪",
-  "🪟",
-  "🏺",
-  "🖼️",
-  "📺",
-  "📻",
-  "🔌",
-  "🧴",
-  "🪥",
-  "🧹",
-  "🧽",
-  "🗑️",
-  "🪒",
-  "💊",
-  "💉",
-  "🩹",
-  "❤️",
-  "💔",
-  "💘",
-  "💙",
-  "💚",
-  "💛",
-  "💜",
+  "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐",
+  "🍈", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑",
+  "🥦", "🥬", "🥒", "🌶", "🫑", "🌽", "🥕", "🥔", "🧄", "🧅",
+  "🍄", "🍞", "🥖", "🥨", "🥐", "🥯", "🧀", "🥚", "🍳", "🥞",
+  "🧇", "🥓", "🥩", "🍗", "🍖", "🌭", "🍔", "🍟", "🍕", "🥪",
+  "🌮", "🌯", "🫔", "🥙", "🧆", "🍜", "🍝", "🍣", "🍤", "🍙",
+  "🍚", "🍛", "🍲", "🥘", "🥗", "🍿", "🧈", "🥫", "🍱", "🥮",
+  "🍠", "🍥", "🥟", "🥠", "🥡", "🍦", "🍧", "🍨", "🍩", "🍪",
+  "🧁", "🍰", "🎂", "🍮", "🍭", "🍬", "🍫", "🍯", "🥜", "🌰",
+  "🥛", "🧃", "🧉", "🥤", "🍶", "🍵", "🍺", "🍻", "🥂", "🍷",
+  "🍸", "🍹", "🥃", "🍾", "☕️", "🫖", "🥄", "🍴", "🍽", "🥢",
+  "🧂", "🛒", "🛍️", "🧺", "💳", "💸", "💵", "💰", "💲", "🧾",
+  "🔖", "🏪", "🏬", "🏦", "🏧", "📦", "📮", "🏷️", "✅", "📋",
+  "📜", "✏️", "📝", "🔍", "📆", "⏰", "📱", "💻", "🌐", "🔗",
+  "🔒", "🔑", "🗃️", "🗂️", "🔄", "💡", "⭐️", "📌", "📍", "📊",
+  "💯", "🎉", "🎊", "🎁", "🏆", "⚖️", "🏠", "🚗", "🏃‍♂️", "🏃‍♀️",
+  "🚶‍♂️", "🚶‍♀️", "👕", "👖", "👗", "👔", "🩳", "👠", "👟", "🧥",
+  "🧤", "🧣", "🧦", "🎒", "👜", "👛", "👓", "🕶️", "👒", "🪣",
+  "🪑", "🛋️", "🚪", "🪟", "🏺", "🖼️", "📺", "📻", "🔌", "🧴",
+  "🪥", "🧹", "🧽", "🗑️", "🪒", "💊", "💉", "🩹", "❤️", "💔",
+  "💘", "💙", "💚", "💛", "💜",
 ];

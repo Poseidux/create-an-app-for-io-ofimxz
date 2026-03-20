@@ -7,45 +7,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  useColorScheme,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStopwatch } from '@/contexts/StopwatchContext';
+import { useCategory } from '@/contexts/CategoryContext';
+import { useColors } from '@/constants/Colors';
 import { DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
-
-// ─── Colors ───────────────────────────────────────────────────────────────────
-
-const LIGHT = {
-  background: '#F5F7FA',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#EEF1F5',
-  text: '#0F1923',
-  textSecondary: '#5A6A7A',
-  primary: '#1A7FD4',
-  primaryMuted: 'rgba(26,127,212,0.10)',
-  border: 'rgba(15,25,35,0.10)',
-  inputBg: '#FFFFFF',
-  placeholder: '#9AABB8',
-};
-
-const DARK = {
-  background: '#0D1117',
-  surface: '#161B22',
-  surfaceSecondary: '#21262D',
-  text: '#E6EDF3',
-  textSecondary: '#8B949E',
-  primary: '#1A7FD4',
-  primaryMuted: 'rgba(26,127,212,0.15)',
-  border: 'rgba(230,237,243,0.10)',
-  inputBg: '#21262D',
-  placeholder: '#4A5568',
-};
-
-function useColors() {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? DARK : LIGHT;
-}
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +38,7 @@ export default function StopwatchModal() {
   const insets = useSafeAreaInsets();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { stopwatches, addStopwatch, renameStopwatch } = useStopwatch();
+  const { categories } = useCategory();
 
   const isEditing = Boolean(edit);
   const existing = isEditing ? stopwatches.find(sw => sw.id === edit) : undefined;
@@ -77,6 +46,9 @@ export default function StopwatchModal() {
   const [name, setName] = useState(existing?.name ?? '');
   const [selectedColor, setSelectedColor] = useState(
     existing?.color ?? DEFAULT_STOPWATCH_COLOR
+  );
+  const [selectedCategory, setSelectedCategoryState] = useState(
+    existing?.category ?? 'all'
   );
 
   const handleCancel = () => {
@@ -87,13 +59,14 @@ export default function StopwatchModal() {
   const handleSubmit = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    const cat = selectedCategory === 'all' ? undefined : selectedCategory;
 
     if (isEditing && edit) {
-      console.log(`[StopwatchModal] Save rename: id=${edit}, name="${trimmed}", color="${selectedColor}"`);
-      renameStopwatch(edit, trimmed, selectedColor);
+      console.log(`[StopwatchModal] Save rename: id=${edit}, name="${trimmed}", color="${selectedColor}", category="${cat}"`);
+      renameStopwatch(edit, trimmed, selectedColor, cat);
     } else {
-      console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}"`);
-      addStopwatch(trimmed, selectedColor);
+      console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}", category="${cat}"`);
+      addStopwatch(trimmed, selectedColor, cat);
     }
     router.back();
   };
@@ -103,7 +76,12 @@ export default function StopwatchModal() {
     setSelectedColor(hex);
   };
 
-  const title = isEditing ? 'Rename Stopwatch' : 'New Stopwatch';
+  const handleCategoryPress = (id: string) => {
+    console.log(`[StopwatchModal] Category chip pressed: ${id}`);
+    setSelectedCategoryState(id);
+  };
+
+  const title = isEditing ? 'Edit Stopwatch' : 'New Stopwatch';
   const submitLabel = isEditing ? 'Save' : 'Create';
   const canSubmit = name.trim().length > 0;
 
@@ -119,7 +97,7 @@ export default function StopwatchModal() {
         <View
           style={{
             flex: 1,
-            backgroundColor: C.surface,
+            backgroundColor: C.card,
             paddingHorizontal: 20,
             paddingTop: 28,
             paddingBottom: insets.bottom + 16,
@@ -155,13 +133,13 @@ export default function StopwatchModal() {
                 padding: 4,
               })}
             >
-              <Text style={{ fontSize: 16, color: C.primary, fontWeight: '600' }}>
+              <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
                 {submitLabel}
               </Text>
             </Pressable>
           </View>
 
-          {/* Input */}
+          {/* Name Input */}
           <View
             style={{
               backgroundColor: C.inputBg,
@@ -171,7 +149,7 @@ export default function StopwatchModal() {
               borderColor: C.border,
               paddingHorizontal: 16,
               paddingVertical: 14,
-              marginBottom: 12,
+              marginBottom: 8,
             }}
           >
             <TextInput
@@ -191,9 +169,53 @@ export default function StopwatchModal() {
             />
           </View>
 
-          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28 }}>
+          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24 }}>
             Give your stopwatch a descriptive name like "Morning Run" or "Sprint 1".
           </Text>
+
+          {/* Category picker */}
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '600',
+              color: C.textSecondary,
+              paddingHorizontal: 4,
+              marginBottom: 12,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            Category
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, marginBottom: 28 }}
+            style={{ flexShrink: 0 }}
+          >
+            {categories.map(cat => {
+              const isSelected = selectedCategory === cat.id;
+              const chipBg = isSelected ? C.chipSelected : C.chipBackground;
+              const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
+              return (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => handleCategoryPress(cat.id)}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    backgroundColor: chipBg,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+                    {cat.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
 
           {/* Color picker */}
           <Text
