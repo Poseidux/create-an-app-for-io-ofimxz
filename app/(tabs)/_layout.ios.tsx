@@ -1,12 +1,14 @@
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { Stack } from 'expo-router';
 
 export default function TabLayout() {
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="(home)">
-        <Icon sf="timer" android="timer" />
-        <Label>Stopwatch</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'none',
+      }}
+    >
+      <Stack.Screen name="(home)" />
+    </Stack>
   );
 }

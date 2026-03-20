@@ -255,9 +255,10 @@ export default function StopwatchModal() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingHorizontal: 20,
           paddingTop: 24,
-          paddingBottom: insets.bottom + 100,
+          paddingBottom: insets.bottom + 40,
         }}
       >
         {/* Name Input */}
