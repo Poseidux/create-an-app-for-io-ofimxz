@@ -130,7 +130,8 @@ export default function StopwatchModal() {
   const [selectedColor, setSelectedColor] = useState(
     existing?.color ?? DEFAULT_STOPWATCH_COLOR
   );
-  const [selectedCategory, setSelectedCategoryState] = useState(
+  // selectedCategoryId: 'all' means no category assigned
+  const [selectedCategoryId, setSelectedCategoryId] = useState(
     existing?.category ?? 'all'
   );
   const [newCatName, setNewCatName] = useState('');
@@ -143,7 +144,8 @@ export default function StopwatchModal() {
   const handleSubmit = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const cat = selectedCategory === 'all' ? undefined : selectedCategory;
+    // Pass undefined when 'all' so the stopwatch has no category
+    const cat = selectedCategoryId === 'all' ? undefined : selectedCategoryId;
 
     if (isEditing && edit) {
       console.log(`[StopwatchModal] Save rename: id=${edit}, name="${trimmed}", color="${selectedColor}", category="${cat}"`);
@@ -162,12 +164,14 @@ export default function StopwatchModal() {
 
   const handleCategoryPress = (id: string) => {
     console.log(`[StopwatchModal] Category chip pressed: ${id}`);
-    setSelectedCategoryState(id);
+    setSelectedCategoryId(id);
   };
 
+  // After addCategory resolves and categories updates, find the newly added category
+  // and auto-select it. We track the pending name to match against.
   const [pendingCatName, setPendingCatName] = useState<string | null>(null);
 
-  const handleAddCategory = async () => {
+  const handleAddCategoryWithPending = async () => {
     const trimmed = newCatName.trim();
     if (!trimmed) return;
     console.log(`[StopwatchModal] Add category pressed: "${trimmed}"`);
@@ -176,12 +180,11 @@ export default function StopwatchModal() {
     setNewCatName('');
   };
 
-  // Once categories updates after addCategory, find the new one and auto-select it
   React.useEffect(() => {
     if (!pendingCatName) return;
     const found = categories.find(c => c.name === pendingCatName && !c.isBuiltIn);
     if (found) {
-      setSelectedCategoryState(found.id);
+      setSelectedCategoryId(found.id);
       setPendingCatName(null);
     }
   }, [categories, pendingCatName]);
@@ -205,19 +208,20 @@ export default function StopwatchModal() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: insets.bottom + 40,
+        }}
+        showsVerticalScrollIndicator={false}
       >
         <View
           style={{
-            flex: 1,
             backgroundColor: C.card,
             paddingHorizontal: 20,
             paddingTop: 28,
-            paddingBottom: insets.bottom + 16,
           }}
         >
           {/* Header */}
@@ -299,7 +303,7 @@ export default function StopwatchModal() {
             style={{ flexShrink: 0 }}
           >
             {categories.map(cat => {
-              const isSelected = selectedCategory === cat.id;
+              const isSelected = selectedCategoryId === cat.id;
               const chipBg = isSelected ? C.chipSelected : C.chipBackground;
               const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
               return (
@@ -307,7 +311,8 @@ export default function StopwatchModal() {
                   key={cat.id}
                   onPress={() => handleCategoryPress(cat.id)}
                   style={({ pressed }) => ({
-                    alignSelf: 'flex-start',
+                    flexShrink: 0,
+                    flexGrow: 0,
                     paddingHorizontal: 14,
                     paddingVertical: 7,
                     borderRadius: 20,
@@ -350,7 +355,7 @@ export default function StopwatchModal() {
                 placeholder="New category..."
                 placeholderTextColor={C.placeholder}
                 returnKeyType="done"
-                onSubmitEditing={handleAddCategory}
+                onSubmitEditing={handleAddCategoryWithPending}
                 style={{
                   fontSize: 14,
                   color: C.text,
@@ -360,7 +365,7 @@ export default function StopwatchModal() {
               />
             </View>
             <Pressable
-              onPress={handleAddCategory}
+              onPress={handleAddCategoryWithPending}
               disabled={!canAddCat}
               style={({ pressed }) => ({
                 paddingHorizontal: 14,

@@ -66,38 +66,47 @@ function CategoryChips() {
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-    >
-      {categories.map(cat => {
-        const isSelected = selectedCategory === cat.id;
-        const chipBg = isSelected ? C.chipSelected : C.chipBackground;
-        const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
-        return (
-          <Pressable
-            key={cat.id}
-            onPress={() => {
-              console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
-              setSelectedCategory(cat.id);
-            }}
-            style={({ pressed }) => ({
-              alignSelf: 'flex-start',
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              backgroundColor: chipBg,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
-              {cat.name}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <View style={{ height: 44, flexShrink: 0 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+        }}
+        style={{ flex: 1 }}
+      >
+        {categories.map(cat => {
+          const isSelected = selectedCategory === cat.id;
+          const chipBg = isSelected ? C.chipSelected : C.chipBackground;
+          const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => {
+                console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
+                setSelectedCategory(cat.id);
+              }}
+              style={({ pressed }) => ({
+                flexShrink: 0,
+                flexGrow: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: chipBg,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -145,6 +154,15 @@ function StopwatchCard({
   const days = getDays(elapsedMs);
   const dayLabel = days >= 1 ? (days === 1 ? '+1 day' : `+${days} days`) : null;
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
+
+  // Detect white indicator color for contrast fix
+  const normalizedColor = swColor.toUpperCase().replace(/\s/g, '');
+  const isWhiteIndicator =
+    normalizedColor === '#FFFFFF' ||
+    normalizedColor === '#FFF' ||
+    normalizedColor === 'WHITE';
+  const startPauseTextColor = isWhiteIndicator && sw.isRunning ? '#000000' : '#fff';
+
   const statusText = sw.isRunning ? 'Running' : 'Paused';
   const statusBadgeBg = sw.isRunning ? `${swColor}22` : C.surfaceSecondary;
   const statusBadgeColor = sw.isRunning ? swColor : C.textSecondary;
@@ -389,10 +407,10 @@ function StopwatchCard({
                 })}
               >
                 {sw.isRunning
-                  ? <Pause size={15} color="#fff" fill="#fff" />
+                  ? <Pause size={15} color={startPauseTextColor} fill={startPauseTextColor} />
                   : <Play size={15} color="#fff" fill="#fff" />
                 }
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: startPauseTextColor }}>
                   {startPauseLabel}
                 </Text>
               </Pressable>
@@ -596,7 +614,7 @@ export default function HomeScreen() {
     ? stopwatches
     : stopwatches.filter(sw => sw.category === selectedCategory);
 
-  const listBottomPad = insets.bottom + 100;
+  const listBottomPad = insets.bottom + 16;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
