@@ -7,9 +7,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
@@ -118,7 +119,6 @@ function ColorSwatch({
 export default function StopwatchModal() {
   const C = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { stopwatches, addStopwatch, renameStopwatch } = useStopwatch();
   const { categories, addCategory } = useCategory();
@@ -205,22 +205,19 @@ export default function StopwatchModal() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1, backgroundColor: C.card }}
-    >
-      {/* Header — pinned outside ScrollView */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.card }}>
+      {/* FIXED HEADER — always on top, never scrolls */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
-          paddingTop: insets.top + 16,
-          paddingBottom: 16,
+          paddingVertical: 12,
           backgroundColor: C.card,
-          borderBottomWidth: 1,
+          borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: C.border,
+          zIndex: 10,
         }}
       >
         <Pressable
@@ -250,17 +247,22 @@ export default function StopwatchModal() {
         </Pressable>
       </View>
 
-      {/* Scrollable body */}
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 20,
-          paddingTop: 24,
-          paddingBottom: insets.bottom + 40,
-        }}
+      {/* KEYBOARD AWARE SCROLL AREA */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
+        <ScrollView
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 24,
+            paddingBottom: 60,
+          }}
+        >
         {/* Name Input */}
         <View
           style={{
@@ -433,7 +435,8 @@ export default function StopwatchModal() {
             />
           ))}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
