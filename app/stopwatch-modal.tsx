@@ -250,17 +250,20 @@ export default function StopwatchModal() {
       {/* KEYBOARD AWARE SCROLL AREA */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         <ScrollView
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          scrollEnabled={true}
           showsVerticalScrollIndicator={true}
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 24,
-            paddingBottom: 80,
+            paddingBottom: 120,
+            flexGrow: 1,
           }}
         >
         {/* Name Input */}
