@@ -17,7 +17,7 @@ import { DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-const PALETTE = [
+const PALETTE_PRIMARY = [
   { label: 'Green',  hex: '#22c55e' },
   { label: 'Sky',    hex: '#38bdf8' },
   { label: 'Violet', hex: '#a78bfa' },
@@ -30,6 +30,89 @@ const PALETTE = [
   { label: 'Red',    hex: '#f87171' },
 ];
 
+const PALETTE_ADDITIONAL = [
+  // Warm
+  { label: 'Warm Red',    hex: '#FF6B6B' },
+  { label: 'Coral',       hex: '#FF8E53' },
+  { label: 'Peach',       hex: '#FFA94D' },
+  { label: 'Yellow',      hex: '#FFD43B' },
+  { label: 'Gold',        hex: '#F9C74F' },
+  // Cool
+  { label: 'Light Blue',  hex: '#74C0FC' },
+  { label: 'Blue 1',      hex: '#4DABF7' },
+  { label: 'Blue 2',      hex: '#339AF0' },
+  { label: 'Blue 3',      hex: '#228BE6' },
+  { label: 'Dark Blue',   hex: '#1971C2' },
+  // Nature
+  { label: 'Mint',        hex: '#69DB7C' },
+  { label: 'Green 1',     hex: '#51CF66' },
+  { label: 'Green 2',     hex: '#40C057' },
+  { label: 'Forest',      hex: '#2F9E44' },
+  { label: 'Lime',        hex: '#94D82D' },
+  // Purple/Pink
+  { label: 'Lavender',    hex: '#DA77F2' },
+  { label: 'Purple 1',    hex: '#CC5DE8' },
+  { label: 'Purple 2',    hex: '#BE4BDB' },
+  { label: 'Hot Pink',    hex: '#F783AC' },
+  { label: 'Crimson',     hex: '#E64980' },
+  // Neutral/Dark
+  { label: 'Silver',      hex: '#ADB5BD' },
+  { label: 'Gray',        hex: '#868E96' },
+  { label: 'Slate',       hex: '#495057' },
+  { label: 'Charcoal',    hex: '#212529' },
+  { label: 'White',       hex: '#FFFFFF' },
+];
+
+// ─── Color Swatch ─────────────────────────────────────────────────────────────
+
+function ColorSwatch({
+  hex,
+  label,
+  isSelected,
+  onPress,
+  size = 36,
+}: {
+  hex: string;
+  label: string;
+  isSelected: boolean;
+  onPress: () => void;
+  size?: number;
+}) {
+  const isWhite = hex === '#FFFFFF';
+  const borderRadius = size / 2;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
+        width: size,
+        height: size,
+        borderRadius,
+        backgroundColor: hex,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.8 : 1,
+        borderWidth: isSelected ? 3 : isWhite ? 1 : 0,
+        borderColor: isSelected ? '#007AFF' : isWhite ? '#C6C6C8' : 'transparent',
+        boxShadow: isSelected
+          ? `0 0 0 2px ${hex === '#FFFFFF' ? '#C6C6C8' : hex}`
+          : '0 1px 3px rgba(0,0,0,0.15)',
+      })}
+    >
+      {isSelected && (
+        <View
+          style={{
+            width: size * 0.35,
+            height: size * 0.35,
+            borderRadius: size * 0.175,
+            backgroundColor: isWhite ? '#007AFF' : '#ffffff',
+          }}
+        />
+      )}
+    </Pressable>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export default function StopwatchModal() {
@@ -38,7 +121,7 @@ export default function StopwatchModal() {
   const insets = useSafeAreaInsets();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { stopwatches, addStopwatch, renameStopwatch } = useStopwatch();
-  const { categories } = useCategory();
+  const { categories, addCategory } = useCategory();
 
   const isEditing = Boolean(edit);
   const existing = isEditing ? stopwatches.find(sw => sw.id === edit) : undefined;
@@ -50,6 +133,7 @@ export default function StopwatchModal() {
   const [selectedCategory, setSelectedCategoryState] = useState(
     existing?.category ?? 'all'
   );
+  const [newCatName, setNewCatName] = useState('');
 
   const handleCancel = () => {
     console.log('[StopwatchModal] Cancel pressed');
@@ -81,14 +165,47 @@ export default function StopwatchModal() {
     setSelectedCategoryState(id);
   };
 
+  const [pendingCatName, setPendingCatName] = useState<string | null>(null);
+
+  const handleAddCategory = async () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    console.log(`[StopwatchModal] Add category pressed: "${trimmed}"`);
+    setPendingCatName(trimmed);
+    await addCategory(trimmed);
+    setNewCatName('');
+  };
+
+  // Once categories updates after addCategory, find the new one and auto-select it
+  React.useEffect(() => {
+    if (!pendingCatName) return;
+    const found = categories.find(c => c.name === pendingCatName && !c.isBuiltIn);
+    if (found) {
+      setSelectedCategoryState(found.id);
+      setPendingCatName(null);
+    }
+  }, [categories, pendingCatName]);
+
   const title = isEditing ? 'Edit Stopwatch' : 'New Stopwatch';
   const submitLabel = isEditing ? 'Save' : 'Create';
   const canSubmit = name.trim().length > 0;
+  const canAddCat = newCatName.trim().length > 0;
+
+  const sectionLabel = {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: C.textSecondary,
+    paddingHorizontal: 4,
+    marginBottom: 12,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -174,23 +291,11 @@ export default function StopwatchModal() {
           </Text>
 
           {/* Category picker */}
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: '600',
-              color: C.textSecondary,
-              paddingHorizontal: 4,
-              marginBottom: 12,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-            }}
-          >
-            Category
-          </Text>
+          <Text style={sectionLabel}>Category</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, marginBottom: 28 }}
+            contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4, marginBottom: 12 }}
             style={{ flexShrink: 0 }}
           >
             {categories.map(cat => {
@@ -202,6 +307,7 @@ export default function StopwatchModal() {
                   key={cat.id}
                   onPress={() => handleCategoryPress(cat.id)}
                   style={({ pressed }) => ({
+                    alignSelf: 'flex-start',
                     paddingHorizontal: 14,
                     paddingVertical: 7,
                     borderRadius: 20,
@@ -217,52 +323,108 @@ export default function StopwatchModal() {
             })}
           </ScrollView>
 
-          {/* Color picker */}
-          <Text
+          {/* Inline add category */}
+          <View
             style={{
-              fontSize: 13,
-              fontWeight: '600',
-              color: C.textSecondary,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 28,
               paddingHorizontal: 4,
-              marginBottom: 14,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
             }}
           >
-            Indicator Color
-          </Text>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: C.inputBg,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: C.border,
+                paddingHorizontal: 12,
+                paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+              }}
+            >
+              <TextInput
+                value={newCatName}
+                onChangeText={setNewCatName}
+                placeholder="New category..."
+                placeholderTextColor={C.placeholder}
+                returnKeyType="done"
+                onSubmitEditing={handleAddCategory}
+                style={{
+                  fontSize: 14,
+                  color: C.text,
+                  padding: 0,
+                  margin: 0,
+                }}
+              />
+            </View>
+            <Pressable
+              onPress={handleAddCategory}
+              disabled={!canAddCat}
+              style={({ pressed }) => ({
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 10,
+                backgroundColor: canAddCat ? C.tint : C.chipBackground,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: canAddCat ? '#fff' : C.subtext,
+                }}
+              >
+                Add
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Color picker — Primary */}
+          <Text style={sectionLabel}>Indicator Color</Text>
           <View
             style={{
               flexDirection: 'row',
               flexWrap: 'wrap',
               gap: 12,
               paddingHorizontal: 4,
+              marginBottom: 20,
             }}
           >
-            {PALETTE.map((swatch) => {
-              const isSelected = selectedColor === swatch.hex;
-              return (
-                <Pressable
-                  key={swatch.hex}
-                  onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
-                  accessibilityLabel={swatch.label}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: swatch.hex,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: pressed ? 0.8 : 1,
-                    borderWidth: isSelected ? 3 : 0,
-                    borderColor: isSelected ? '#ffffff' : 'transparent',
-                    boxShadow: isSelected
-                      ? `0 0 0 2px ${swatch.hex}`
-                      : '0 1px 3px rgba(0,0,0,0.15)',
-                  })}
-                />
-              );
-            })}
+            {PALETTE_PRIMARY.map((swatch) => (
+              <ColorSwatch
+                key={swatch.hex}
+                hex={swatch.hex}
+                label={swatch.label}
+                isSelected={selectedColor === swatch.hex}
+                onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
+                size={36}
+              />
+            ))}
+          </View>
+
+          {/* Color picker — Additional */}
+          <Text style={sectionLabel}>Additional Colors</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 10,
+              paddingHorizontal: 4,
+            }}
+          >
+            {PALETTE_ADDITIONAL.map((swatch) => (
+              <ColorSwatch
+                key={swatch.hex}
+                hex={swatch.hex}
+                label={swatch.label}
+                isSelected={selectedColor === swatch.hex}
+                onPress={() => handleSwatchPress(swatch.hex, swatch.label)}
+                size={32}
+              />
+            ))}
           </View>
         </View>
       </ScrollView>

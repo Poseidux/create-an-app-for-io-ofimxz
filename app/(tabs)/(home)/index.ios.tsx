@@ -26,7 +26,7 @@ import {
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
-import { Stopwatch, getElapsedMs, formatTime, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
+import { Stopwatch, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
 
@@ -68,8 +68,7 @@ function CategoryChips() {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-      style={{ flexShrink: 0 }}
+      contentContainerStyle={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
     >
       {categories.map(cat => {
         const isSelected = selectedCategory === cat.id;
@@ -83,6 +82,7 @@ function CategoryChips() {
               setSelectedCategory(cat.id);
             }}
             style={({ pressed }) => ({
+              alignSelf: 'flex-start',
               paddingHorizontal: 14,
               paddingVertical: 7,
               borderRadius: 20,
@@ -141,6 +141,8 @@ function StopwatchCard({
 
   const elapsedMs = getElapsedMs(sw);
   const timeDisplay = formatTime(elapsedMs);
+  const days = getDays(elapsedMs);
+  const dayLabel = days >= 1 ? (days === 1 ? '+1 day' : `+${days} days`) : null;
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
   const statusText = sw.isRunning ? 'Running' : 'Paused';
   const statusColor = sw.isRunning ? swColor : C.textSecondary;
@@ -283,7 +285,7 @@ function StopwatchCard({
               </View>
             </View>
 
-            {/* Right: timer + reorder arrows */}
+            {/* Right: timer + reorder arrows + day label */}
             <View style={{ alignItems: 'flex-end' }}>
               <Text
                 style={{
@@ -298,43 +300,50 @@ function StopwatchCard({
               >
                 {timeDisplay}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 2, marginTop: 6 }}>
-                <Pressable
-                  onPress={() => {
-                    console.log(`[StopwatchCard] Move up pressed: id=${sw.id}`);
-                    onMoveUp();
-                  }}
-                  disabled={isFirst}
-                  style={({ pressed }) => ({
-                    width: 32,
-                    height: 28,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 6,
-                    backgroundColor: C.surfaceSecondary,
-                    opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
-                  })}
-                >
-                  <ChevronUp size={14} color={C.textSecondary} />
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    console.log(`[StopwatchCard] Move down pressed: id=${sw.id}`);
-                    onMoveDown();
-                  }}
-                  disabled={isLast}
-                  style={({ pressed }) => ({
-                    width: 32,
-                    height: 28,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 6,
-                    backgroundColor: C.surfaceSecondary,
-                    opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
-                  })}
-                >
-                  <ChevronDown size={14} color={C.textSecondary} />
-                </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                {dayLabel !== null && (
+                  <Text style={{ fontSize: 12, color: C.subtext, fontWeight: '500' }}>
+                    {dayLabel}
+                  </Text>
+                )}
+                <View style={{ flexDirection: 'row', gap: 2 }}>
+                  <Pressable
+                    onPress={() => {
+                      console.log(`[StopwatchCard] Move up pressed: id=${sw.id}`);
+                      onMoveUp();
+                    }}
+                    disabled={isFirst}
+                    style={({ pressed }) => ({
+                      width: 32,
+                      height: 28,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 6,
+                      backgroundColor: C.surfaceSecondary,
+                      opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
+                    })}
+                  >
+                    <ChevronUp size={14} color={C.textSecondary} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      console.log(`[StopwatchCard] Move down pressed: id=${sw.id}`);
+                      onMoveDown();
+                    }}
+                    disabled={isLast}
+                    style={({ pressed }) => ({
+                      width: 32,
+                      height: 28,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 6,
+                      backgroundColor: C.surfaceSecondary,
+                      opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
+                    })}
+                  >
+                    <ChevronDown size={14} color={C.textSecondary} />
+                  </Pressable>
+                </View>
               </View>
             </View>
           </View>
