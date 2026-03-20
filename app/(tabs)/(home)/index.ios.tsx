@@ -27,6 +27,7 @@ import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
 import { Stopwatch, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
+import { Category } from '@/utils/category-storage';
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
 
@@ -65,38 +66,46 @@ function CategoryChips() {
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-    >
-      {categories.map(cat => {
-        const isSelected = selectedCategory === cat.id;
-        const chipBg = isSelected ? C.chipSelected : C.chipBackground;
-        const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
-        return (
-          <Pressable
-            key={cat.id}
-            onPress={() => {
-              console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
-              setSelectedCategory(cat.id);
-            }}
-            style={({ pressed }) => ({
-              alignSelf: 'flex-start',
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              backgroundColor: chipBg,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
-              {cat.name}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <View style={{ height: 48, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 48,
+        }}
+      >
+        {categories.map(cat => {
+          const isSelected = selectedCategory === cat.id;
+          const chipBg = isSelected ? C.chipSelected : C.chipBackground;
+          const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => {
+                console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
+                setSelectedCategory(cat.id);
+              }}
+              style={({ pressed }) => ({
+                flexShrink: 0,
+                flexGrow: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: chipBg,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -128,6 +137,7 @@ function StopwatchCard({
   onLongPress,
 }: CardProps) {
   const C = useColors();
+  const { categories } = useCategory();
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -144,6 +154,12 @@ function StopwatchCard({
   const days = getDays(elapsedMs);
   const dayLabel = days >= 1 ? (days === 1 ? '+1 day' : `+${days} days`) : null;
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
+
+  // Detect white indicator color for contrast fix
+  const isWhiteIndicator = ['#ffffff', '#fff', '#FFFFFF', '#FFF'].includes(swColor.trim());
+  const pauseTextColor = isWhiteIndicator ? '#000000' : '#ffffff';
+  const startPauseTextColor = sw.isRunning ? pauseTextColor : '#ffffff';
+
   const statusText = sw.isRunning ? 'Running' : 'Paused';
   const statusColor = sw.isRunning ? swColor : C.textSecondary;
   const cardBg = sw.isRunning ? `${swColor}26` : C.card;
@@ -205,7 +221,10 @@ function StopwatchCard({
     );
   };
 
-  const categoryLabel = sw.category && sw.category !== 'all' ? sw.category : null;
+  // Resolve category name from id (not raw id)
+  const categoryLabel = sw.category
+    ? (categories.find((c: Category) => c.id === sw.category)?.name ?? null)
+    : null;
 
   return (
     <Animated.View
@@ -369,10 +388,10 @@ function StopwatchCard({
               })}
             >
               {sw.isRunning
-                ? <Pause size={14} color="#fff" fill="#fff" />
+                ? <Pause size={14} color={startPauseTextColor} fill={startPauseTextColor} />
                 : <Play size={14} color="#fff" fill="#fff" />
               }
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: startPauseTextColor }}>
                 {startPauseLabel}
               </Text>
             </Pressable>
