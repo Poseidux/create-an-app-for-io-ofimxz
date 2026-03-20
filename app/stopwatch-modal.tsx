@@ -260,7 +260,7 @@ export default function StopwatchModal() {
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 24,
-            paddingBottom: 60,
+            paddingBottom: 80,
           }}
         >
         {/* Name Input */}
@@ -287,7 +287,9 @@ export default function StopwatchModal() {
             style={{
               fontSize: 17,
               color: C.text,
-              padding: 0,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              minHeight: 44,
               margin: 0,
             }}
           />
