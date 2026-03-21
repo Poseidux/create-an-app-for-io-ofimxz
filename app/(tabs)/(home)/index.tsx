@@ -552,6 +552,7 @@ export default function HomeScreen() {
   const {
     stopwatches,
     isLoaded,
+    canAddStopwatch,
     startStopwatch,
     pauseStopwatch,
     resetStopwatch,
@@ -585,9 +586,14 @@ export default function HomeScreen() {
   }, [anyRunning]);
 
   const openAddModal = useCallback(() => {
+    if (!canAddStopwatch) {
+      console.log('[HomeScreen] Free tier limit reached — redirecting to paywall');
+      router.push('/paywall');
+      return;
+    }
     console.log('[HomeScreen] Open add stopwatch modal');
     router.push('/stopwatch-modal');
-  }, [router]);
+  }, [router, canAddStopwatch]);
 
   const openEditModal = useCallback((id: string) => {
     console.log(`[HomeScreen] Open edit modal for id=${id}`);

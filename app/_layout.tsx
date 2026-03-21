@@ -1,7 +1,7 @@
 import "react-native-reanimated";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, Redirect, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,6 +17,8 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { StopwatchProvider } from "@/contexts/StopwatchContext";
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { CategoryProvider } from "@/contexts/CategoryContext";
+import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
+import { isOnboardingComplete } from "@/utils/onboardingStorage";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -50,12 +52,23 @@ const CustomDarkTheme: Theme = {
 };
 
 function AppContent() {
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    isOnboardingComplete().then((complete) => {
+      setOnboardingComplete(complete);
+    });
+  }, [pathname]);
+
   const { colorScheme } = useThemeContext();
   const navTheme = colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme;
   const statusStyle = colorScheme === "dark" ? "light" : "dark";
 
   return (
-    <>
+    <SubscriptionProvider>
+          <SubscriptionRedirect />
+  <>
       <StatusBar style={statusStyle} animated />
       <NavThemeProvider value={navTheme}>
         <SafeAreaProvider>
@@ -63,7 +76,11 @@ function AppContent() {
             <StopwatchProvider>
               <CategoryProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
+                  {onboardingComplete === false && pathname !== "/auth" && pathname !== "/paywall" && pathname !== "/auth-popup" && pathname !== "/auth-callback" && <Redirect href="/onboarding" />}
+
                   <Stack>
+                    <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="stopwatch-modal"
@@ -91,7 +108,16 @@ function AppContent() {
         </SafeAreaProvider>
       </NavThemeProvider>
     </>
+    </SubscriptionProvider>
   );
+}
+
+
+// Free-tier app: unsubscribed users can use the app up to the limit.
+// SubscriptionRedirect is intentionally a no-op — paywall is triggered
+// contextually (e.g. when the stopwatch limit is hit) rather than at launch.
+function SubscriptionRedirect() {
+  return null;
 }
 
 export default function RootLayout() {
@@ -105,7 +131,7 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  if (!loaded) {
+  if (!loaded || onboardingComplete === null) {
     return null;
   }
 

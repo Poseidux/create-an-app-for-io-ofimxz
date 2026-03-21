@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react';
 import { Stopwatch, DEFAULT_STOPWATCH_COLOR } from '../types/stopwatch';
 import { loadStopwatches, saveStopwatches } from '../utils/stopwatch-storage';
+import { useSubscription } from './SubscriptionContext';
+
+const FREE_TIER_LIMIT = 3;
 
 // ─── State & Actions ──────────────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ function reducer(state: State, action: Action): State {
 interface StopwatchContextValue {
   stopwatches: Stopwatch[];
   isLoaded: boolean;
+  canAddStopwatch: boolean;
   addStopwatch: (name: string, color: string, category?: string) => void;
   startStopwatch: (id: string) => void;
   pauseStopwatch: (id: string) => void;
@@ -132,6 +136,7 @@ const StopwatchContext = createContext<StopwatchContextValue | null>(null);
 
 export function StopwatchProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { stopwatches: [], isLoaded: false });
+  const { isSubscribed } = useSubscription();
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -151,10 +156,12 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
   }
 
   const sorted = [...state.stopwatches].sort((a, b) => a.order - b.order);
+  const canAddStopwatch = isSubscribed || state.stopwatches.length < FREE_TIER_LIMIT;
 
   const value: StopwatchContextValue = {
     stopwatches: sorted,
     isLoaded: state.isLoaded,
+    canAddStopwatch,
     addStopwatch: (name, color, category) => {
       console.log(`[StopwatchContext] ADD name="${name}" color="${color}" category="${category}"`);
       dispatchAndSave({ type: 'ADD', name, color, category });
