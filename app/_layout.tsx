@@ -17,7 +17,7 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { StopwatchProvider } from "@/contexts/StopwatchContext";
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { CategoryProvider } from "@/contexts/CategoryContext";
-import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { isOnboardingComplete } from "@/utils/onboardingStorage";
 
 SplashScreen.preventAutoHideAsync();
@@ -65,10 +65,12 @@ function AppContent() {
   const navTheme = colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme;
   const statusStyle = colorScheme === "dark" ? "light" : "dark";
 
+  if (onboardingComplete === null) {
+    return null;
+  }
+
   return (
     <SubscriptionProvider>
-          <SubscriptionRedirect />
-  <>
       <StatusBar style={statusStyle} animated />
       <NavThemeProvider value={navTheme}>
         <SafeAreaProvider>
@@ -107,7 +109,6 @@ function AppContent() {
           </WidgetProvider>
         </SafeAreaProvider>
       </NavThemeProvider>
-    </>
     </SubscriptionProvider>
   );
 }
@@ -131,7 +132,7 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  if (!loaded || onboardingComplete === null) {
+  if (!loaded) {
     return null;
   }
 
