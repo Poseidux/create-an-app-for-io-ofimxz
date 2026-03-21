@@ -606,77 +606,83 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      {/* Custom inline header */}
+      {/* Custom inline header — safe area top only, no double-counting */}
       <View
         style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 4,
-          paddingHorizontal: 16,
+          paddingTop: insets.top,
           backgroundColor: C.background,
-          flexDirection: 'row',
-          alignItems: 'center',
         }}
       >
-        <Pressable
-          onPress={() => {
-            console.log('[HomeScreen] Settings button pressed');
-            router.push('/settings');
-          }}
-          style={({ pressed }) => ({
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: C.chipBackground,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Settings size={18} color={C.icon} />
-        </Pressable>
-
-        <Text
+        <View
           style={{
-            flex: 1,
-            textAlign: 'center',
-            fontSize: 17,
-            fontWeight: '600',
-            color: C.text,
-          }}
-        >
-          Stopwatch
-        </Text>
-
-        <Pressable
-          onPress={() => {
-            console.log('[HomeScreen] Header + button pressed');
-            openAddModal();
-          }}
-          style={({ pressed }) => ({
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: C.primaryMuted,
+            height: 44,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
+          }}
         >
-          <Plus size={20} color={C.primary} />
-        </Pressable>
+          <Pressable
+            onPress={() => {
+              console.log('[HomeScreen] Settings button pressed');
+              router.push('/settings');
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: C.chipBackground,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Settings size={18} color={C.icon} />
+          </Pressable>
+
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              fontSize: 17,
+              fontWeight: '600',
+              color: C.text,
+            }}
+          >
+            Stopwatch
+          </Text>
+
+          <Pressable
+            onPress={() => {
+              console.log('[HomeScreen] Header + button pressed');
+              openAddModal();
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: C.primaryMuted,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Plus size={20} color={C.primary} />
+          </Pressable>
+        </View>
+
+        {/* Category chips */}
+        <CategoryChips />
+
+        {/* Separator */}
+        <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
-      {/* Category chips */}
-      <CategoryChips />
-
-      {/* Separator */}
-      <View style={{ height: 1, backgroundColor: C.separator }} />
-
-      {/* Content */}
+      {/* Content — flex: 1 so it fills remaining space below the header */}
       {isLoaded && filteredStopwatches.length === 0 ? (
         <EmptyState onAdd={openAddModal} />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredStopwatches}
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
