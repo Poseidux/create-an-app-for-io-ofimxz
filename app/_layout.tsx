@@ -1,7 +1,7 @@
 import "react-native-reanimated";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
-import { Stack, Redirect, usePathname, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,8 +17,7 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { StopwatchProvider } from "@/contexts/StopwatchContext";
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { CategoryProvider } from "@/contexts/CategoryContext";
-import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
-import { isOnboardingComplete } from "@/utils/onboardingStorage";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -52,26 +51,12 @@ const CustomDarkTheme: Theme = {
 };
 
 function AppContent() {
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    isOnboardingComplete().then((complete) => {
-      setOnboardingComplete(complete);
-    });
-  }, [pathname]);
-
   const { colorScheme } = useThemeContext();
   const navTheme = colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme;
   const statusStyle = colorScheme === "dark" ? "light" : "dark";
 
-  if (onboardingComplete === null) {
-    return null;
-  }
-
   return (
     <SubscriptionProvider>
-          <SubscriptionRedirect />
       <StatusBar style={statusStyle} animated />
       <NavThemeProvider value={navTheme}>
         <SafeAreaProvider>
@@ -79,11 +64,7 @@ function AppContent() {
             <StopwatchProvider>
               <CategoryProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
-                  {onboardingComplete === false && pathname !== "/auth" && pathname !== "/paywall" && pathname !== "/auth-popup" && pathname !== "/auth-callback" && <Redirect href="/onboarding" />}
-
                   <Stack>
-                    <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="stopwatch-modal"
@@ -102,6 +83,10 @@ function AppContent() {
                         headerBackButtonDisplayMode: "minimal",
                       }}
                     />
+                    <Stack.Screen
+                      name="paywall"
+                      options={{ headerShown: false, presentation: "modal" }}
+                    />
                   </Stack>
                   <SystemBars style={"auto"} />
                 </GestureHandlerRootView>
@@ -112,41 +97,6 @@ function AppContent() {
       </NavThemeProvider>
     </SubscriptionProvider>
   );
-}
-
-
-
-function SubscriptionRedirect() {
-  const { isSubscribed, loading } = useSubscription();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (loading) return;
-    const onOnboarding = pathname.startsWith("/onboarding");
-    if (onOnboarding) return;
-
-    let cancelled = false;
-    isOnboardingComplete().then((done) => {
-      if (cancelled) return;
-      if (!done) return;
-      const onPaywall = pathname === "/paywall";
-      if (onPaywall) return;
-      if (!isSubscribed) {
-        router.replace("/paywall");
-      }
-    }).catch(() => {
-      if (cancelled) return;
-      const onPaywall = pathname === "/paywall";
-      if (onPaywall) return;
-      if (!isSubscribed) {
-        router.replace("/paywall");
-      }
-    });
-    return () => { cancelled = true; };
-  }, [isSubscribed, loading, pathname]);
-
-  return null;
 }
 
 export default function RootLayout() {

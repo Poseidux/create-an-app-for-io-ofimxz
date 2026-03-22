@@ -45,9 +45,7 @@
       "revenueCatApiKeyIos": "appl_gNiQDfaHdjTIdGdstIjyLnXwPYC",
       "revenueCatApiKeyAndroid": "goog_SdDKpXLoJrgMoRfTRJGxoXqqfaj",
       "revenueCatEntitlementId": "pro",
-      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e",
-      "revenueCatTestApiKeyIos": "test_xlCmABeyndufSNKhjSOgAjJJuBC",
-      "revenueCatTestApiKeyAndroid": "test_xlCmABeyndufSNKhjSOgAjJJuBC"
+      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e"
     }
   }
 }

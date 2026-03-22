@@ -1,25 +1,6 @@
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "expo-router";
-import { useSubscription } from "@/contexts/SubscriptionContext";
-import { isOnboardingComplete } from "@/utils/onboardingStorage";
-
+// Subscription guard is no longer used for automatic redirects.
+// Paywall is shown only when the user tries to create a 4th stopwatch.
+// This file is kept as a no-op export to avoid breaking any existing imports.
 export function useSubscriptionGuard() {
-  const { isSubscribed, loading } = useSubscription();
-  const router = useRouter();
-  const pathname = usePathname();
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    isOnboardingComplete()
-      .then(setOnboardingDone)
-      .catch(() => setOnboardingDone(true));
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!loading && onboardingDone !== null && !isSubscribed) {
-      if (onboardingDone) {
-        router.replace("/paywall");
-      }
-    }
-  }, [isSubscribed, loading, onboardingDone, router]);
+  // No-op: paywall is triggered by stopwatch creation logic, not on navigation.
 }
