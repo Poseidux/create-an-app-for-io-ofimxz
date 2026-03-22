@@ -42,8 +42,7 @@ const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
 const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
 const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
-const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "unlimited_stopwatches";
-const OFFERING_ID = "stopwatch_unlimited";
+const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
@@ -102,7 +101,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     const mockPackage = {
       identifier: "$rc_monthly",
       product: {
-        title: "Premium",
+        title: "Monthly",
         priceString: "$4.99/month",
         description: "Unlock all premium features",
       },
@@ -223,17 +222,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      // Always use the dedicated stopwatch_unlimited offering — never the current/default offering.
-      // This prevents accidentally showing subscription products if the default offering is wrong.
-      const targetOffering = fetchedOfferings.all[OFFERING_ID];
-      if (targetOffering) {
-        console.log(`[RevenueCat] Found offering '${OFFERING_ID}' with ${targetOffering.availablePackages.length} package(s)`);
-        setCurrentOffering(targetOffering);
-        setPackages(targetOffering.availablePackages);
-      } else {
-        console.warn(`[RevenueCat] Offering '${OFFERING_ID}' not found in dashboard. Available: ${Object.keys(fetchedOfferings.all).join(", ")}`);
-        setCurrentOffering(null);
-        setPackages([]);
+      if (fetchedOfferings.current) {
+        setCurrentOffering(fetchedOfferings.current);
+        setPackages(fetchedOfferings.current.availablePackages);
       }
     } catch (error) {
       console.error("[RevenueCat] Failed to fetch offerings:", error);

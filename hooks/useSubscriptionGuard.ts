@@ -1,5 +1,25 @@
-// Free-tier app: paywall is triggered contextually (e.g. when stopwatch limit is hit),
-// not at launch. This hook is intentionally a no-op.
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "expo-router";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { isOnboardingComplete } from "@/utils/onboardingStorage";
+
 export function useSubscriptionGuard() {
-  // no-op
+  const { isSubscribed, loading } = useSubscription();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    isOnboardingComplete()
+      .then(setOnboardingDone)
+      .catch(() => setOnboardingDone(true));
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!loading && onboardingDone !== null && !isSubscribed) {
+      if (onboardingDone) {
+        router.replace("/paywall");
+      }
+    }
+  }, [isSubscribed, loading, onboardingDone, router]);
 }
