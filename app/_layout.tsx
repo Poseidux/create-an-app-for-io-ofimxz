@@ -114,13 +114,6 @@ function AppContent() {
 }
 
 
-// Free-tier app: unsubscribed users can use the app up to the limit.
-// SubscriptionRedirect is intentionally a no-op — paywall is triggered
-// contextually (e.g. when the stopwatch limit is hit) rather than at launch.
-function SubscriptionRedirect() {
-  return null;
-}
-
 export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),

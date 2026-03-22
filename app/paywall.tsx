@@ -22,7 +22,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import Purchases, { PurchasesPackage } from "react-native-purchases";
+// react-native-purchases is a native-only module — import conditionally to avoid
+// crashing the web bundle. All SDK calls are already guarded by isWeb checks.
+import type { PurchasesPackage } from "react-native-purchases";
 
 import { useSubscription } from "@/contexts/SubscriptionContext";
 
@@ -68,6 +70,8 @@ export default function PaywallScreen() {
     const load = async () => {
       try {
         console.log(`[Paywall] Fetching offering '${OFFERING_ID}'`);
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const Purchases = require("react-native-purchases").default;
         if (typeof Purchases?.getOfferings !== "function") {
           console.warn("[Paywall] react-native-purchases not available (Expo Go). Use a dev/prod build.");
           setOfferingLoading(false);
