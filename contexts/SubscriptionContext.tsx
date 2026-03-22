@@ -222,9 +222,25 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      if (fetchedOfferings.current) {
-        setCurrentOffering(fetchedOfferings.current);
-        setPackages(fetchedOfferings.current.availablePackages);
+      // Use the stopwatch_unlimited offering explicitly; fall back to current if not found
+      const targetOffering =
+        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
+
+      if (targetOffering) {
+        setCurrentOffering(targetOffering);
+        // Prefer the $rc_lifetime package; fall back to all available packages
+        const lifetimePkg = targetOffering.availablePackages.find(
+          (pkg) => pkg.identifier === "$rc_lifetime"
+        );
+        setPackages(
+          lifetimePkg ? [lifetimePkg] : targetOffering.availablePackages
+        );
+        console.log(
+          "[RevenueCat] Offering loaded:",
+          targetOffering.identifier,
+          "| package:",
+          lifetimePkg?.identifier ?? "none (using all packages)"
+        );
       }
     } catch (error) {
       console.error("[RevenueCat] Failed to fetch offerings:", error);
