@@ -604,6 +604,19 @@ export default function HomeScreen() {
 
   const listBottomPad = insets.bottom + 100;
 
+  // Track previous count so we can configure LayoutAnimation when a stopwatch
+  // is added — this ensures the FlatList/EmptyState swap and new card insertion
+  // both animate from the correct position instead of jumping from y=0.
+  const prevCountRef = useRef(filteredStopwatches.length);
+  useEffect(() => {
+    if (filteredStopwatches.length > prevCountRef.current) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    prevCountRef.current = filteredStopwatches.length;
+  }, [filteredStopwatches.length]);
+
+  const showEmpty = isLoaded && filteredStopwatches.length === 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* Custom inline header — safe area top only, no double-counting */}
@@ -677,31 +690,32 @@ export default function HomeScreen() {
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
-      {/* Content — flex: 1 so it fills remaining space below the header */}
-      {isLoaded && filteredStopwatches.length === 0 ? (
+      {/* Content — flex: 1 fills remaining space below the header.
+          Both branches are always mounted so the flex layout is stable;
+          visibility is toggled via display to avoid remount layout jumps. */}
+      <View style={{ flex: 1, display: showEmpty ? 'flex' : 'none' }}>
         <EmptyState onAdd={openAddModal} />
-      ) : (
-        <FlatList
-          style={{ flex: 1 }}
-          data={filteredStopwatches}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-          renderItem={({ item, index }) => (
-            <StopwatchCard
-              sw={item}
-              index={index}
-              total={filteredStopwatches.length}
-              onStart={() => handleStart(item.id)}
-              onPause={() => handlePause(item.id)}
-              onReset={() => handleReset(item.id)}
-              onDelete={() => handleDelete(item.id)}
-              onMoveUp={() => handleMoveUp(item.id)}
-              onMoveDown={() => handleMoveDown(item.id)}
-              onLongPress={() => openEditModal(item.id)}
-            />
-          )}
-        />
-      )}
+      </View>
+      <FlatList
+        style={{ flex: 1, display: showEmpty ? 'none' : 'flex' }}
+        data={filteredStopwatches}
+        keyExtractor={item => item.id}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
+        renderItem={({ item, index }) => (
+          <StopwatchCard
+            sw={item}
+            index={index}
+            total={filteredStopwatches.length}
+            onStart={() => handleStart(item.id)}
+            onPause={() => handlePause(item.id)}
+            onReset={() => handleReset(item.id)}
+            onDelete={() => handleDelete(item.id)}
+            onMoveUp={() => handleMoveUp(item.id)}
+            onMoveDown={() => handleMoveDown(item.id)}
+            onLongPress={() => openEditModal(item.id)}
+          />
+        )}
+      />
     </View>
   );
 }
