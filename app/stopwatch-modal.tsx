@@ -205,65 +205,62 @@ export default function StopwatchModal() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.card }}>
+    <View style={{ flex: 1, backgroundColor: C.card }}>
       {/* FIXED HEADER — always on top, never scrolls */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 20,
-          paddingVertical: 12,
-          backgroundColor: C.card,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: C.border,
-          zIndex: 10,
-        }}
-      >
-        <Pressable
-          onPress={handleCancel}
-          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: C.border,
+          }}
         >
-          <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>
-            Cancel
-          </Text>
-        </Pressable>
+          <Pressable
+            onPress={handleCancel}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
+          >
+            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>
+              Cancel
+            </Text>
+          </Pressable>
 
-        <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>
-          {title}
-        </Text>
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          style={({ pressed }) => ({
-            opacity: !canSubmit ? 0.4 : pressed ? 0.6 : 1,
-            padding: 4,
-          })}
-        >
-          <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
-            {submitLabel}
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>
+            {title}
           </Text>
-        </Pressable>
-      </View>
+
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            style={({ pressed }) => ({
+              opacity: !canSubmit ? 0.4 : pressed ? 0.6 : 1,
+              padding: 4,
+            })}
+          >
+            <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
+              {submitLabel}
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
 
       {/* KEYBOARD AWARE SCROLL AREA */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          scrollEnabled={true}
           showsVerticalScrollIndicator={true}
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 24,
-            paddingBottom: 120,
-            flexGrow: 1,
+            paddingBottom: 80,
           }}
         >
         {/* Name Input */}
@@ -442,6 +439,6 @@ export default function StopwatchModal() {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -80,6 +80,8 @@ function CategoryChips() {
       >
         {allCategories.map((cat) => {
           const isSelected = selectedCategory === cat.id;
+          const chipBg = isSelected ? C.chipSelected : C.chipBackground;
+          const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
           return (
             <Pressable
               key={cat.id}
@@ -87,22 +89,21 @@ function CategoryChips() {
                 console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
                 setSelectedCategory(cat.id);
               }}
-              style={{
+              style={({ pressed }) => ({
                 flexShrink: 0,
                 flexGrow: 0,
                 paddingHorizontal: 14,
-                paddingVertical: 8,
+                paddingVertical: 7,
                 borderRadius: 20,
-                backgroundColor: isSelected ? C.tint : 'transparent',
-                borderWidth: 1,
-                borderColor: isSelected ? C.tint : C.border,
-              }}
+                backgroundColor: chipBg,
+                opacity: pressed ? 0.7 : 1,
+              })}
             >
               <Text
                 style={{
                   fontSize: 14,
-                  fontWeight: isSelected ? '700' : '400',
-                  color: isSelected ? '#ffffff' : C.tabIconDefault,
+                  fontWeight: '500',
+                  color: chipTextColor,
                   flexShrink: 0,
                 }}
                 numberOfLines={1}
