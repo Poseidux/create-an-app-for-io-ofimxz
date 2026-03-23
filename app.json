@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/1cda0c2f-a55c-459f-954b-8cec41d27a89.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/app-icon-qme.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.poseiduxfitness.chroniqo",

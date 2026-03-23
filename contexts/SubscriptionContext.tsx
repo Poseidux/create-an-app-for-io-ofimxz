@@ -46,7 +46,7 @@ const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
-// Use nativelyProjectId (unique UUID) for scoping; fall back to slug for backward compatibility
+// Use projectId (unique UUID) for scoping; fall back to slug for backward compatibility
 const _PROJECT_SCOPE = Constants.expoConfig?.extra?.nativelyProjectId || Constants.expoConfig?.slug || "app";
 const MOCK_PURCHASE_KEY = `rc_mock_purchased_${_PROJECT_SCOPE}`;
 // Scoped native dev mock key — persists simulated subscription in Expo Go via expo-secure-store
