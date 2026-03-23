@@ -28,8 +28,7 @@
       "expo-font",
       "expo-router",
       "expo-web-browser",
-      "expo-secure-store",
-      "react-native-purchases"
+      "expo-secure-store"
     ],
     "scheme": "chroniqostopwatches",
     "experiments": {
