@@ -209,9 +209,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      // Use the "default" offering if present; fall back to current offering
+      // Use the "stopwatch_unlimited" offering if present; fall back to current offering
       const targetOffering =
-        fetchedOfferings.all["default"] ?? fetchedOfferings.current;
+        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
 
       if (targetOffering) {
         setCurrentOffering(targetOffering);
