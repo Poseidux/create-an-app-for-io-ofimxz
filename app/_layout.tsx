@@ -69,11 +69,8 @@ function AppContent() {
                     <Stack.Screen
                       name="stopwatch-modal"
                       options={{
-                        presentation: "formSheet",
+                        presentation: "modal",
                         headerShown: false,
-                        sheetAllowedDetents: [1.0],
-                        sheetGrabberVisible: true,
-                        sheetExpandsWhenScrolledToEdge: true,
                       }}
                     />
                     <Stack.Screen

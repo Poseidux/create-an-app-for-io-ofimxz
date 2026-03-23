@@ -207,7 +207,7 @@ export default function StopwatchModal() {
   return (
     <View style={{ flex: 1, backgroundColor: C.card }}>
       {/* FIXED HEADER — always on top, never scrolls */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card, zIndex: 1 }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card }}>
         <View
           style={{
             flexDirection: 'row',
@@ -251,7 +251,6 @@ export default function StopwatchModal() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
         <ScrollView
           style={{ flex: 1 }}
