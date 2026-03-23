@@ -207,7 +207,7 @@ export default function StopwatchModal() {
   return (
     <View style={{ flex: 1, backgroundColor: C.card }}>
       {/* FIXED HEADER — always on top, never scrolls */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card, zIndex: 10, elevation: 10 }}>
         <View
           style={{
             flexDirection: 'row',
@@ -217,6 +217,7 @@ export default function StopwatchModal() {
             paddingVertical: 12,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: C.border,
+            zIndex: 10,
           }}
         >
           <Pressable
