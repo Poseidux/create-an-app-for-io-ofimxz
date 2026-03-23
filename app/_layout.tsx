@@ -70,10 +70,10 @@ function AppContent() {
                       name="stopwatch-modal"
                       options={{
                         presentation: "formSheet",
-                        sheetGrabberVisible: true,
-                        sheetAllowedDetents: [0.55],
-                        contentStyle: { backgroundColor: "transparent" },
                         headerShown: false,
+                        sheetAllowedDetents: [1.0],
+                        sheetGrabberVisible: true,
+                        sheetExpandsWhenScrolledToEdge: true,
                       }}
                     />
                     <Stack.Screen

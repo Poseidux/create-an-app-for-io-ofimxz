@@ -250,7 +250,8 @@ export default function StopwatchModal() {
       {/* KEYBOARD AWARE SCROLL AREA */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <ScrollView
           style={{ flex: 1 }}
@@ -260,7 +261,7 @@ export default function StopwatchModal() {
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 24,
-            paddingBottom: 80,
+            paddingBottom: 120,
           }}
         >
         {/* Name Input */}
@@ -305,8 +306,8 @@ export default function StopwatchModal() {
           horizontal
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4, marginBottom: 12 }}
-          style={{ flexShrink: 0 }}
+          contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}
+          style={{ flexShrink: 0, marginBottom: 12 }}
         >
           {categories.map(cat => {
             const isSelected = selectedCategoryId === cat.id;
