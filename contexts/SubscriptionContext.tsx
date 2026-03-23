@@ -40,8 +40,6 @@ import * as SecureStore from "expo-secure-store";
 const extra = Constants.expoConfig?.extra || {};
 const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
-const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
-const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
 const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
 
 // Check if running on web
@@ -151,12 +149,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // Use DEBUG log level in development, INFO in production
         Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
 
-        // Get API key based on platform and environment
-        // In development (__DEV__), use ANY available test key (test store works for all platforms)
-        // This allows Expo Go to work on iOS even without a platform-specific test key
-        const testKey = TEST_IOS_API_KEY || TEST_ANDROID_API_KEY;
-        const productionKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
-        const apiKey = __DEV__ && testKey ? testKey : productionKey;
+        // Always use the production API key for the current platform
+        const apiKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
 
         if (!apiKey) {
           console.warn(
@@ -167,15 +161,12 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           return;
         }
 
-        if (__DEV__) {
-          console.log("[RevenueCat] Initializing in DEV mode with key:", apiKey.substring(0, 10) + "...");
-          // Restore cached subscription state immediately to avoid paywall flash on bundle reload.
-          // The customerInfoUpdateListener (fired by configure() below) is the authoritative
-          // source and will immediately overwrite this with real RC Keychain data.
-          const cached = await SecureStore.getItemAsync(NATIVE_PURCHASE_KEY).catch(() => null);
-          if (cached === "true") {
-            setIsSubscribed(true);
-          }
+        // Restore cached subscription state immediately to avoid paywall flash on bundle reload.
+        // The customerInfoUpdateListener (fired by configure() below) is the authoritative
+        // source and will immediately overwrite this with real RC Keychain data.
+        const cached = await SecureStore.getItemAsync(NATIVE_PURCHASE_KEY).catch(() => null);
+        if (cached === "true") {
+          setIsSubscribed(true);
         }
 
         await Purchases.configure({ apiKey });
@@ -186,11 +177,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
             const hasEntitlement =
               typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !==
               "undefined";
-            // In __DEV__: don't clear subscription state — RevenueCat test store purchases are
-            // in-memory only and won't be known to RC after a configure() call on reload.
-            if (hasEntitlement || !__DEV__) {
-              setIsSubscribed(hasEntitlement);
-            }
+            setIsSubscribed(hasEntitlement);
           }
         );
 
@@ -253,16 +240,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const customerInfo = await Purchases.getCustomerInfo();
       const hasEntitlement =
         typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
-      // In __DEV__: RC test store purchases don't survive configure(), so only update state
-      // positively — mock/test purchase state persists across reloads via SecureStore cache.
-      if (hasEntitlement || !__DEV__) {
-        setIsSubscribed(hasEntitlement);
-      }
-      if (hasEntitlement) {
-        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "true").catch(() => {});
-      } else if (!__DEV__) {
-        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "false").catch(() => {});
-      }
+      setIsSubscribed(hasEntitlement);
+      await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
     } catch (error) {
       console.error("[RevenueCat] Failed to check subscription:", error);
       // Don't reset isSubscribed on error — the customerInfoUpdateListener
@@ -305,10 +284,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const hasEntitlement =
         typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
       setIsSubscribed(hasEntitlement);
-      // In __DEV__: don't clear the cache on restore failure (test store purchases are ephemeral)
-      if (hasEntitlement || !__DEV__) {
-        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
-      }
+      await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
       return hasEntitlement;
     } catch (error) {
       console.error("[RevenueCat] Restore failed:", error);
