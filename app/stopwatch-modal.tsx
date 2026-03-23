@@ -207,17 +207,16 @@ export default function StopwatchModal() {
   return (
     <View style={{ flex: 1, backgroundColor: C.card }}>
       {/* FIXED HEADER — always on top, never scrolls */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card, zIndex: 10, elevation: 10 }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card, zIndex: 1 }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: 20,
+            paddingHorizontal: 16,
             paddingVertical: 12,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: C.border,
-            zIndex: 10,
           }}
         >
           <Pressable
@@ -251,17 +250,17 @@ export default function StopwatchModal() {
       {/* KEYBOARD AWARE SCROLL AREA */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 24,
+            paddingTop: 16,
             paddingBottom: 120,
           }}
         >
