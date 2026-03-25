@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react';
-import { Stopwatch, DEFAULT_STOPWATCH_COLOR } from '../types/stopwatch';
+import { Stopwatch, Lap, DEFAULT_STOPWATCH_COLOR } from '../types/stopwatch';
 import { loadStopwatches, saveStopwatches } from '../utils/stopwatch-storage';
 import { useSubscription } from './SubscriptionContext';
 
@@ -21,7 +21,11 @@ type Action =
   | { type: 'DELETE'; id: string }
   | { type: 'RENAME'; id: string; name: string; color: string; category?: string }
   | { type: 'MOVE_UP'; id: string }
-  | { type: 'MOVE_DOWN'; id: string };
+  | { type: 'MOVE_DOWN'; id: string }
+  | { type: 'ADD_LAP'; id: string; lap: Lap }
+  | { type: 'CLEAR_LAPS'; id: string }
+  | { type: 'UPDATE_NOTE'; id: string; note: string }
+  | { type: 'UPDATE_LAP_NOTE'; id: string; lapId: string; note: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -39,6 +43,7 @@ function reducer(state: State, action: Action): State {
         createdAt: Date.now(),
         color: action.color,
         category: action.category,
+        laps: [],
       };
       return { ...state, stopwatches: [...state.stopwatches, newItem] };
     }
@@ -64,7 +69,7 @@ function reducer(state: State, action: Action): State {
     case 'RESET': {
       const stopwatches = state.stopwatches.map(sw =>
         sw.id === action.id
-          ? { ...sw, isRunning: false, accumulatedMs: 0, startedAt: null }
+          ? { ...sw, isRunning: false, accumulatedMs: 0, startedAt: null, laps: [] }
           : sw
       );
       return { ...state, stopwatches };
@@ -109,6 +114,39 @@ function reducer(state: State, action: Action): State {
       return { ...state, stopwatches };
     }
 
+    case 'ADD_LAP': {
+      const stopwatches = state.stopwatches.map(sw => {
+        if (sw.id !== action.id) return sw;
+        return { ...sw, laps: [...(sw.laps ?? []), action.lap] };
+      });
+      return { ...state, stopwatches };
+    }
+
+    case 'CLEAR_LAPS': {
+      const stopwatches = state.stopwatches.map(sw =>
+        sw.id === action.id ? { ...sw, laps: [] } : sw
+      );
+      return { ...state, stopwatches };
+    }
+
+    case 'UPDATE_NOTE': {
+      const stopwatches = state.stopwatches.map(sw =>
+        sw.id === action.id ? { ...sw, note: action.note } : sw
+      );
+      return { ...state, stopwatches };
+    }
+
+    case 'UPDATE_LAP_NOTE': {
+      const stopwatches = state.stopwatches.map(sw => {
+        if (sw.id !== action.id) return sw;
+        const laps = (sw.laps ?? []).map(lap =>
+          lap.id === action.lapId ? { ...lap, note: action.note } : lap
+        );
+        return { ...sw, laps };
+      });
+      return { ...state, stopwatches };
+    }
+
     default:
       return state;
   }
@@ -128,6 +166,10 @@ interface StopwatchContextValue {
   renameStopwatch: (id: string, name: string, color: string, category?: string) => void;
   moveUp: (id: string) => void;
   moveDown: (id: string) => void;
+  addLap: (id: string, lap: Lap) => void;
+  clearLaps: (id: string) => void;
+  updateNote: (id: string, note: string) => void;
+  updateLapNote: (id: string, lapId: string, note: string) => void;
 }
 
 const StopwatchContext = createContext<StopwatchContextValue | null>(null);
@@ -193,6 +235,22 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
     moveDown: (id) => {
       console.log(`[StopwatchContext] MOVE_DOWN id=${id}`);
       dispatchAndSave({ type: 'MOVE_DOWN', id });
+    },
+    addLap: (id, lap) => {
+      console.log(`[StopwatchContext] ADD_LAP id=${id} lapNumber=${lap.lapNumber}`);
+      dispatchAndSave({ type: 'ADD_LAP', id, lap });
+    },
+    clearLaps: (id) => {
+      console.log(`[StopwatchContext] CLEAR_LAPS id=${id}`);
+      dispatchAndSave({ type: 'CLEAR_LAPS', id });
+    },
+    updateNote: (id, note) => {
+      console.log(`[StopwatchContext] UPDATE_NOTE id=${id}`);
+      dispatchAndSave({ type: 'UPDATE_NOTE', id, note });
+    },
+    updateLapNote: (id, lapId, note) => {
+      console.log(`[StopwatchContext] UPDATE_LAP_NOTE id=${id} lapId=${lapId}`);
+      dispatchAndSave({ type: 'UPDATE_LAP_NOTE', id, lapId, note });
     },
   };
 

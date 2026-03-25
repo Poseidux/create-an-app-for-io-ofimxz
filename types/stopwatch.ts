@@ -1,3 +1,25 @@
+export interface Lap {
+  id: string;
+  lapNumber: number;
+  lapTime: number;       // duration of this lap in ms
+  splitTime: number;     // total elapsed at this lap in ms
+  note?: string;
+  timestamp: string;     // ISO 8601
+}
+
+export interface Session {
+  id: string;
+  stopwatchId: string;
+  stopwatchName: string;
+  category: string;
+  color: string;
+  totalTime: number;     // ms
+  laps: Lap[];
+  note?: string;
+  startedAt: string;     // ISO 8601
+  endedAt: string;       // ISO 8601
+}
+
 export interface Stopwatch {
   id: string;
   name: string;
@@ -8,6 +30,8 @@ export interface Stopwatch {
   createdAt: number;
   color?: string;
   category?: string;
+  laps: Lap[];
+  note?: string;
 }
 
 export const DEFAULT_STOPWATCH_COLOR = '#22c55e';

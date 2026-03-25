@@ -73,13 +73,7 @@ function AppContent() {
                         headerShown: false,
                       }}
                     />
-                    <Stack.Screen
-                      name="settings"
-                      options={{
-                        title: "Settings",
-                        headerBackButtonDisplayMode: "minimal",
-                      }}
-                    />
+
                     <Stack.Screen
                       name="paywall"
                       options={{ headerShown: false, presentation: "modal" }}

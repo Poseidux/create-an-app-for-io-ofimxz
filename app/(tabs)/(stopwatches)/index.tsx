@@ -7,6 +7,7 @@ import {
   Alert,
   Animated,
   LayoutAnimation,
+  Platform,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -21,13 +22,11 @@ import {
   Timer,
   ChevronUp,
   ChevronDown,
-  Settings,
 } from 'lucide-react-native';
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
 import { Stopwatch, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
-import { Category } from '@/utils/category-storage';
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
 
@@ -62,8 +61,9 @@ function PulsingDot({ color }: { color: string }) {
 // ─── Category Chips ───────────────────────────────────────────────────────────
 
 function CategoryChips() {
-  const C = useColors();
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
+  const C = useColors();
+  const allCategories = [{ id: 'all', name: 'All' }, ...categories.filter(c => c.id !== 'all')];
 
   return (
     <View style={{ height: 48, overflow: 'hidden' }}>
@@ -77,7 +77,7 @@ function CategoryChips() {
           height: 48,
         }}
       >
-        {categories.map(cat => {
+        {allCategories.map((cat) => {
           const isSelected = selectedCategory === cat.id;
           const chipBg = isSelected ? C.chipSelected : C.chipBackground;
           const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
@@ -85,7 +85,7 @@ function CategoryChips() {
             <Pressable
               key={cat.id}
               onPress={() => {
-                console.log(`[HomeScreen] Category chip pressed: ${cat.id}`);
+                console.log(`[StopwatchesScreen] Category chip pressed: ${cat.id}`);
                 setSelectedCategory(cat.id);
               }}
               style={({ pressed }) => ({
@@ -98,7 +98,15 @@ function CategoryChips() {
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: chipTextColor,
+                  flexShrink: 0,
+                }}
+                numberOfLines={1}
+              >
                 {cat.name}
               </Text>
             </Pressable>
@@ -155,25 +163,34 @@ function StopwatchCard({
   const dayLabel = days >= 1 ? (days === 1 ? '+1 day' : `+${days} days`) : null;
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
 
-  // Detect white indicator color for contrast fix
   const isWhiteIndicator = ['#ffffff', '#fff', '#FFFFFF', '#FFF'].includes(swColor.trim());
   const pauseTextColor = isWhiteIndicator ? '#000000' : '#ffffff';
   const startPauseTextColor = sw.isRunning ? pauseTextColor : '#ffffff';
 
   const statusText = sw.isRunning ? 'Running' : 'Paused';
-  const statusColor = sw.isRunning ? swColor : C.textSecondary;
-  const cardBg = sw.isRunning ? `${swColor}26` : C.card;
-  const cardBorderColor = sw.isRunning ? swColor : C.border;
-  const leftBorderColor = sw.isRunning ? swColor : 'transparent';
+  const statusBadgeBg = sw.isRunning ? `${swColor}22` : C.surfaceSecondary;
+  const statusBadgeColor = sw.isRunning ? swColor : C.textSecondary;
+  const cardBg = sw.isRunning ? `${swColor}0a` : C.card;
+  const cardBorderColor = sw.isRunning ? `${swColor}40` : C.border;
   const startPauseBg = sw.isRunning ? swColor : C.primary;
   const startPauseLabel = sw.isRunning ? 'Pause' : 'Start';
   const timerColor = sw.isRunning ? swColor : C.text;
   const isFirst = index === 0;
   const isLast = index === total - 1;
+  const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+  const categoryLabel = sw.category
+    ? (categories.find(c => c.id === sw.category)?.name ?? null)
+    : null;
+
+  const lapCount = (sw.laps ?? []).length;
+  const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     if (sw.isRunning) {
       onPause();
     } else {
@@ -183,10 +200,12 @@ function StopwatchCard({
 
   const handleReset = () => {
     console.log(`[StopwatchCard] Reset pressed: id=${sw.id}, name="${sw.name}"`);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     Alert.alert(
       'Reset stopwatch?',
-      'This will clear the elapsed time.',
+      'This will clear the elapsed time and save a session if time was recorded.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -203,7 +222,9 @@ function StopwatchCard({
 
   const handleDelete = () => {
     console.log(`[StopwatchCard] Delete pressed: id=${sw.id}, name="${sw.name}"`);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
     Alert.alert(
       'Delete stopwatch?',
       `"${sw.name}" will be permanently removed.`,
@@ -214,6 +235,7 @@ function StopwatchCard({
           style: 'destructive',
           onPress: () => {
             console.log(`[StopwatchCard] Delete confirmed: id=${sw.id}`);
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onDelete();
           },
         },
@@ -221,23 +243,16 @@ function StopwatchCard({
     );
   };
 
-  // Resolve category name from id (not raw id)
-  const categoryLabel = sw.category
-    ? (categories.find((c: Category) => c.id === sw.category)?.name ?? null)
-    : null;
+  const translateY = entranceAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, 0],
+  });
 
   return (
     <Animated.View
       style={{
         opacity: entranceAnim,
-        transform: [
-          {
-            translateY: entranceAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [16, 0],
-            }),
-          },
-        ],
+        transform: [{ translateY }],
       }}
     >
       <Pressable
@@ -253,190 +268,206 @@ function StopwatchCard({
             backgroundColor: cardBg,
             borderRadius: 16,
             borderCurve: 'continuous',
-            padding: 16,
+            overflow: 'hidden',
             borderWidth: 1,
             borderColor: cardBorderColor,
-            borderLeftWidth: 3,
-            borderLeftColor: leftBorderColor,
             boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
-            overflow: 'hidden',
           }}
         >
-          {/* Top row: name + status + timer */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
-            {/* Left: name + category + status */}
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: C.text,
-                  marginBottom: categoryLabel ? 3 : 6,
-                }}
-              >
-                {sw.name}
-              </Text>
-              {categoryLabel !== null && (
-                <Text style={{ fontSize: 12, color: C.subtext, marginBottom: 6 }}>
-                  {categoryLabel}
-                </Text>
-              )}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {sw.isRunning && <PulsingDot color={swColor} />}
-                <View
+          {sw.isRunning && (
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                backgroundColor: swColor,
+                zIndex: 1,
+              }}
+            />
+          )}
+
+          <View style={{ padding: 16, paddingLeft: sw.isRunning ? 20 : 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text
                   style={{
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 20,
-                    backgroundColor: sw.isRunning ? `${swColor}26` : C.surfaceSecondary,
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: C.text,
+                    marginBottom: categoryLabel ? 3 : 6,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: statusColor,
-                      fontWeight: '600',
-                    }}
-                  >
-                    {statusText}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Right: timer + reorder arrows + day label */}
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text
-                style={{
-                  fontSize: 28,
-                  fontWeight: '700',
-                  fontFamily: 'Menlo',
-                  color: timerColor,
-                  fontVariant: ['tabular-nums'],
-                  letterSpacing: -0.5,
-                  lineHeight: 34,
-                }}
-              >
-                {timeDisplay}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                {dayLabel !== null && (
-                  <Text style={{ fontSize: 12, color: C.subtext, fontWeight: '500' }}>
-                    {dayLabel}
+                  {sw.name}
+                </Text>
+                {categoryLabel !== null && (
+                  <Text style={{ fontSize: 12, color: C.subtext, marginBottom: 6 }}>
+                    {categoryLabel}
                   </Text>
                 )}
-                <View style={{ flexDirection: 'row', gap: 2 }}>
-                  <Pressable
-                    onPress={() => {
-                      console.log(`[StopwatchCard] Move up pressed: id=${sw.id}`);
-                      onMoveUp();
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {sw.isRunning && <PulsingDot color={swColor} />}
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 20,
+                      backgroundColor: statusBadgeBg,
                     }}
-                    disabled={isFirst}
-                    style={({ pressed }) => ({
-                      width: 32,
-                      height: 28,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 6,
-                      backgroundColor: C.surfaceSecondary,
-                      opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
-                    })}
                   >
-                    <ChevronUp size={14} color={C.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      console.log(`[StopwatchCard] Move down pressed: id=${sw.id}`);
-                      onMoveDown();
-                    }}
-                    disabled={isLast}
-                    style={({ pressed }) => ({
-                      width: 32,
-                      height: 28,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 6,
-                      backgroundColor: C.surfaceSecondary,
-                      opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <ChevronDown size={14} color={C.textSecondary} />
-                  </Pressable>
+                    <Text style={{ fontSize: 11, color: statusBadgeColor, fontWeight: '600' }}>
+                      {statusText}
+                    </Text>
+                  </View>
+                  {lapCountLabel !== null && (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 20,
+                        backgroundColor: C.surfaceSecondary,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
+                        {lapCountLabel}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '700',
+                    fontFamily: timerFont,
+                    color: timerColor,
+                    fontVariant: ['tabular-nums'],
+                    letterSpacing: -0.5,
+                    lineHeight: 34,
+                  }}
+                >
+                  {timeDisplay}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  {dayLabel !== null && (
+                    <Text style={{ fontSize: 12, color: C.subtext, fontWeight: '500' }}>
+                      {dayLabel}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
+                    <Pressable
+                      onPress={() => {
+                        console.log(`[StopwatchCard] Move up pressed: id=${sw.id}`);
+                        onMoveUp();
+                      }}
+                      disabled={isFirst}
+                      style={({ pressed }) => ({
+                        width: 32,
+                        height: 28,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 6,
+                        backgroundColor: C.surfaceSecondary,
+                        opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
+                      })}
+                    >
+                      <ChevronUp size={14} color={C.textSecondary} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        console.log(`[StopwatchCard] Move down pressed: id=${sw.id}`);
+                        onMoveDown();
+                      }}
+                      disabled={isLast}
+                      style={({ pressed }) => ({
+                        width: 32,
+                        height: 28,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 6,
+                        backgroundColor: C.surfaceSecondary,
+                        opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
+                      })}
+                    >
+                      <ChevronDown size={14} color={C.textSecondary} />
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
 
-          {/* Divider */}
-          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
+            <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
 
-          {/* Action buttons */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable
-              onPress={handleStartPause}
-              style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-                backgroundColor: startPauseBg,
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                paddingVertical: 9,
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              {sw.isRunning
-                ? <Pause size={14} color={startPauseTextColor} fill={startPauseTextColor} />
-                : <Play size={14} color="#fff" fill="#fff" />
-              }
-              <Text style={{ fontSize: 13, fontWeight: '600', color: startPauseTextColor }}>
-                {startPauseLabel}
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={handleStartPause}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: startPauseBg,
+                  borderRadius: 10,
+                  borderCurve: 'continuous',
+                  paddingVertical: 9,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {sw.isRunning
+                  ? <Pause size={15} color={startPauseTextColor} fill={startPauseTextColor} />
+                  : <Play size={15} color="#fff" fill="#fff" />
+                }
+                <Text style={{ fontSize: 13, fontWeight: '600', color: startPauseTextColor }}>
+                  {startPauseLabel}
+                </Text>
+              </Pressable>
 
-            <Pressable
-              onPress={handleReset}
-              style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-                backgroundColor: C.surfaceSecondary,
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                paddingVertical: 9,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <RotateCcw size={14} color={C.textSecondary} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
-                Reset
-              </Text>
-            </Pressable>
+              <Pressable
+                onPress={handleReset}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 10,
+                  borderCurve: 'continuous',
+                  paddingVertical: 9,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <RotateCcw size={14} color={C.textSecondary} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                  Reset
+                </Text>
+              </Pressable>
 
-            <Pressable
-              onPress={handleDelete}
-              style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-                backgroundColor: C.dangerMuted,
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                paddingVertical: 9,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Trash2 size={14} color={C.danger} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: C.danger }}>
-                Delete
-              </Text>
-            </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: C.dangerMuted,
+                  borderRadius: 10,
+                  borderCurve: 'continuous',
+                  paddingVertical: 9,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Trash2 size={14} color={C.danger} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: C.danger }}>
+                  Delete
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Pressable>
@@ -488,7 +519,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </Text>
       <Pressable
         onPress={() => {
-          console.log('[HomeScreen] Empty state "Add Stopwatch" pressed');
+          console.log('[StopwatchesScreen] Empty state "Add Stopwatch" pressed');
           onAdd();
         }}
         style={({ pressed }) => ({
@@ -515,7 +546,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function HomeScreen() {
+export default function StopwatchesScreen() {
   const C = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -557,16 +588,16 @@ export default function HomeScreen() {
 
   const openAddModal = useCallback(() => {
     if (!canAddStopwatch) {
-      console.log('[HomeScreen] Free tier limit reached — redirecting to paywall');
+      console.log('[StopwatchesScreen] Free tier limit reached — redirecting to paywall');
       router.push('/paywall');
       return;
     }
-    console.log('[HomeScreen] Open add stopwatch modal');
+    console.log('[StopwatchesScreen] Open add stopwatch modal');
     router.push('/stopwatch-modal');
   }, [router, canAddStopwatch]);
 
   const openEditModal = useCallback((id: string) => {
-    console.log(`[HomeScreen] Open edit modal for id=${id}`);
+    console.log(`[StopwatchesScreen] Open edit modal for id=${id}`);
     router.push(`/stopwatch-modal?edit=${id}`);
   }, [router]);
 
@@ -579,12 +610,10 @@ export default function HomeScreen() {
   }, [pauseStopwatch]);
 
   const handleReset = useCallback((id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     resetStopwatch(id);
   }, [resetStopwatch]);
 
   const handleDelete = useCallback((id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     deleteStopwatch(id);
   }, [deleteStopwatch]);
 
@@ -604,9 +633,6 @@ export default function HomeScreen() {
 
   const listBottomPad = insets.bottom + 100;
 
-  // Track previous count so we can configure LayoutAnimation when a stopwatch
-  // is added — this ensures the FlatList/EmptyState swap and new card insertion
-  // both animate from the correct position instead of jumping from y=0.
   const prevCountRef = useRef(filteredStopwatches.length);
   useEffect(() => {
     if (filteredStopwatches.length > prevCountRef.current) {
@@ -619,13 +645,7 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      {/* Custom inline header — safe area top only, no double-counting */}
-      <View
-        style={{
-          paddingTop: insets.top,
-          backgroundColor: C.background,
-        }}
-      >
+      <View style={{ paddingTop: insets.top, backgroundColor: C.background }}>
         <View
           style={{
             height: 44,
@@ -634,24 +654,6 @@ export default function HomeScreen() {
             alignItems: 'center',
           }}
         >
-          <Pressable
-            onPress={() => {
-              console.log('[HomeScreen] Settings button pressed');
-              router.push('/settings');
-            }}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: C.chipBackground,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Settings size={18} color={C.icon} />
-          </Pressable>
-
           <Text
             style={{
               flex: 1,
@@ -661,12 +663,12 @@ export default function HomeScreen() {
               color: C.text,
             }}
           >
-            Stopwatch
+            Stopwatches
           </Text>
 
           <Pressable
             onPress={() => {
-              console.log('[HomeScreen] Header + button pressed');
+              console.log('[StopwatchesScreen] Header + button pressed');
               openAddModal();
             }}
             style={({ pressed }) => ({
@@ -683,16 +685,10 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Category chips */}
         <CategoryChips />
-
-        {/* Separator */}
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
-      {/* Content — flex: 1 fills remaining space below the header.
-          Both branches are always mounted so the flex layout is stable;
-          visibility is toggled via display to avoid remount layout jumps. */}
       <View style={{ flex: 1, display: showEmpty ? 'flex' : 'none' }}>
         <EmptyState onAdd={openAddModal} />
       </View>
