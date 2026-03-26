@@ -4,12 +4,10 @@ export default function StatsLayout() {
   return (
     <Stack
       screenOptions={{
-        headerLargeTitle: true,
-        headerTransparent: process.env.EXPO_OS === 'ios',
-        headerBlurEffect: 'systemMaterial',
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Stats' }} />
+      <Stack.Screen name="index" />
     </Stack>
   );
 }

@@ -48,34 +48,32 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
-  // Active tab detection: match the tab whose name segment appears in the current pathname
+  // Active tab detection: match the tab whose name segment appears in the current pathname.
+  // Tab names are like "(stopwatches)", "(history)", "(stats)", "(settings)".
+  // On Android, usePathname() returns the real filesystem path, e.g.:
+  //   "/"  or  "/(tabs)/(stopwatches)"  → stopwatches (index 0, fallback)
+  //   "/(tabs)/(history)"  or  "/(tabs)/(history)/abc123"  → history
+  //   "/(tabs)/(stats)"  → stats
+  //   "/(tabs)/(settings)"  → settings
   const activeTabIndex = React.useMemo(() => {
-    // pathname examples:
-    //   "/(tabs)/(stopwatches)"  or  "/(tabs)/(stopwatches)/index"
-    //   "/(tabs)/(history)"      or  "/(tabs)/(history)/abc123"
-    //   "/(tabs)/(stats)"
-    //   "/(tabs)/(settings)"
-    // tab.name examples: "(stopwatches)", "(history)", "(stats)", "(settings)"
+    // Strip the inner word from each tab name, e.g. "(stopwatches)" → "stopwatches"
+    const stripParens = (s: string) => s.replace(/[()]/g, '');
 
     let bestMatch = -1;
-    let bestMatchScore = 0;
+    let bestLength = 0;
 
     tabs.forEach((tab, index) => {
-      const tabSegment = tab.name; // e.g. "(stopwatches)"
-      let score = 0;
-
-      // Highest: pathname contains the exact tab segment as a path component
-      if (pathname.includes(`/${tabSegment}`)) {
-        // Prefer longer (more specific) matches so "(history)" beats "(home)" etc.
-        score = 60 + tabSegment.length;
-      }
-
-      if (score > bestMatchScore) {
-        bestMatchScore = score;
-        bestMatch = index;
+      const segment = stripParens(tab.name); // e.g. "stopwatches", "history", "stats", "settings"
+      if (pathname.includes(segment)) {
+        // Prefer the longest matching segment to avoid false positives
+        if (segment.length > bestLength) {
+          bestLength = segment.length;
+          bestMatch = index;
+        }
       }
     });
 
+    // Default to index 0 (stopwatches) when pathname is "/" or no segment matched
     return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 

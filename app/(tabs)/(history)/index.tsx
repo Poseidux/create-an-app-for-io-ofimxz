@@ -212,8 +212,7 @@ export default function HistoryScreen() {
         <FlatList
           data={sessions}
           keyExtractor={item => item.id}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
+          contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: listBottomPad }}
           renderItem={({ item }) => (
             <SessionRow
               session={item}

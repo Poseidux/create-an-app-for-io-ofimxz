@@ -4,15 +4,14 @@ export default function HistoryLayout() {
   return (
     <Stack
       screenOptions={{
-        headerLargeTitle: true,
-        headerTransparent: process.env.EXPO_OS === 'ios',
-        headerBlurEffect: 'systemMaterial',
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'History' }} />
+      <Stack.Screen name="index" />
       <Stack.Screen
         name="[id]"
         options={{
+          headerShown: true,
           title: 'Session Detail',
           headerLargeTitle: false,
           headerBackButtonDisplayMode: 'minimal',

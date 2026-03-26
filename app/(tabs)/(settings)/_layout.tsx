@@ -4,12 +4,10 @@ export default function SettingsLayout() {
   return (
     <Stack
       screenOptions={{
-        headerLargeTitle: true,
-        headerTransparent: process.env.EXPO_OS === 'ios',
-        headerBlurEffect: 'systemMaterial',
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Settings' }} />
+      <Stack.Screen name="index" />
     </Stack>
   );
 }
