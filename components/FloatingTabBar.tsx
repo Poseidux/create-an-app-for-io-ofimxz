@@ -48,30 +48,26 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
-  // Improved active tab detection with better path matching
+  // Active tab detection: match the tab whose name segment appears in the current pathname
   const activeTabIndex = React.useMemo(() => {
-    // Find the best matching tab based on the current pathname
+    // pathname examples:
+    //   "/(tabs)/(stopwatches)"  or  "/(tabs)/(stopwatches)/index"
+    //   "/(tabs)/(history)"      or  "/(tabs)/(history)/abc123"
+    //   "/(tabs)/(stats)"
+    //   "/(tabs)/(settings)"
+    // tab.name examples: "(stopwatches)", "(history)", "(stats)", "(settings)"
+
     let bestMatch = -1;
     let bestMatchScore = 0;
 
     tabs.forEach((tab, index) => {
+      const tabSegment = tab.name; // e.g. "(stopwatches)"
       let score = 0;
 
-      // Exact route match gets highest score
-      if (pathname === tab.route) {
-        score = 100;
-      }
-      // Check if pathname starts with tab route (for nested routes)
-      else if (pathname.startsWith(tab.route as string)) {
-        score = 80;
-      }
-      // Check if pathname contains the tab name
-      else if (pathname.includes(tab.name)) {
-        score = 60;
-      }
-      // Check for partial matches in the route
-      else if (tab.route.includes('/(tabs)/') && pathname.includes(tab.route.split('/(tabs)/')[1])) {
-        score = 40;
+      // Highest: pathname contains the exact tab segment as a path component
+      if (pathname.includes(`/${tabSegment}`)) {
+        // Prefer longer (more specific) matches so "(history)" beats "(home)" etc.
+        score = 60 + tabSegment.length;
       }
 
       if (score > bestMatchScore) {
@@ -80,7 +76,6 @@ export default function FloatingTabBar({
       }
     });
 
-    // Default to first tab if no match found
     return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 

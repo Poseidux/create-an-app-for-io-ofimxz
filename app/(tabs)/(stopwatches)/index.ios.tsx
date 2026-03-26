@@ -8,6 +8,10 @@ import {
   Animated,
   LayoutAnimation,
   ScrollView,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,11 +25,15 @@ import {
   Timer,
   ChevronUp,
   ChevronDown,
+  Flag,
+  FileText,
+  X,
 } from 'lucide-react-native';
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
-import { Stopwatch, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
+import { Stopwatch, Lap, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
+import { saveSession } from '@/utils/session-storage';
 import { Category } from '@/utils/category-storage';
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
@@ -108,6 +116,280 @@ function CategoryChips() {
   );
 }
 
+// ─── Details Bottom Sheet ─────────────────────────────────────────────────────
+
+interface DetailsSheetProps {
+  sw: Stopwatch;
+  visible: boolean;
+  onClose: () => void;
+  onUpdateNote: (note: string) => void;
+  onUpdateLapNote: (lapId: string, note: string) => void;
+}
+
+function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: DetailsSheetProps) {
+  const C = useColors();
+  const [noteText, setNoteText] = useState(sw.note ?? '');
+
+  useEffect(() => {
+    setNoteText(sw.note ?? '');
+  }, [sw.note, visible]);
+
+  const laps = sw.laps ?? [];
+  const fastestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
+  const slowestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime > b.lapTime ? a : b) : null;
+
+  const handleNoteBlur = () => {
+    if (noteText !== (sw.note ?? '')) {
+      console.log(`[DetailsSheet] Note updated for id=${sw.id}`);
+      onUpdateNote(noteText);
+    }
+  };
+
+  const handleLapLongPress = (lap: Lap) => {
+    console.log(`[DetailsSheet] Lap long press for note: lapNumber=${lap.lapNumber}`);
+    Alert.prompt(
+      `Lap ${lap.lapNumber} Note`,
+      'Add a note for this lap',
+      (text) => {
+        if (text !== null) {
+          console.log(`[DetailsSheet] Lap note saved: lapId=${lap.id}`);
+          onUpdateLapNote(lap.id, text);
+        }
+      },
+      'plain-text',
+      lap.note ?? ''
+    );
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: C.background }}
+        behavior="padding"
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: C.border,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: C.text }} numberOfLines={1}>
+              {sw.name}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              console.log(`[DetailsSheet] Close pressed for id=${sw.id}`);
+              onClose();
+            }}
+            style={({ pressed }) => ({
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: C.surfaceSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+              marginLeft: 12,
+            })}
+          >
+            <X size={16} color={C.textSecondary} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Note field */}
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: C.subtext,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 8,
+            }}
+          >
+            Note
+          </Text>
+          <View
+            style={{
+              backgroundColor: C.card,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: C.border,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              marginBottom: 24,
+            }}
+          >
+            <TextInput
+              value={noteText}
+              onChangeText={setNoteText}
+              onBlur={handleNoteBlur}
+              placeholder="Add a note for this stopwatch..."
+              placeholderTextColor={C.placeholder}
+              multiline
+              style={{
+                fontSize: 15,
+                color: C.text,
+                minHeight: 60,
+              }}
+            />
+          </View>
+
+          {/* Lap list */}
+          {laps.length > 0 && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <Flag size={13} color={C.textSecondary} />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: C.subtext,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {`${laps.length} Lap${laps.length !== 1 ? 's' : ''}`}
+                </Text>
+                <Text style={{ fontSize: 11, color: C.subtext, marginLeft: 4 }}>
+                  (long-press to add note)
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: C.card,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  overflow: 'hidden',
+                  marginBottom: 16,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderBottomWidth: 1,
+                    borderBottomColor: C.divider,
+                  }}
+                >
+                  <View style={{ width: 36 }}>
+                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>#</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>Lap Time</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>Split</Text>
+                </View>
+                {[...laps].reverse().map((lap) => {
+                  const isFastest = fastestLap?.id === lap.id;
+                  const isSlowest = slowestLap?.id === lap.id;
+                  const rowBg = isFastest
+                    ? 'rgba(52,199,89,0.08)'
+                    : isSlowest
+                    ? 'rgba(255,59,48,0.08)'
+                    : 'transparent';
+                  const lapTimeColor = isFastest ? '#34C759' : isSlowest ? '#FF3B30' : C.text;
+                  const lapTimeDisplay = formatTime(lap.lapTime);
+                  const splitTimeDisplay = formatTime(lap.splitTime);
+
+                  return (
+                    <Pressable
+                      key={lap.id}
+                      onLongPress={() => handleLapLongPress(lap)}
+                      delayLongPress={400}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        backgroundColor: pressed ? C.surfaceSecondary : rowBg,
+                      })}
+                    >
+                      <View style={{ width: 36 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                          {String(lap.lapNumber)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: '600',
+                            fontFamily: 'Menlo',
+                            color: lapTimeColor,
+                            fontVariant: ['tabular-nums'],
+                          }}
+                        >
+                          {lapTimeDisplay}
+                        </Text>
+                        {lap.note ? (
+                          <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2 }}>
+                            {lap.note}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Menlo',
+                          color: C.textSecondary,
+                          fontVariant: ['tabular-nums'],
+                        }}
+                      >
+                        {splitTimeDisplay}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {laps.length === 0 && (
+            <View
+              style={{
+                alignItems: 'center',
+                paddingVertical: 32,
+                backgroundColor: C.card,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: C.border,
+              }}
+            >
+              <Flag size={28} color={C.textSecondary} style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 14, color: C.textSecondary }}>No laps recorded yet</Text>
+              <Text style={{ fontSize: 12, color: C.subtext, marginTop: 4 }}>
+                Tap Lap while the stopwatch is running
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ─── Stopwatch Card ───────────────────────────────────────────────────────────
 
 interface CardProps {
@@ -121,6 +403,8 @@ interface CardProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onLongPress: () => void;
+  onLap: () => void;
+  onOpenDetails: () => void;
 }
 
 function StopwatchCard({
@@ -134,6 +418,8 @@ function StopwatchCard({
   onMoveUp,
   onMoveDown,
   onLongPress,
+  onLap,
+  onOpenDetails,
 }: CardProps) {
   const C = useColors();
   const { categories } = useCategory();
@@ -171,6 +457,7 @@ function StopwatchCard({
 
   const lapCount = (sw.laps ?? []).length;
   const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
+  const canLap = sw.isRunning || (sw.accumulatedMs > 0 && !sw.isRunning);
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -182,6 +469,12 @@ function StopwatchCard({
     }
   };
 
+  const handleLap = () => {
+    console.log(`[StopwatchCard] Lap pressed: id=${sw.id}, name="${sw.name}"`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onLap();
+  };
+
   const handleReset = () => {
     console.log(`[StopwatchCard] Reset pressed: id=${sw.id}, name="${sw.name}"`);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -191,7 +484,7 @@ function StopwatchCard({
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Reset & Save',
           style: 'destructive',
           onPress: () => {
             console.log(`[StopwatchCard] Reset confirmed: id=${sw.id}`);
@@ -294,18 +587,23 @@ function StopwatchCard({
                   </Text>
                 </View>
                 {lapCountLabel !== null && (
-                  <View
-                    style={{
+                  <Pressable
+                    onPress={() => {
+                      console.log(`[StopwatchCard] Lap count badge pressed (open details): id=${sw.id}`);
+                      onOpenDetails();
+                    }}
+                    style={({ pressed }) => ({
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 20,
                       backgroundColor: C.surfaceSecondary,
-                    }}
+                      opacity: pressed ? 0.6 : 1,
+                    })}
                   >
                     <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
                       {lapCountLabel}
                     </Text>
-                  </View>
+                  </Pressable>
                 )}
               </View>
             </View>
@@ -374,7 +672,9 @@ function StopwatchCard({
 
           <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
 
+          {/* Action buttons */}
           <View style={{ flexDirection: 'row', gap: 8 }}>
+            {/* Start/Pause */}
             <Pressable
               onPress={handleStartPause}
               style={({ pressed }) => ({
@@ -399,6 +699,50 @@ function StopwatchCard({
               </Text>
             </Pressable>
 
+            {/* Lap */}
+            <Pressable
+              onPress={handleLap}
+              disabled={!canLap}
+              style={({ pressed }) => ({
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                backgroundColor: canLap ? `${swColor}18` : C.surfaceSecondary,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 9,
+                opacity: !canLap ? 0.4 : pressed ? 0.7 : 1,
+              })}
+            >
+              <Flag size={14} color={canLap ? swColor : C.textSecondary} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: canLap ? swColor : C.textSecondary }}>
+                Lap
+              </Text>
+            </Pressable>
+
+            {/* Notes/Details */}
+            <Pressable
+              onPress={() => {
+                console.log(`[StopwatchCard] Details button pressed: id=${sw.id}`);
+                onOpenDetails();
+              }}
+              style={({ pressed }) => ({
+                width: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: C.surfaceSecondary,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 9,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <FileText size={14} color={C.textSecondary} />
+            </Pressable>
+
+            {/* Reset */}
             <Pressable
               onPress={handleReset}
               style={({ pressed }) => ({
@@ -420,14 +764,13 @@ function StopwatchCard({
               </Text>
             </Pressable>
 
+            {/* Delete */}
             <Pressable
               onPress={handleDelete}
               style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: 'row',
+                width: 40,
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 5,
                 backgroundColor: C.dangerMuted,
                 borderRadius: 10,
                 borderCurve: 'continuous',
@@ -436,9 +779,6 @@ function StopwatchCard({
               })}
             >
               <Trash2 size={14} color={C.danger} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: C.danger }}>
-                Delete
-              </Text>
             </Pressable>
           </View>
         </View>
@@ -516,12 +856,18 @@ export default function StopwatchesScreen() {
     deleteStopwatch,
     moveUp,
     moveDown,
+    addLap,
+    updateNote,
+    updateLapNote,
   } = useStopwatch();
   const { selectedCategory } = useCategory();
 
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
+
+  const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
+  const detailsSw = detailsSwId ? stopwatches.find(sw => sw.id === detailsSwId) ?? null : null;
 
   useEffect(() => {
     if (anyRunning) {
@@ -547,10 +893,30 @@ export default function StopwatchesScreen() {
     router.push(`/stopwatch-modal?edit=${id}`);
   }, [router]);
 
-  const handleReset = useCallback((id: string) => {
+  const handleReset = useCallback(async (id: string) => {
+    const sw = stopwatches.find(s => s.id === id);
+    if (!sw) return;
+    const elapsedMs = getElapsedMs(sw);
+    console.log(`[StopwatchesScreen] Reset & Save: id=${id}, totalTime=${elapsedMs}ms`);
+    if (elapsedMs > 0) {
+      const session = {
+        id: Math.random().toString(36).slice(2),
+        stopwatchId: sw.id,
+        stopwatchName: sw.name,
+        category: sw.category ?? '',
+        color: sw.color ?? DEFAULT_STOPWATCH_COLOR,
+        totalTime: elapsedMs,
+        laps: sw.laps ?? [],
+        note: sw.note,
+        startedAt: new Date(Date.now() - elapsedMs).toISOString(),
+        endedAt: new Date().toISOString(),
+      };
+      console.log(`[StopwatchesScreen] Saving session: id=${session.id}`);
+      await saveSession(session);
+    }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     resetStopwatch(id);
-  }, [resetStopwatch]);
+  }, [stopwatches, resetStopwatch]);
 
   const handleDelete = useCallback((id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -566,6 +932,25 @@ export default function StopwatchesScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     moveDown(id);
   }, [moveDown]);
+
+  const handleLap = useCallback((id: string) => {
+    const sw = stopwatches.find(s => s.id === id);
+    if (!sw) return;
+    const elapsedMs = getElapsedMs(sw);
+    const laps = sw.laps ?? [];
+    const lastSplit = laps.length > 0 ? laps[laps.length - 1].splitTime : 0;
+    const lapTime = elapsedMs - lastSplit;
+    const lap: Lap = {
+      id: Math.random().toString(36).slice(2),
+      lapNumber: laps.length + 1,
+      lapTime,
+      splitTime: elapsedMs,
+      timestamp: new Date().toISOString(),
+    };
+    console.log(`[StopwatchesScreen] Lap recorded: id=${id}, lapNumber=${lap.lapNumber}, lapTime=${lapTime}ms`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    addLap(id, lap);
+  }, [stopwatches, addLap]);
 
   const filteredStopwatches = selectedCategory === 'all'
     ? stopwatches
@@ -628,9 +1013,24 @@ export default function StopwatchesScreen() {
             onMoveUp={() => handleMoveUp(item.id)}
             onMoveDown={() => handleMoveDown(item.id)}
             onLongPress={() => openEditModal(item.id)}
+            onLap={() => handleLap(item.id)}
+            onOpenDetails={() => {
+              console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
+              setDetailsSwId(item.id);
+            }}
           />
         )}
       />
+
+      {detailsSw && (
+        <DetailsSheet
+          sw={detailsSw}
+          visible={detailsSwId !== null}
+          onClose={() => setDetailsSwId(null)}
+          onUpdateNote={(note) => updateNote(detailsSw.id, note)}
+          onUpdateLapNote={(lapId, note) => updateLapNote(detailsSw.id, lapId, note)}
+        />
+      )}
     </View>
   );
 }
