@@ -269,7 +269,7 @@ export default function StatsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 100 }}
+      contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }}
     >
       {/* Overview */}
       <Text style={sectionLabel}>Overview</Text>

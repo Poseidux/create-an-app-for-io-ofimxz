@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -15,6 +16,7 @@ import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
 import { Trash2, Plus, Check } from 'lucide-react-native';
 import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 type ThemeOption = 'system' | 'light' | 'dark';
 
@@ -29,7 +31,9 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, setTheme } = useThemeContext();
   const { categories, addCategory, deleteCategory } = useCategory();
+  const { restorePurchases, isSubscribed } = useSubscription();
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const customCategories = categories.filter(c => !c.isBuiltIn);
   const builtInCategories = BUILT_IN_CATEGORIES;
@@ -64,6 +68,25 @@ export default function SettingsScreen() {
   const handleThemeSelect = (value: ThemeOption) => {
     console.log(`[Settings] Theme selected: ${value}`);
     setTheme(value);
+  };
+
+  const handleRestorePurchases = async () => {
+    console.log('[Settings] Restore Purchases pressed');
+    setIsRestoring(true);
+    try {
+      const restored = await restorePurchases();
+      console.log(`[Settings] Restore Purchases result: restored=${restored}`);
+      if (restored) {
+        Alert.alert('Purchases Restored', 'Your unlimited stopwatches are now active.');
+      } else {
+        Alert.alert('No Purchases Found', 'No previous purchases found.');
+      }
+    } catch (error) {
+      console.log('[Settings] Restore Purchases error:', error);
+      Alert.alert('Restore Failed', 'Restore failed. Please try again.');
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const sectionLabelStyle = {
@@ -251,6 +274,26 @@ export default function SettingsScreen() {
             })}
           >
             <Plus size={16} color={newCategoryName.trim().length === 0 ? C.subtext : '#fff'} />
+          </Pressable>
+        </View>
+
+        {/* Purchases */}
+        <Text style={sectionLabelStyle}>Purchases</Text>
+        <View style={cardStyle}>
+          <Pressable
+            onPress={handleRestorePurchases}
+            disabled={isRestoring}
+            style={({ pressed }) => ({
+              ...rowStyle,
+              opacity: pressed || isRestoring ? 0.6 : 1,
+            })}
+          >
+            <Text style={{ flex: 1, fontSize: 16, color: C.tint }}>
+              Restore Purchases
+            </Text>
+            {isRestoring && (
+              <ActivityIndicator size="small" color={C.tint} />
+            )}
           </Pressable>
         </View>
       </ScrollView>

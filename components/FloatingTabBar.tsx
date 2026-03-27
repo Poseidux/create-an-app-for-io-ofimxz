@@ -48,26 +48,42 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
-  // Active tab detection: match the tab whose name segment appears in the current pathname.
-  // Tab names are like "(stopwatches)", "(history)", "(stats)", "(settings)".
-  // On Android, usePathname() returns the real filesystem path, e.g.:
-  //   "/"  or  "/(tabs)/(stopwatches)"  → stopwatches (index 0, fallback)
+  // Active tab detection using usePathname() from expo-router.
+  // pathname examples on Android:
+  //   "/"  or  "/(tabs)/(stopwatches)"  → index 0 (stopwatches, fallback)
   //   "/(tabs)/(history)"  or  "/(tabs)/(history)/abc123"  → history
   //   "/(tabs)/(stats)"  → stats
   //   "/(tabs)/(settings)"  → settings
+  // We split the pathname into segments and check whether any segment
+  // matches the tab's name (with or without parentheses), which is
+  // more reliable than substring matching on the full path string.
   const activeTabIndex = React.useMemo(() => {
-    // Strip the inner word from each tab name, e.g. "(stopwatches)" → "stopwatches"
-    const stripParens = (s: string) => s.replace(/[()]/g, '');
+    // Split pathname into individual path segments, e.g.
+    // "/(tabs)/(history)/abc" → ["", "(tabs)", "(history)", "abc"]
+    const pathSegments = pathname.split('/');
 
+    // For each tab, check if any path segment matches the tab name
+    // either exactly ("(stopwatches)") or without parens ("stopwatches").
     let bestMatch = -1;
-    let bestLength = 0;
+    let bestPriority = -1;
 
     tabs.forEach((tab, index) => {
-      const segment = stripParens(tab.name); // e.g. "stopwatches", "history", "stats", "settings"
-      if (pathname.includes(segment)) {
-        // Prefer the longest matching segment to avoid false positives
-        if (segment.length > bestLength) {
-          bestLength = segment.length;
+      const nameWithParens = tab.name;                        // e.g. "(stopwatches)"
+      const nameWithout = tab.name.replace(/[()]/g, '');     // e.g. "stopwatches"
+
+      for (const seg of pathSegments) {
+        if (seg === nameWithParens || seg === nameWithout) {
+          // Exact segment match — highest priority
+          if (2 > bestPriority) {
+            bestPriority = 2;
+            bestMatch = index;
+          }
+          break;
+        }
+        // Fallback: segment contains the bare name (handles edge cases like
+        // Android returning a path without group parens)
+        if (seg.includes(nameWithout) && nameWithout.length > bestPriority) {
+          bestPriority = nameWithout.length;
           bestMatch = index;
         }
       }
