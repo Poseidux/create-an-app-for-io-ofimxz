@@ -4,7 +4,7 @@
     "slug": "chroniqo-stopwatches",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/1cda0c2f-a55c-459f-954b-8cec41d27a89.png",
+    "icon": "./assets/images/9217b728-5aad-427c-8a0f-459f53b19344.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
@@ -15,8 +15,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/1cda0c2f-a55c-459f-954b-8cec41d27a89.png",
-        "backgroundColor": "#1a1a1a"
+        "foregroundImage": "./assets/images/cb08a4ff-cb9b-4b9e-82e4-0d673ab0cce9.jpeg",
+        "backgroundColor": "#3a3a3a"
       },
       "package": "com.poseiduxfitness.chroniqo"
     },
