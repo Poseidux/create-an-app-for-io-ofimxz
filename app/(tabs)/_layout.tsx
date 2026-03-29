@@ -1,14 +1,14 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Stack, usePathname } from 'expo-router';
+import { Stack } from 'expo-router';
 import FloatingTabBar from '@/components/FloatingTabBar';
 import { Href } from 'expo-router';
 
 const TABS = [
-  { name: '(stopwatches)', route: '/(tabs)/(stopwatches)' as Href, icon: 'timer' as const, label: 'Stopwatches' },
-  { name: '(history)',     route: '/(tabs)/(history)'     as Href, icon: 'history' as const, label: 'History' },
-  { name: '(stats)',       route: '/(tabs)/(stats)'       as Href, icon: 'bar_chart' as const, label: 'Stats' },
-  { name: '(settings)',   route: '/(tabs)/(settings)'    as Href, icon: 'settings' as const, label: 'Settings' },
+  { name: '(stopwatches)', route: '/(tabs)/(stopwatches)' as Href, icon: 'timer' as const,           label: 'Stopwatches' },
+  { name: '(timers)',      route: '/(tabs)/(timers)'      as Href, icon: 'hourglass_empty' as const,  label: 'Timers' },
+  { name: '(insights)',   route: '/(tabs)/(insights)'    as Href, icon: 'bar_chart' as const,        label: 'Insights' },
+  { name: '(settings)',   route: '/(tabs)/(settings)'    as Href, icon: 'settings' as const,         label: 'Settings' },
 ];
 
 export default function TabLayout() {
@@ -21,8 +21,8 @@ export default function TabLayout() {
         }}
       >
         <Stack.Screen name="(stopwatches)" />
-        <Stack.Screen name="(history)" />
-        <Stack.Screen name="(stats)" />
+        <Stack.Screen name="(timers)" />
+        <Stack.Screen name="(insights)" />
         <Stack.Screen name="(settings)" />
       </Stack>
       <FloatingTabBar

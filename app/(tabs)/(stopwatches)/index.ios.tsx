@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
@@ -35,6 +35,19 @@ import { useColors } from '@/constants/Colors';
 import { Stopwatch, Lap, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
 import { Category } from '@/utils/category-storage';
+import { getGoals, Goal } from '@/utils/goal-storage';
+
+// ─── Preset Templates ─────────────────────────────────────────────────────────
+
+const PRESETS = [
+  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
+  { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
+  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
+  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
+  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
+  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
+  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
+];
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
 
@@ -111,6 +124,59 @@ function CategoryChips() {
             </Pressable>
           );
         })}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Preset Chips ─────────────────────────────────────────────────────────────
+
+interface PresetChipsProps {
+  onPresetTap: (preset: typeof PRESETS[0]) => void;
+}
+
+function PresetChips({ onPresetTap }: PresetChipsProps) {
+  const C = useColors();
+  return (
+    <View style={{ height: 44, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 44,
+        }}
+      >
+        {PRESETS.map(preset => (
+          <Pressable
+            key={preset.key}
+            onPress={() => {
+              console.log(`[StopwatchesScreen] Preset chip tapped: ${preset.key}`);
+              onPresetTap(preset);
+            }}
+            style={({ pressed }) => ({
+              flexShrink: 0,
+              flexGrow: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              backgroundColor: `${preset.color}18`,
+              borderWidth: 1,
+              borderColor: `${preset.color}40`,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 13 }}>{preset.emoji}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: preset.color }}>
+              {preset.name}
+            </Text>
+          </Pressable>
+        ))}
       </ScrollView>
     </View>
   );
@@ -396,6 +462,7 @@ interface CardProps {
   sw: Stopwatch;
   index: number;
   total: number;
+  goal: Goal | null;
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -405,12 +472,14 @@ interface CardProps {
   onLongPress: () => void;
   onLap: () => void;
   onOpenDetails: () => void;
+  onOpenGoal: () => void;
 }
 
 function StopwatchCard({
   sw,
   index,
   total,
+  goal,
   onStart,
   onPause,
   onReset,
@@ -420,6 +489,7 @@ function StopwatchCard({
   onLongPress,
   onLap,
   onOpenDetails,
+  onOpenGoal,
 }: CardProps) {
   const C = useColors();
   const { categories } = useCategory();
@@ -458,6 +528,8 @@ function StopwatchCard({
   const lapCount = (sw.laps ?? []).length;
   const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
   const canLap = sw.isRunning || (sw.accumulatedMs > 0 && !sw.isRunning);
+
+  const goalTargetDisplay = goal ? formatTime(goal.targetMs) : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -602,6 +674,28 @@ function StopwatchCard({
                   >
                     <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
                       {lapCountLabel}
+                    </Text>
+                  </Pressable>
+                )}
+                {goalTargetDisplay !== null && (
+                  <Pressable
+                    onPress={() => {
+                      console.log(`[StopwatchCard] Goal badge pressed: id=${sw.id}`);
+                      onOpenGoal();
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 3,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 20,
+                      backgroundColor: 'rgba(251,191,36,0.15)',
+                      opacity: pressed ? 0.6 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '600' }}>
+                      {goalTargetDisplay}
                     </Text>
                   </Pressable>
                 )}
@@ -859,6 +953,7 @@ export default function StopwatchesScreen() {
     addLap,
     updateNote,
     updateLapNote,
+    addStopwatch,
   } = useStopwatch();
   const { selectedCategory } = useCategory();
 
@@ -866,8 +961,16 @@ export default function StopwatchesScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
 
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
   const detailsSw = detailsSwId ? stopwatches.find(sw => sw.id === detailsSwId) ?? null : null;
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[StopwatchesScreen] Focus: loading goals');
+      getGoals().then(setGoals);
+    }, [])
+  );
 
   useEffect(() => {
     if (anyRunning) {
@@ -884,7 +987,7 @@ export default function StopwatchesScreen() {
       router.push('/paywall');
       return;
     }
-    console.log('[StopwatchesScreen] Open add stopwatch modal');
+    console.log('[StopwatchesScreen] Header + button pressed — opening stopwatch modal');
     router.push('/stopwatch-modal');
   }, [router, canAddStopwatch]);
 
@@ -892,6 +995,17 @@ export default function StopwatchesScreen() {
     console.log(`[StopwatchesScreen] Open edit modal for id=${id}`);
     router.push(`/stopwatch-modal?edit=${id}`);
   }, [router]);
+
+  const handlePresetTap = useCallback((preset: typeof PRESETS[0]) => {
+    console.log(`[StopwatchesScreen] Preset tapped: ${preset.key}`);
+    if (!canAddStopwatch) {
+      console.log('[StopwatchesScreen] Preset: free tier limit — redirecting to paywall');
+      router.push('/paywall');
+      return;
+    }
+    addStopwatch(preset.name, preset.color, undefined);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [canAddStopwatch, addStopwatch, router]);
 
   const handleReset = useCallback(async (id: string) => {
     const sw = stopwatches.find(s => s.id === id);
@@ -913,10 +1027,24 @@ export default function StopwatchesScreen() {
       };
       console.log(`[StopwatchesScreen] Saving session: id=${session.id}`);
       await saveSession(session);
+
+      // Check goal
+      const swGoal = goals.find(g => g.stopwatchId === sw.id);
+      if (swGoal) {
+        const laps = sw.laps ?? [];
+        const fastestLap = laps.length > 0 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
+        const beatGoal =
+          (swGoal.type === 'total' && elapsedMs <= swGoal.targetMs) ||
+          (swGoal.type === 'lap' && fastestLap !== null && fastestLap.lapTime <= swGoal.targetMs);
+        if (beatGoal) {
+          console.log(`[StopwatchesScreen] Goal achieved for id=${sw.id}!`);
+          Alert.alert('🎯 Goal Achieved!', `You hit your goal for "${sw.name}"!`);
+        }
+      }
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     resetStopwatch(id);
-  }, [stopwatches, resetStopwatch]);
+  }, [stopwatches, resetStopwatch, goals]);
 
   const handleDelete = useCallback((id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -990,6 +1118,7 @@ export default function StopwatchesScreen() {
           </Pressable>
         </View>
         <CategoryChips />
+        <PresetChips onPresetTap={handlePresetTap} />
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
@@ -1001,25 +1130,33 @@ export default function StopwatchesScreen() {
         data={filteredStopwatches}
         keyExtractor={item => item.id}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-        renderItem={({ item, index }) => (
-          <StopwatchCard
-            sw={item}
-            index={index}
-            total={filteredStopwatches.length}
-            onStart={() => startStopwatch(item.id)}
-            onPause={() => pauseStopwatch(item.id)}
-            onReset={() => handleReset(item.id)}
-            onDelete={() => handleDelete(item.id)}
-            onMoveUp={() => handleMoveUp(item.id)}
-            onMoveDown={() => handleMoveDown(item.id)}
-            onLongPress={() => openEditModal(item.id)}
-            onLap={() => handleLap(item.id)}
-            onOpenDetails={() => {
-              console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
-              setDetailsSwId(item.id);
-            }}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const swGoal = goals.find(g => g.stopwatchId === item.id) ?? null;
+          return (
+            <StopwatchCard
+              sw={item}
+              index={index}
+              total={filteredStopwatches.length}
+              goal={swGoal}
+              onStart={() => startStopwatch(item.id)}
+              onPause={() => pauseStopwatch(item.id)}
+              onReset={() => handleReset(item.id)}
+              onDelete={() => handleDelete(item.id)}
+              onMoveUp={() => handleMoveUp(item.id)}
+              onMoveDown={() => handleMoveDown(item.id)}
+              onLongPress={() => openEditModal(item.id)}
+              onLap={() => handleLap(item.id)}
+              onOpenDetails={() => {
+                console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
+                setDetailsSwId(item.id);
+              }}
+              onOpenGoal={() => {
+                console.log(`[StopwatchesScreen] Open goal modal for id=${item.id}`);
+                router.push(`/goal-modal?stopwatchId=${item.id}&stopwatchName=${encodeURIComponent(item.name)}`);
+              }}
+            />
+          );
+        }}
       />
 
       {detailsSw && (

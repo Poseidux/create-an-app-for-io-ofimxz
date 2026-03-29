@@ -7,13 +7,13 @@ export default function TabLayout() {
         <Icon sf="stopwatch" android="timer" />
         <Label>Stopwatches</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(history)">
-        <Icon sf="clock.arrow.circlepath" android="history" />
-        <Label>History</Label>
+      <NativeTabs.Trigger name="(timers)">
+        <Icon sf="timer" android="hourglass_empty" />
+        <Label>Timers</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(stats)">
+      <NativeTabs.Trigger name="(insights)">
         <Icon sf="chart.bar" android="bar_chart" />
-        <Label>Stats</Label>
+        <Label>Insights</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(settings)">
         <Icon sf="gearshape" android="settings" />
