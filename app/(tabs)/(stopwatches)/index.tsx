@@ -209,11 +209,20 @@ interface DetailsSheetProps {
 function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: DetailsSheetProps) {
   const C = useColors();
   const [noteText, setNoteText] = useState(sw.note ?? '');
+  const [editingLapIndex, setEditingLapIndex] = useState<string | null>(null);
+  const [editingLapNote, setEditingLapNote] = useState('');
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
   useEffect(() => {
     setNoteText(sw.note ?? '');
   }, [sw.note, visible]);
+
+  useEffect(() => {
+    if (!visible) {
+      setEditingLapIndex(null);
+      setEditingLapNote('');
+    }
+  }, [visible]);
 
   const laps = sw.laps ?? [];
   const fastestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
@@ -242,15 +251,17 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
         lap.note ?? ''
       );
     } else {
-      Alert.alert(
-        `Lap ${lap.lapNumber} Note`,
-        'Enter a note for this lap:',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear', onPress: () => onUpdateLapNote(lap.id, '') },
-        ]
-      );
+      console.log(`[DetailsSheet] Android inline lap note edit: lapId=${lap.id}`);
+      setEditingLapNote(lap.note ?? '');
+      setEditingLapIndex(lap.id);
     }
+  };
+
+  const handleAndroidLapNoteSave = (lapId: string) => {
+    console.log(`[DetailsSheet] Android lap note saved: lapId=${lapId}, note="${editingLapNote}"`);
+    onUpdateLapNote(lapId, editingLapNote);
+    setEditingLapIndex(null);
+    setEditingLapNote('');
   };
 
   const swColor = sw.color ?? DEFAULT_STOPWATCH_COLOR;
@@ -404,54 +415,133 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
                   const lapTimeColor = isFastest ? '#34C759' : isSlowest ? '#FF3B30' : C.text;
                   const lapTimeDisplay = formatTime(lap.lapTime);
                   const splitTimeDisplay = formatTime(lap.splitTime);
+                  const isEditingThisLap = editingLapIndex === lap.id;
 
                   return (
-                    <Pressable
-                      key={lap.id}
-                      onLongPress={() => handleLapLongPress(lap)}
-                      delayLongPress={400}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        backgroundColor: pressed ? C.surfaceSecondary : rowBg,
-                      })}
-                    >
-                      <View style={{ width: 36 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
-                          {String(lap.lapNumber)}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
+                    <View key={lap.id}>
+                      <Pressable
+                        onLongPress={() => handleLapLongPress(lap)}
+                        delayLongPress={400}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
+                          backgroundColor: isEditingThisLap
+                            ? C.surfaceSecondary
+                            : pressed
+                            ? C.surfaceSecondary
+                            : rowBg,
+                        })}
+                      >
+                        <View style={{ width: 36 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                            {String(lap.lapNumber)}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: '600',
+                              fontFamily: timerFont,
+                              color: lapTimeColor,
+                              fontVariant: ['tabular-nums'],
+                            }}
+                          >
+                            {lapTimeDisplay}
+                          </Text>
+                          {lap.note ? (
+                            <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2 }}>
+                              {lap.note}
+                            </Text>
+                          ) : null}
+                        </View>
                         <Text
                           style={{
-                            fontSize: 14,
-                            fontWeight: '600',
+                            fontSize: 12,
                             fontFamily: timerFont,
-                            color: lapTimeColor,
+                            color: C.textSecondary,
                             fontVariant: ['tabular-nums'],
                           }}
                         >
-                          {lapTimeDisplay}
+                          {splitTimeDisplay}
                         </Text>
-                        {lap.note ? (
-                          <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2 }}>
-                            {lap.note}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontFamily: timerFont,
-                          color: C.textSecondary,
-                          fontVariant: ['tabular-nums'],
-                        }}
-                      >
-                        {splitTimeDisplay}
-                      </Text>
-                    </Pressable>
+                      </Pressable>
+                      {isEditingThisLap && (
+                        <View
+                          style={{
+                            paddingHorizontal: 14,
+                            paddingBottom: 10,
+                            backgroundColor: C.surfaceSecondary,
+                          }}
+                        >
+                          <View
+                            style={{
+                              backgroundColor: C.card,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: C.border,
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <TextInput
+                              value={editingLapNote}
+                              onChangeText={setEditingLapNote}
+                              placeholder="Add a note for this lap..."
+                              placeholderTextColor={C.placeholder}
+                              autoFocus
+                              returnKeyType="done"
+                              onSubmitEditing={() => handleAndroidLapNoteSave(lap.id)}
+                              style={{
+                                fontSize: 14,
+                                color: C.text,
+                                padding: 0,
+                                margin: 0,
+                              }}
+                            />
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Pressable
+                              onPress={() => {
+                                console.log(`[DetailsSheet] Android lap note edit cancelled: lapId=${lap.id}`);
+                                setEditingLapIndex(null);
+                                setEditingLapNote('');
+                              }}
+                              style={({ pressed }) => ({
+                                flex: 1,
+                                alignItems: 'center',
+                                paddingVertical: 7,
+                                borderRadius: 8,
+                                backgroundColor: C.chipBackground,
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                                Cancel
+                              </Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => handleAndroidLapNoteSave(lap.id)}
+                              style={({ pressed }) => ({
+                                flex: 1,
+                                alignItems: 'center',
+                                paddingVertical: 7,
+                                borderRadius: 8,
+                                backgroundColor: C.primary,
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                                Save
+                              </Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      )}
+                    </View>
                   );
                 })}
               </View>

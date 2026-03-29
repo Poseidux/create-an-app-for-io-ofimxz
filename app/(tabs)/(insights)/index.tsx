@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Share,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,11 +20,13 @@ import {
   TrendingDown,
   TrendingUp,
   Timer,
+  Share2,
 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions, deleteSession } from '@/utils/session-storage';
 import { getUnlockedAchievements, checkAndUnlockAchievements, ALL_ACHIEVEMENTS, Achievement } from '@/utils/achievement-storage';
+import { getGoals, ItemGoal } from '@/utils/goal-storage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -585,17 +588,140 @@ function AchievementsSection({
   );
 }
 
+// ─── Goals Section ────────────────────────────────────────────────────────────
+
+function goalTypeLabel(type: ItemGoal['goalType']): string {
+  switch (type) {
+    case 'target_duration': return 'Target Duration';
+    case 'target_laps': return 'Target Laps';
+    case 'beat_personal_best': return 'Beat PB';
+    case 'complete_countdown': return 'Complete Countdown';
+    case 'complete_all_rounds': return 'Complete All Rounds';
+    default: return type;
+  }
+}
+
+interface GoalRowProps {
+  goal: ItemGoal;
+}
+
+function GoalRow({ goal }: GoalRowProps) {
+  const C = useColors();
+
+  const displayName = goal.goalName || goal.itemName || goal.itemId;
+  const typeLabel = goalTypeLabel(goal.goalType);
+
+  let detailText = '';
+  if (goal.goalType === 'target_duration' && goal.targetMs != null) {
+    detailText = formatTime(goal.targetMs);
+  } else if (goal.goalType === 'beat_personal_best' && goal.personalBestMs != null) {
+    detailText = formatTime(goal.personalBestMs);
+  } else if (goal.goalType === 'target_laps' && goal.targetLaps != null) {
+    detailText = `${goal.targetLaps} laps`;
+  }
+
+  const isAchieved = goal.status === 'achieved';
+  const isMissed = goal.status === 'missed';
+
+  const badgeColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : '#007AFF';
+  const badgeBg = isAchieved ? 'rgba(52,199,89,0.12)' : isMissed ? C.surfaceSecondary : 'rgba(0,122,255,0.12)';
+  const badgeText = isAchieved ? '✓ Achieved' : isMissed ? '✗ Missed' : 'Active';
+
+  const progressFill = isAchieved ? 1 : isMissed ? 0.5 : 0;
+  const progressColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : C.primary;
+
+  return (
+    <View
+      style={{
+        backgroundColor: C.card,
+        borderRadius: 12,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: C.border,
+        padding: 12,
+        marginBottom: 8,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: C.text, marginBottom: 2 }}>
+            {displayName}
+          </Text>
+          <Text style={{ fontSize: 12, color: C.textSecondary }}>
+            {typeLabel}
+            {detailText !== '' ? ` · ${detailText}` : ''}
+          </Text>
+        </View>
+        <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: badgeBg }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>
+            {badgeText}
+          </Text>
+        </View>
+      </View>
+      {/* Progress bar */}
+      <View style={{ height: 4, backgroundColor: C.surfaceSecondary, borderRadius: 2, overflow: 'hidden' }}>
+        <View
+          style={{
+            height: 4,
+            width: `${Math.round(progressFill * 100)}%`,
+            backgroundColor: progressColor,
+            borderRadius: 2,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function GoalsSection({ goals, sectionLabel }: { goals: ItemGoal[]; sectionLabel: object }) {
+  const C = useColors();
+
+  const sorted = [...goals].sort((a, b) => {
+    const order = { active: 0, achieved: 1, missed: 2 };
+    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+  });
+
+  const achievedCount = goals.filter(g => g.status === 'achieved').length;
+  const progressLabel = `${achievedCount}/${goals.length} achieved`;
+
+  return (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
+          Goals
+        </Text>
+        {goals.length > 0 && (
+          <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '500' }}>
+            {progressLabel}
+          </Text>
+        )}
+      </View>
+      <View style={{ paddingHorizontal: 16 }}>
+        {sorted.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 14, color: C.textSecondary }}>No goals set yet</Text>
+          </View>
+        ) : (
+          sorted.map(goal => <GoalRow key={goal.id} goal={goal} />)
+        )}
+      </View>
+    </>
+  );
+}
+
 // ─── Stats Content ────────────────────────────────────────────────────────────
 
 function StatsContent({
   sessions,
   isLoaded,
   unlockedAchievements,
+  goals,
   listBottomPad,
 }: {
   sessions: Session[];
   isLoaded: boolean;
   unlockedAchievements: Achievement[];
+  goals: ItemGoal[];
   listBottomPad: number;
 }) {
   const C = useColors();
@@ -644,6 +770,7 @@ function StatsContent({
           </Text>
         </View>
         <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
+        <GoalsSection goals={goals} sectionLabel={sectionLabel} />
       </ScrollView>
     );
   }
@@ -813,6 +940,9 @@ function StatsContent({
 
       {/* Achievements */}
       <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
+
+      {/* Goals */}
+      <GoalsSection goals={goals} sectionLabel={sectionLabel} />
     </ScrollView>
   );
 }
@@ -829,17 +959,19 @@ export default function InsightsScreen() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedTag, setSelectedTag] = useState('All');
   const [unlockedAchievements, setUnlockedAchievements] = useState<Achievement[]>([]);
+  const [goals, setGoals] = useState<ItemGoal[]>([]);
 
   useFocusEffect(
     useCallback(() => {
-      console.log('[InsightsScreen] Focus: loading sessions');
-      getSessions().then(async data => {
+      console.log('[InsightsScreen] Focus: loading sessions and goals');
+      Promise.all([getSessions(), getGoals()]).then(async ([data, loadedGoals]) => {
         const sorted = [...data].sort((a, b) =>
           new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
         );
         setSessions(sorted);
         setIsLoaded(true);
-        console.log(`[InsightsScreen] Loaded ${sorted.length} session(s)`);
+        setGoals(loadedGoals);
+        console.log(`[InsightsScreen] Loaded ${sorted.length} session(s), ${loadedGoals.length} goal(s)`);
 
         // Compute achievements
         let totalLaps = 0;
@@ -896,6 +1028,7 @@ export default function InsightsScreen() {
             alignItems: 'center',
           }}
         >
+          <View style={{ width: 36 }} />
           <Text
             style={{
               flex: 1,
@@ -907,6 +1040,25 @@ export default function InsightsScreen() {
           >
             Insights
           </Text>
+          <Pressable
+            onPress={() => {
+              console.log('[InsightsScreen] Share button pressed');
+              const stats = computeStats(sessions);
+              const totalTimeDisplay = formatTime(stats.totalTime);
+              const achievedCount = goals.filter(g => g.status === 'achieved').length;
+              const shareText = `Chroniqo Stats\n• ${stats.totalSessions} sessions\n• ${totalTimeDisplay} tracked\n• ${stats.totalLaps} laps\n• ${achievedCount}/${goals.length} goals achieved`;
+              Share.share({ message: shareText });
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Share2 size={20} color={C.primary} />
+          </Pressable>
         </View>
 
         {/* Segmented control */}
@@ -1044,6 +1196,7 @@ export default function InsightsScreen() {
           sessions={sessions}
           isLoaded={isLoaded}
           unlockedAchievements={unlockedAchievements}
+          goals={goals}
           listBottomPad={listBottomPad}
         />
       )}

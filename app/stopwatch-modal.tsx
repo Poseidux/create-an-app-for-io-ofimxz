@@ -1051,6 +1051,39 @@ export default function StopwatchModal() {
 
                     <View style={{ height: 1, backgroundColor: C.divider }} />
 
+                    {/* Goal name input */}
+                    <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
+                      <View
+                        style={{
+                          backgroundColor: C.inputBg,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: C.border,
+                          paddingHorizontal: 12,
+                          paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                        }}
+                      >
+                        <TextInput
+                          value={goalName}
+                          onChangeText={(t) => {
+                            console.log('[StopwatchModal] Goal name changed');
+                            setGoalName(t);
+                          }}
+                          placeholder="Goal name (optional)"
+                          placeholderTextColor={C.placeholder}
+                          returnKeyType="done"
+                          style={{
+                            fontSize: 14,
+                            color: C.text,
+                            padding: 0,
+                            margin: 0,
+                          }}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={{ height: 1, backgroundColor: C.divider, marginTop: 14 }} />
+
                     {/* Goal inputs */}
                     <View style={{ padding: 14 }}>
                       {(goalType === 'target_duration' || goalType === 'beat_personal_best') && (

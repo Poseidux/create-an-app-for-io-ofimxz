@@ -35,7 +35,7 @@ import { useColors } from '@/constants/Colors';
 import { Stopwatch, Lap, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
 import { Category } from '@/utils/category-storage';
-import { getGoals, Goal } from '@/utils/goal-storage';
+import { getGoals, ItemGoal } from '@/utils/goal-storage';
 
 // ─── Preset Templates ─────────────────────────────────────────────────────────
 
@@ -462,7 +462,7 @@ interface CardProps {
   sw: Stopwatch;
   index: number;
   total: number;
-  goal: Goal | null;
+  goal: ItemGoal | null;
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -472,7 +472,6 @@ interface CardProps {
   onLongPress: () => void;
   onLap: () => void;
   onOpenDetails: () => void;
-  onOpenGoal: () => void;
 }
 
 function StopwatchCard({
@@ -489,7 +488,6 @@ function StopwatchCard({
   onLongPress,
   onLap,
   onOpenDetails,
-  onOpenGoal,
 }: CardProps) {
   const C = useColors();
   const { categories } = useCategory();
@@ -529,7 +527,15 @@ function StopwatchCard({
   const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
   const canLap = sw.isRunning || (sw.accumulatedMs > 0 && !sw.isRunning);
 
-  const goalTargetDisplay = goal ? formatTime(goal.targetMs) : null;
+  const goalTargetDisplay = goal
+    ? (goal.goalType === 'target_laps' && goal.targetLaps != null
+        ? `${goal.targetLaps} laps`
+        : goal.goalType === 'beat_personal_best' && goal.personalBestMs != null
+        ? formatTime(goal.personalBestMs)
+        : goal.targetMs != null
+        ? formatTime(goal.targetMs)
+        : null)
+    : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -678,12 +684,8 @@ function StopwatchCard({
                   </Pressable>
                 )}
                 {goalTargetDisplay !== null && (
-                  <Pressable
-                    onPress={() => {
-                      console.log(`[StopwatchCard] Goal badge pressed: id=${sw.id}`);
-                      onOpenGoal();
-                    }}
-                    style={({ pressed }) => ({
+                  <View
+                    style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 3,
@@ -691,13 +693,12 @@ function StopwatchCard({
                       paddingVertical: 3,
                       borderRadius: 20,
                       backgroundColor: 'rgba(251,191,36,0.15)',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
+                    }}
                   >
                     <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '600' }}>
                       {goalTargetDisplay}
                     </Text>
-                  </Pressable>
+                  </View>
                 )}
               </View>
             </View>
@@ -961,7 +962,7 @@ export default function StopwatchesScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
 
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goals, setGoals] = useState<ItemGoal[]>([]);
   const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
   const detailsSw = detailsSwId ? stopwatches.find(sw => sw.id === detailsSwId) ?? null : null;
 
@@ -1029,14 +1030,18 @@ export default function StopwatchesScreen() {
       await saveSession(session);
 
       // Check goal
-      const swGoal = goals.find(g => g.stopwatchId === sw.id);
-      if (swGoal) {
+      const swGoal = goals.find(g => g.itemId === sw.id);
+      if (swGoal && swGoal.status === 'active') {
         const laps = sw.laps ?? [];
-        const fastestLap = laps.length > 0 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
-        const beatGoal =
-          (swGoal.type === 'total' && elapsedMs <= swGoal.targetMs) ||
-          (swGoal.type === 'lap' && fastestLap !== null && fastestLap.lapTime <= swGoal.targetMs);
-        if (beatGoal) {
+        let achieved = false;
+        if (swGoal.goalType === 'target_duration' && swGoal.targetMs != null) {
+          achieved = elapsedMs >= swGoal.targetMs;
+        } else if (swGoal.goalType === 'target_laps' && swGoal.targetLaps != null) {
+          achieved = laps.length >= swGoal.targetLaps;
+        } else if (swGoal.goalType === 'beat_personal_best' && swGoal.personalBestMs != null) {
+          achieved = elapsedMs <= swGoal.personalBestMs;
+        }
+        if (achieved) {
           console.log(`[StopwatchesScreen] Goal achieved for id=${sw.id}!`);
           Alert.alert('🎯 Goal Achieved!', `You hit your goal for "${sw.name}"!`);
         }
@@ -1131,7 +1136,7 @@ export default function StopwatchesScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
         renderItem={({ item, index }) => {
-          const swGoal = goals.find(g => g.stopwatchId === item.id) ?? null;
+          const swGoal = goals.find(g => g.itemId === item.id) ?? null;
           return (
             <StopwatchCard
               sw={item}
@@ -1149,10 +1154,6 @@ export default function StopwatchesScreen() {
               onOpenDetails={() => {
                 console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
                 setDetailsSwId(item.id);
-              }}
-              onOpenGoal={() => {
-                console.log(`[StopwatchesScreen] Open goal modal for id=${item.id}`);
-                router.push(`/goal-modal?stopwatchId=${item.id}&stopwatchName=${encodeURIComponent(item.name)}`);
               }}
             />
           );
