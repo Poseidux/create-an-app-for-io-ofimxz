@@ -2,11 +2,11 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart2, Clock, Flag, Zap, TrendingDown, TrendingUp, Timer } from 'lucide-react-native';
+import { BarChart2, Clock, Flag, Zap, TrendingDown, TrendingUp, Timer, Target } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions } from '@/utils/session-storage';
-import { getUnlockedAchievements, checkAndUnlockAchievements, ALL_ACHIEVEMENTS, Achievement } from '@/utils/achievement-storage';
+import { getGoals, ItemGoal } from '@/utils/goal-storage';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -166,59 +166,78 @@ function BarChart({ data, maxBarHeight = 80, barColor }: BarChartProps) {
   );
 }
 
-// ─── Achievement Card ─────────────────────────────────────────────────────────
+// ─── Goal Row ─────────────────────────────────────────────────────────────────
 
-interface AchievementCardProps {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  unlockedAt?: string;
-}
-
-function AchievementCard({ id, title, description, icon, unlockedAt }: AchievementCardProps) {
+function GoalRow({ goal }: { goal: ItemGoal }) {
   const C = useColors();
-  const isUnlocked = Boolean(unlockedAt);
 
-  let dateLabel = '';
-  if (unlockedAt) {
+  const goalTypeText = (() => {
+    switch (goal.goalType) {
+      case 'target_duration':
+        return goal.targetMs != null ? `Target: ${formatTime(goal.targetMs)}` : 'Target Duration';
+      case 'target_laps':
+        return goal.targetLaps != null ? `Target: ${goal.targetLaps} laps` : 'Target Laps';
+      case 'beat_personal_best':
+        return goal.personalBestMs != null ? `Beat: ${formatTime(goal.personalBestMs)}` : 'Beat Personal Best';
+      case 'complete_countdown':
+        return 'Complete countdown';
+      case 'complete_all_rounds':
+        return 'Complete all rounds';
+      default:
+        return 'Goal';
+    }
+  })();
+
+  const statusColor = goal.status === 'achieved' ? '#34C759' : goal.status === 'missed' ? '#FF6B6B' : C.primary;
+  const statusLabel = goal.status === 'achieved' ? 'Achieved' : goal.status === 'missed' ? 'Missed' : 'Active';
+  const statusBg = goal.status === 'achieved' ? 'rgba(52,199,89,0.12)' : goal.status === 'missed' ? 'rgba(255,107,107,0.12)' : `${C.primary}14`;
+
+  let achievedDateLabel = '';
+  if (goal.achievedAt) {
     try {
-      const d = new Date(unlockedAt);
-      dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const d = new Date(goal.achievedAt);
+      achievedDateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch {
-      dateLabel = '';
+      achievedDateLabel = '';
     }
   }
 
   return (
     <View
       style={{
-        backgroundColor: isUnlocked ? C.card : C.surfaceSecondary,
-        borderRadius: 12,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: isUnlocked ? C.border : 'transparent',
-        padding: 12,
-        flex: 1,
-        opacity: isUnlocked ? 1 : 0.5,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: C.divider,
       }}
     >
-      <Text style={{ fontSize: 24, marginBottom: 6 }}>{icon}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 2 }}>
-        {title}
-      </Text>
-      <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 15, marginBottom: 4 }}>
-        {description}
-      </Text>
-      {isUnlocked ? (
-        <Text style={{ fontSize: 10, color: '#34C759', fontWeight: '600' }}>
-          {dateLabel ? `Unlocked ${dateLabel}` : 'Unlocked'}
+      <View style={{ flex: 1, marginRight: 10 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }} numberOfLines={1}>
+          {goal.itemName}
         </Text>
-      ) : (
-        <Text style={{ fontSize: 10, color: C.subtext }}>
-          Locked
+        <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+          {goalTypeText}
         </Text>
-      )}
+        {achievedDateLabel !== '' && (
+          <Text style={{ fontSize: 11, color: '#34C759', marginTop: 2 }}>
+            {achievedDateLabel}
+          </Text>
+        )}
+      </View>
+      <View
+        style={{
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 20,
+          backgroundColor: statusBg,
+        }}
+      >
+        <Text style={{ fontSize: 11, fontWeight: '600', color: statusColor }}>
+          {statusLabel}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -355,39 +374,16 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<Achievement[]>([]);
+  const [goals, setGoals] = useState<ItemGoal[]>([]);
 
   useFocusEffect(
     useCallback(() => {
-      console.log('[StatsScreen] Loading sessions for stats');
-      getSessions().then(async data => {
-        setSessions(data);
+      console.log('[StatsScreen] Loading sessions and goals for stats');
+      Promise.all([getSessions(), getGoals()]).then(([sessionData, goalData]) => {
+        setSessions(sessionData);
+        setGoals(goalData);
         setIsLoaded(true);
-        console.log(`[StatsScreen] Loaded ${data.length} session(s) for stats`);
-
-        // Compute stats for achievement checking
-        let totalLaps = 0;
-        let allLaps: Lap[] = [];
-        for (const s of data) {
-          const laps = s.laps ?? [];
-          totalLaps += laps.length;
-          allLaps = allLaps.concat(laps);
-        }
-        const fastestLapMs = allLaps.length > 0
-          ? allLaps.reduce((a, b) => a.lapTime < b.lapTime ? a : b).lapTime
-          : undefined;
-
-        const newlyUnlocked = await checkAndUnlockAchievements({
-          totalSessions: data.length,
-          totalLaps,
-          fastestLapMs,
-        });
-        if (newlyUnlocked.length > 0) {
-          console.log(`[StatsScreen] Newly unlocked achievements: ${newlyUnlocked.map(a => a.id).join(', ')}`);
-        }
-
-        const unlocked = await getUnlockedAchievements();
-        setUnlockedAchievements(unlocked);
+        console.log(`[StatsScreen] Loaded ${sessionData.length} session(s) and ${goalData.length} goal(s)`);
       });
     }, [])
   );
@@ -433,16 +429,23 @@ export default function StatsScreen() {
 
   const hasChartData = sessionChartData.some(d => d.value > 0);
 
+  // Goal summary counts
+  const activeGoals = goals.filter(g => g.status === 'active').length;
+  const achievedGoals = goals.filter(g => g.status === 'achieved').length;
+  const missedGoals = goals.filter(g => g.status === 'missed').length;
+  const totalGoalsChecked = achievedGoals + missedGoals;
+  const completionRateNum = totalGoalsChecked > 0 ? Math.round((achievedGoals / totalGoalsChecked) * 100) : 0;
+  const completionRate = totalGoalsChecked > 0 ? `${completionRateNum}%` : '—';
+
   if (sessions.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: C.background }}>
-        {/* Still show achievements even with no sessions */}
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }}
         >
           <EmptyState />
-          <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
+          <GoalsSection goals={goals} sectionLabel={sectionLabel} activeGoals={activeGoals} achievedGoals={achievedGoals} missedGoals={missedGoals} completionRate={completionRate} />
         </ScrollView>
       </View>
     );
@@ -587,71 +590,115 @@ export default function StatsScreen() {
         </>
       )}
 
-      {/* Achievements */}
-      <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
+      {/* Goals */}
+      <GoalsSection
+        goals={goals}
+        sectionLabel={sectionLabel}
+        activeGoals={activeGoals}
+        achievedGoals={achievedGoals}
+        missedGoals={missedGoals}
+        completionRate={completionRate}
+      />
     </ScrollView>
   );
 }
 
-// ─── Achievements Section ─────────────────────────────────────────────────────
+// ─── Goals Section ────────────────────────────────────────────────────────────
 
-function AchievementsSection({
-  unlockedAchievements,
+function GoalsSection({
+  goals,
   sectionLabel,
+  activeGoals,
+  achievedGoals,
+  missedGoals,
+  completionRate,
 }: {
-  unlockedAchievements: Achievement[];
+  goals: ItemGoal[];
   sectionLabel: object;
+  activeGoals: number;
+  achievedGoals: number;
+  missedGoals: number;
+  completionRate: string;
 }) {
   const C = useColors();
-  const unlockedMap: Record<string, Achievement> = {};
-  for (const a of unlockedAchievements) {
-    unlockedMap[a.id] = a;
-  }
-
-  // Pair achievements into rows of 2
-  const rows: Array<[typeof ALL_ACHIEVEMENTS[0], typeof ALL_ACHIEVEMENTS[0] | null]> = [];
-  for (let i = 0; i < ALL_ACHIEVEMENTS.length; i += 2) {
-    rows.push([ALL_ACHIEVEMENTS[i], ALL_ACHIEVEMENTS[i + 1] ?? null]);
-  }
-
-  const unlockedCount = unlockedAchievements.length;
-  const totalCount = ALL_ACHIEVEMENTS.length;
-  const progressLabel = `${unlockedCount}/${totalCount} unlocked`;
 
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
-          Achievements
+          Goals
         </Text>
-        <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '500' }}>
-          {progressLabel}
-        </Text>
+        <Target size={14} color={C.textSecondary} />
       </View>
-      <View style={{ paddingHorizontal: 16, gap: 8 }}>
-        {rows.map((row, idx) => (
-          <View key={idx} style={{ flexDirection: 'row', gap: 8 }}>
-            <AchievementCard
-              id={row[0].id}
-              title={row[0].title}
-              description={row[0].description}
-              icon={row[0].icon}
-              unlockedAt={unlockedMap[row[0].id]?.unlockedAt}
-            />
-            {row[1] ? (
-              <AchievementCard
-                id={row[1].id}
-                title={row[1].title}
-                description={row[1].description}
-                icon={row[1].icon}
-                unlockedAt={unlockedMap[row[1].id]?.unlockedAt}
-              />
-            ) : (
-              <View style={{ flex: 1 }} />
-            )}
-          </View>
-        ))}
+
+      {/* Summary grid */}
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 10 }}>
+        <StatCard
+          label="Active"
+          value={String(activeGoals)}
+          accent={C.primary}
+        />
+        <StatCard
+          label="Achieved"
+          value={String(achievedGoals)}
+          accent="#34C759"
+        />
       </View>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 16 }}>
+        <StatCard
+          label="Missed"
+          value={String(missedGoals)}
+          accent="#FF6B6B"
+        />
+        <StatCard
+          label="Completion"
+          value={completionRate}
+        />
+      </View>
+
+      {/* Goal list */}
+      {goals.length > 0 ? (
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: C.card,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: C.border,
+            overflow: 'hidden',
+          }}
+        >
+          {goals.map((goal, idx) => (
+            <View
+              key={goal.id}
+              style={idx === goals.length - 1 ? { borderBottomWidth: 0 } : {}}
+            >
+              <GoalRow goal={goal} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: C.card,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 24,
+            alignItems: 'center',
+          }}
+        >
+          <Target size={28} color={C.textSecondary} style={{ marginBottom: 8 }} />
+          <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center' }}>
+            No goals set yet
+          </Text>
+          <Text style={{ fontSize: 12, color: C.subtext, marginTop: 4, textAlign: 'center' }}>
+            Add goals in the stopwatch or timer edit screen
+          </Text>
+        </View>
+      )}
     </>
   );
 }

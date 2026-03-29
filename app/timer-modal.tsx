@@ -8,12 +8,19 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
 import { TimerConfig, TimerMode, getTimerConfigs, saveTimerConfig } from '@/utils/timer-storage';
 import * as Haptics from 'expo-haptics';
+import {
+  ItemGoal,
+  getGoalForItem,
+  saveGoal,
+  deleteGoalForItem,
+} from '@/utils/goal-storage';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -151,6 +158,10 @@ export default function TimerModal() {
   const [hiitRestSec, setHiitRestSec] = useState(10);
   const [hiitRounds, setHiitRounds] = useState(8);
 
+  // Goal state
+  const [goalEnabled, setGoalEnabled] = useState(false);
+  const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
+
   // Load existing config if editing
   useEffect(() => {
     if (!edit) return;
@@ -180,6 +191,18 @@ export default function TimerModal() {
           setHiitPreset(3); // Custom
         }
       }
+    });
+  }, [edit]);
+
+  // Load existing goal if editing
+  useEffect(() => {
+    if (!edit) return;
+    console.log(`[TimerModal] Loading goal for timerId=${edit}`);
+    getGoalForItem(edit).then(goal => {
+      if (!goal) return;
+      setExistingGoal(goal);
+      setGoalEnabled(true);
+      console.log(`[TimerModal] Existing goal loaded: type=${goal.goalType}`);
     });
   }, [edit]);
 
@@ -217,6 +240,26 @@ export default function TimerModal() {
     console.log(`[TimerModal] Saving timer config: id=${id}, name="${trimmed}", mode=${mode}`);
     if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await saveTimerConfig(config);
+
+    // Save or delete goal
+    if (goalEnabled) {
+      const goalType = mode === 'countdown' ? 'complete_countdown' : 'complete_all_rounds';
+      const goal: ItemGoal = {
+        id: existingGoal?.id ?? Math.random().toString(36).slice(2),
+        itemId: id,
+        itemName: trimmed,
+        itemKind: 'timer',
+        goalType,
+        status: existingGoal?.status ?? 'active',
+        createdAt: existingGoal?.createdAt ?? new Date().toISOString(),
+      };
+      console.log(`[TimerModal] Saving goal: type=${goalType}, itemId=${id}`);
+      await saveGoal(goal);
+    } else if (existingGoal) {
+      console.log(`[TimerModal] Deleting goal for itemId=${id}`);
+      await deleteGoalForItem(id);
+    }
+
     router.back();
   };
 
@@ -239,6 +282,9 @@ export default function TimerModal() {
     { value: 'interval', label: 'Interval' },
     { value: 'hiit', label: 'HIIT' },
   ];
+
+  const goalTypeLabel = mode === 'countdown' ? 'Complete countdown' : 'Complete all rounds';
+  const goalDescription = 'Goal achieved when the timer finishes naturally without being stopped early.';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.card }}>
@@ -532,7 +578,7 @@ export default function TimerModal() {
 
           {/* Color picker */}
           <Text style={sectionLabel}>Color</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 4, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 4, marginBottom: 28 }}>
             {PALETTE.map(swatch => (
               <ColorSwatch
                 key={swatch.hex}
@@ -546,6 +592,99 @@ export default function TimerModal() {
               />
             ))}
           </View>
+
+          {/* Goal section */}
+          <Text style={sectionLabel}>Goal</Text>
+          <View
+            style={{
+              backgroundColor: C.card,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: C.border,
+              overflow: 'hidden',
+              marginBottom: 8,
+            }}
+          >
+            {/* Toggle row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: C.text }}>
+                  Add Goal
+                </Text>
+                <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                  Track completion of this timer
+                </Text>
+              </View>
+              <Switch
+                value={goalEnabled}
+                onValueChange={(v) => {
+                  console.log(`[TimerModal] Goal toggle: ${v}`);
+                  setGoalEnabled(v);
+                }}
+                trackColor={{ false: C.border, true: C.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            {goalEnabled && (
+              <>
+                <View style={{ height: 1, backgroundColor: C.divider }} />
+                <View style={{ padding: 14, gap: 8 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 10,
+                      borderRadius: 10,
+                      backgroundColor: `${C.primary}14`,
+                      borderWidth: 1,
+                      borderColor: `${C.primary}40`,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        borderWidth: 2,
+                        borderColor: C.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: C.primary,
+                        }}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary }}>
+                        {goalTypeLabel}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                        {goalDescription}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+          <Text style={{ fontSize: 12, color: C.subtext, paddingHorizontal: 4, marginBottom: 8 }}>
+            Goal status is checked when the timer completes or is stopped.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

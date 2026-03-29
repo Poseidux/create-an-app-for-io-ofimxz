@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  FlatList,
+  Switch,
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,6 +20,15 @@ import { DEFAULT_STOPWATCH_COLOR, Lap, formatTime, getElapsedMs } from '@/types/
 import { saveSession } from '@/utils/session-storage';
 import { Flag, Edit3 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import {
+  ItemGoal,
+  StopwatchGoalType,
+  getGoalForItem,
+  saveGoal,
+  deleteGoalForItem,
+  markGoalAchieved,
+  markGoalMissed,
+} from '@/utils/goal-storage';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -192,6 +201,69 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
   );
 }
 
+// ─── Goal Number Input ────────────────────────────────────────────────────────
+
+function GoalNumberInput({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 999,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const C = useColors();
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => { setText(String(value)); }, [value]);
+
+  const handleChange = (t: string) => {
+    setText(t);
+    const n = parseInt(t, 10);
+    if (!isNaN(n) && n >= min && n <= max) onChange(n);
+  };
+
+  return (
+    <View style={{ alignItems: 'center', gap: 4 }}>
+      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+        {label}
+      </Text>
+      <View
+        style={{
+          backgroundColor: C.inputBg,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: C.border,
+          width: 64,
+          alignItems: 'center',
+        }}
+      >
+        <TextInput
+          value={text}
+          onChangeText={handleChange}
+          keyboardType="number-pad"
+          style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: C.text,
+            textAlign: 'center',
+            paddingVertical: 8,
+            paddingHorizontal: 6,
+            width: '100%',
+            fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+            fontVariant: ['tabular-nums'],
+          }}
+          maxLength={3}
+        />
+      </View>
+    </View>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 const PRESET_DEFAULTS: Record<string, { name: string; color: string }> = {
@@ -204,17 +276,22 @@ const PRESET_DEFAULTS: Record<string, { name: string; color: string }> = {
   sport:      { name: 'Sport',      color: '#fbbf24' },
 };
 
+const GOAL_TYPES: { value: StopwatchGoalType; label: string; description: string }[] = [
+  { value: 'target_duration', label: 'Target Duration', description: 'Reach a specific total time' },
+  { value: 'target_laps', label: 'Target Laps', description: 'Reach a specific lap count' },
+  { value: 'beat_personal_best', label: 'Beat Personal Best', description: 'Finish under a specific time' },
+];
+
 export default function StopwatchModal() {
   const C = useColors();
   const router = useRouter();
   const { edit, preset } = useLocalSearchParams<{ edit?: string; preset?: string }>();
-  const { stopwatches, addStopwatch, renameStopwatch, addLap, clearLaps, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
+  const { stopwatches, addStopwatch, renameStopwatch, addLap, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
   const { categories, addCategory } = useCategory();
 
   const isEditing = Boolean(edit);
   const existing = isEditing ? stopwatches.find(sw => sw.id === edit) : undefined;
 
-  // Determine initial name/color from preset or existing
   const presetDefaults = preset ? (PRESET_DEFAULTS[preset] ?? null) : null;
 
   const [name, setName] = useState(existing?.name ?? presetDefaults?.name ?? '');
@@ -225,6 +302,15 @@ export default function StopwatchModal() {
     existing?.category ?? 'all'
   );
   const [newCatName, setNewCatName] = useState('');
+
+  // ─── Goal state ───────────────────────────────────────────────────────────
+  const [goalEnabled, setGoalEnabled] = useState(false);
+  const [goalType, setGoalType] = useState<StopwatchGoalType>('target_duration');
+  const [goalHours, setGoalHours] = useState(0);
+  const [goalMinutes, setGoalMinutes] = useState(30);
+  const [goalSeconds, setGoalSeconds] = useState(0);
+  const [goalLaps, setGoalLaps] = useState(10);
+  const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
 
   // ─── Lap / Timer state (only in edit mode) ────────────────────────────────
   const [, setTick] = useState(0);
@@ -240,23 +326,86 @@ export default function StopwatchModal() {
     return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
   }, [isEditing, existing?.isRunning]);
 
+  // Load existing goal in edit mode
+  useEffect(() => {
+    if (!edit) return;
+    console.log(`[StopwatchModal] Loading goal for stopwatchId=${edit}`);
+    getGoalForItem(edit).then(goal => {
+      if (!goal) return;
+      setExistingGoal(goal);
+      setGoalEnabled(true);
+      setGoalType(goal.goalType as StopwatchGoalType);
+      if (goal.goalType === 'target_laps' && goal.targetLaps != null) {
+        setGoalLaps(goal.targetLaps);
+      } else {
+        const ms = goal.targetMs ?? goal.personalBestMs ?? 0;
+        const totalSec = Math.floor(ms / 1000);
+        setGoalHours(Math.floor(totalSec / 3600));
+        setGoalMinutes(Math.floor((totalSec % 3600) / 60));
+        setGoalSeconds(totalSec % 60);
+      }
+      console.log(`[StopwatchModal] Existing goal loaded: type=${goal.goalType}`);
+    });
+  }, [edit]);
+
   const handleCancel = () => {
     console.log('[StopwatchModal] Cancel pressed');
     router.back();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const cat = selectedCategoryId === 'all' ? undefined : selectedCategoryId;
 
+    let stopwatchId: string;
     if (isEditing && edit) {
       console.log(`[StopwatchModal] Save rename: id=${edit}, name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       renameStopwatch(edit, trimmed, selectedColor, cat);
+      stopwatchId = edit;
     } else {
       console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}", category="${cat}"`);
+      stopwatchId = Math.random().toString(36).slice(2);
       addStopwatch(trimmed, selectedColor, cat);
+      // addStopwatch generates its own id internally; for new stopwatches we skip goal saving
+      // since we don't have the id. Goal can be set after creation via edit mode.
+      router.back();
+      return;
     }
+
+    // Save or delete goal
+    if (goalEnabled) {
+      let targetMs: number | undefined;
+      let personalBestMs: number | undefined;
+      let targetLaps: number | undefined;
+
+      if (goalType === 'target_duration') {
+        targetMs = (goalHours * 3600 + goalMinutes * 60 + goalSeconds) * 1000;
+      } else if (goalType === 'beat_personal_best') {
+        personalBestMs = (goalHours * 3600 + goalMinutes * 60 + goalSeconds) * 1000;
+      } else if (goalType === 'target_laps') {
+        targetLaps = goalLaps;
+      }
+
+      const goal: ItemGoal = {
+        id: existingGoal?.id ?? Math.random().toString(36).slice(2),
+        itemId: stopwatchId,
+        itemName: trimmed,
+        itemKind: 'stopwatch',
+        goalType,
+        targetMs,
+        personalBestMs,
+        targetLaps,
+        status: existingGoal?.status ?? 'active',
+        createdAt: existingGoal?.createdAt ?? new Date().toISOString(),
+      };
+      console.log(`[StopwatchModal] Saving goal: type=${goalType}, itemId=${stopwatchId}`);
+      await saveGoal(goal);
+    } else if (existingGoal) {
+      console.log(`[StopwatchModal] Deleting goal for itemId=${stopwatchId}`);
+      await deleteGoalForItem(stopwatchId);
+    }
+
     router.back();
   };
 
@@ -315,7 +464,6 @@ export default function StopwatchModal() {
     const elapsedMs = getElapsedMs(existing);
     console.log(`[StopwatchModal] Reset pressed: id=${edit}, totalTime=${elapsedMs}ms`);
 
-    // Auto-save session if there was any time recorded
     if (elapsedMs > 0) {
       const session = {
         id: Math.random().toString(36).slice(2),
@@ -331,6 +479,27 @@ export default function StopwatchModal() {
       };
       console.log(`[StopwatchModal] Auto-saving session: id=${session.id}, totalTime=${elapsedMs}ms`);
       await saveSession(session);
+
+      // Check goal
+      const goal = await getGoalForItem(edit);
+      if (goal && goal.status === 'active') {
+        const laps = existing.laps ?? [];
+        let achieved = false;
+        if (goal.goalType === 'target_duration' && goal.targetMs != null) {
+          achieved = elapsedMs >= goal.targetMs;
+        } else if (goal.goalType === 'target_laps' && goal.targetLaps != null) {
+          achieved = laps.length >= goal.targetLaps;
+        } else if (goal.goalType === 'beat_personal_best' && goal.personalBestMs != null) {
+          achieved = elapsedMs <= goal.personalBestMs;
+        }
+        if (achieved) {
+          console.log(`[StopwatchModal] Goal achieved for id=${edit}`);
+          await markGoalAchieved(edit);
+        } else {
+          console.log(`[StopwatchModal] Goal missed for id=${edit}`);
+          await markGoalMissed(edit);
+        }
+      }
     }
 
     resetStopwatch(edit);
@@ -387,7 +556,6 @@ export default function StopwatchModal() {
   const canSubmit = name.trim().length > 0;
   const canAddCat = newCatName.trim().length > 0;
 
-  // Lap stats
   const laps = existing?.laps ?? [];
   const fastestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
   const slowestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime > b.lapTime ? a : b) : null;
@@ -406,6 +574,9 @@ export default function StopwatchModal() {
   const elapsedMs = existing ? getElapsedMs(existing) : 0;
   const timerDisplay = formatTime(elapsedMs);
   const timerFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
+  const goalTimeMs = (goalHours * 3600 + goalMinutes * 60 + goalSeconds) * 1000;
+  const goalTimeValid = goalTimeMs > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.card }}>
@@ -466,7 +637,7 @@ export default function StopwatchModal() {
             paddingBottom: 120,
           }}
         >
-          {/* ── Live timer + lap controls (edit mode only) ── */}
+          {/* Live timer + lap controls (edit mode only) */}
           {isEditing && existing && (
             <View
               style={{
@@ -480,7 +651,6 @@ export default function StopwatchModal() {
                 alignItems: 'center',
               }}
             >
-              {/* Timer display */}
               <Text
                 style={{
                   fontSize: 40,
@@ -495,7 +665,6 @@ export default function StopwatchModal() {
                 {timerDisplay}
               </Text>
 
-              {/* Note */}
               <Pressable
                 onPress={handleEditNote}
                 style={({ pressed }) => ({
@@ -512,7 +681,6 @@ export default function StopwatchModal() {
                 </Text>
               </Pressable>
 
-              {/* Lap + Reset buttons */}
               <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
                 <Pressable
                   onPress={handleLap}
@@ -563,11 +731,9 @@ export default function StopwatchModal() {
                 </Pressable>
               </View>
 
-              {/* Lap list */}
               {laps.length > 0 && (
                 <View style={{ width: '100%', marginTop: 14 }}>
                   <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 8 }} />
-                  {/* Column headers */}
                   <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 4 }}>
                     <View style={{ width: 32 }}>
                       <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>
@@ -758,6 +924,7 @@ export default function StopwatchModal() {
               flexWrap: 'wrap',
               gap: 10,
               paddingHorizontal: 4,
+              marginBottom: 28,
             }}
           >
             {PALETTE_ADDITIONAL.map((swatch) => (
@@ -771,6 +938,150 @@ export default function StopwatchModal() {
               />
             ))}
           </View>
+
+          {/* Goal section (edit mode only — we need the stopwatch id) */}
+          {isEditing && (
+            <>
+              <Text style={sectionLabel}>Goal</Text>
+              <View
+                style={{
+                  backgroundColor: C.card,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  overflow: 'hidden',
+                  marginBottom: 8,
+                }}
+              >
+                {/* Toggle row */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: C.text }}>
+                      Add Goal
+                    </Text>
+                    <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                      Track a target for this stopwatch
+                    </Text>
+                  </View>
+                  <Switch
+                    value={goalEnabled}
+                    onValueChange={(v) => {
+                      console.log(`[StopwatchModal] Goal toggle: ${v}`);
+                      setGoalEnabled(v);
+                    }}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                {goalEnabled && (
+                  <>
+                    <View style={{ height: 1, backgroundColor: C.divider }} />
+
+                    {/* Goal type selection */}
+                    <View style={{ padding: 14, gap: 8 }}>
+                      {GOAL_TYPES.map(gt => {
+                        const isActive = goalType === gt.value;
+                        return (
+                          <Pressable
+                            key={gt.value}
+                            onPress={() => {
+                              console.log(`[StopwatchModal] Goal type selected: ${gt.value}`);
+                              setGoalType(gt.value);
+                            }}
+                            style={({ pressed }) => ({
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: 10,
+                              borderRadius: 10,
+                              backgroundColor: isActive ? `${C.primary}14` : C.surfaceSecondary,
+                              borderWidth: 1,
+                              borderColor: isActive ? `${C.primary}40` : 'transparent',
+                              opacity: pressed ? 0.7 : 1,
+                            })}
+                          >
+                            <View
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 9,
+                                borderWidth: 2,
+                                borderColor: isActive ? C.primary : C.textSecondary,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {isActive && (
+                                <View
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: 4,
+                                    backgroundColor: C.primary,
+                                  }}
+                                />
+                              )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? C.primary : C.text }}>
+                                {gt.label}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 1 }}>
+                                {gt.description}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <View style={{ height: 1, backgroundColor: C.divider }} />
+
+                    {/* Goal inputs */}
+                    <View style={{ padding: 14 }}>
+                      {(goalType === 'target_duration' || goalType === 'beat_personal_best') && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 12,
+                          }}
+                        >
+                          <GoalNumberInput label="Hours" value={goalHours} onChange={setGoalHours} max={99} />
+                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                          <GoalNumberInput label="Min" value={goalMinutes} onChange={setGoalMinutes} max={59} />
+                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                          <GoalNumberInput label="Sec" value={goalSeconds} onChange={setGoalSeconds} max={59} />
+                        </View>
+                      )}
+                      {goalType === 'target_laps' && (
+                        <View style={{ alignItems: 'center' }}>
+                          <GoalNumberInput label="Laps" value={goalLaps} onChange={setGoalLaps} min={1} max={999} />
+                        </View>
+                      )}
+                      {goalEnabled && goalType !== 'target_laps' && !goalTimeValid && (
+                        <Text style={{ fontSize: 12, color: C.danger, textAlign: 'center', marginTop: 8 }}>
+                          Enter a time greater than zero
+                        </Text>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+              <Text style={{ fontSize: 12, color: C.subtext, paddingHorizontal: 4, marginBottom: 8 }}>
+                Goal status is checked when you reset the stopwatch.
+              </Text>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
