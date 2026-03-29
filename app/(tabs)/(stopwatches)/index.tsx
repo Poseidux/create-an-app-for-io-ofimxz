@@ -853,12 +853,6 @@ function StopwatchCard({
                     {categoryLabel}
                   </Text>
                 )}
-                {/* Goal badge */}
-                {goal !== null && (
-                  <View style={{ marginBottom: 6 }}>
-                    <GoalBadge goal={goal} swColor={swColor} />
-                  </View>
-                )}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   {sw.isRunning && <PulsingDot color={swColor} />}
                   <View
@@ -957,10 +951,19 @@ function StopwatchCard({
               </View>
             </View>
 
-            <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
+            <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+
+            {goal !== null && (
+              <>
+                <View style={{ paddingHorizontal: 16, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+                  <GoalBadge goal={goal} swColor={swColor} />
+                </View>
+                <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+              </>
+            )}
 
             {/* Action buttons row */}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
               {/* Start/Pause */}
               <Pressable
                 onPress={handleStartPause}
@@ -1170,6 +1173,7 @@ export default function StopwatchesScreen() {
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
+  const [presetsExpanded, setPresetsExpanded] = useState(false);
 
   // Goals keyed by itemId
   const [goalsMap, setGoalsMap] = useState<Record<string, ItemGoal>>({});
@@ -1364,6 +1368,7 @@ export default function StopwatchesScreen() {
             alignItems: 'center',
           }}
         >
+          <View style={{ width: 36 }} />
           <Text
             style={{
               flex: 1,
@@ -1393,7 +1398,37 @@ export default function StopwatchesScreen() {
         </View>
 
         <CategoryChips />
-        <PresetChips onPresetTap={handlePresetTap} />
+
+        {/* Presets toggle row */}
+        <Pressable
+          onPress={() => {
+            console.log('[StopwatchesScreen] Presets toggle pressed');
+            setPresetsExpanded(v => !v);
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '500', color: C.textSecondary, flex: 1 }}>
+            Quick Presets
+          </Text>
+          <ChevronDown
+            size={16}
+            color={C.textSecondary}
+            style={{ transform: [{ rotate: presetsExpanded ? '180deg' : '0deg' }] }}
+          />
+        </Pressable>
+
+        {presetsExpanded && (
+          <PresetChips onPresetTap={(preset) => {
+            handlePresetTap(preset);
+            setPresetsExpanded(false);
+          }} />
+        )}
+
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 

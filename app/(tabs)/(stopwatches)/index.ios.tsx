@@ -456,6 +456,45 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
   );
 }
 
+// ─── Goal Badge ───────────────────────────────────────────────────────────────
+
+function GoalBadge({ goal, swColor }: { goal: ItemGoal; swColor: string }) {
+  const C = useColors();
+
+  if (goal.status === 'achieved') {
+    return (
+      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: 'rgba(52,199,89,0.12)' }}>
+        <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '600' }}>✓ Goal achieved</Text>
+      </View>
+    );
+  }
+
+  if (goal.status === 'missed') {
+    return (
+      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: 'rgba(180,180,180,0.12)' }}>
+        <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>✗ Goal missed</Text>
+      </View>
+    );
+  }
+
+  const activeLabel = (() => {
+    switch (goal.goalType) {
+      case 'target_duration': return goal.targetMs != null ? `🎯 Duration: ${formatTime(goal.targetMs)}` : '🎯 Duration goal';
+      case 'target_laps': return goal.targetLaps != null ? `🎯 Target: ${goal.targetLaps} laps` : '🎯 Laps goal';
+      case 'beat_personal_best': return goal.personalBestMs != null ? `🎯 Beat: ${formatTime(goal.personalBestMs)}` : '🎯 Personal best';
+      case 'complete_countdown': return '🎯 Complete countdown';
+      case 'complete_all_rounds': return '🎯 Complete all rounds';
+      default: return '🎯 Goal';
+    }
+  })();
+
+  return (
+    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: `${swColor}18` }}>
+      <Text style={{ fontSize: 11, color: swColor, fontWeight: '600' }}>{activeLabel}</Text>
+    </View>
+  );
+}
+
 // ─── Stopwatch Card ───────────────────────────────────────────────────────────
 
 interface CardProps {
@@ -526,16 +565,6 @@ function StopwatchCard({
   const lapCount = (sw.laps ?? []).length;
   const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
   const canLap = sw.isRunning || (sw.accumulatedMs > 0 && !sw.isRunning);
-
-  const goalTargetDisplay = goal
-    ? (goal.goalType === 'target_laps' && goal.targetLaps != null
-        ? `${goal.targetLaps} laps`
-        : goal.goalType === 'beat_personal_best' && goal.personalBestMs != null
-        ? formatTime(goal.personalBestMs)
-        : goal.targetMs != null
-        ? formatTime(goal.targetMs)
-        : null)
-    : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -683,23 +712,6 @@ function StopwatchCard({
                     </Text>
                   </Pressable>
                 )}
-                {goalTargetDisplay !== null && (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 3,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 20,
-                      backgroundColor: 'rgba(251,191,36,0.15)',
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '600' }}>
-                      {goalTargetDisplay}
-                    </Text>
-                  </View>
-                )}
               </View>
             </View>
 
@@ -765,10 +777,19 @@ function StopwatchCard({
             </View>
           </View>
 
-          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
+          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+
+          {goal !== null && (
+            <>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+                <GoalBadge goal={goal} swColor={swColor} />
+              </View>
+              <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+            </>
+          )}
 
           {/* Action buttons */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             {/* Start/Pause */}
             <Pressable
               onPress={handleStartPause}
@@ -961,6 +982,7 @@ export default function StopwatchesScreen() {
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
+  const [presetsExpanded, setPresetsExpanded] = useState(false);
 
   const [goals, setGoals] = useState<ItemGoal[]>([]);
   const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
@@ -1105,6 +1127,7 @@ export default function StopwatchesScreen() {
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingTop: insets.top, backgroundColor: C.background }}>
         <View style={{ height: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: 36 }} />
           <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: C.text }}>
             Stopwatches
           </Text>
@@ -1123,7 +1146,32 @@ export default function StopwatchesScreen() {
           </Pressable>
         </View>
         <CategoryChips />
-        <PresetChips onPresetTap={handlePresetTap} />
+
+        {/* Presets toggle row */}
+        <Pressable
+          onPress={() => {
+            console.log('[StopwatchesScreen] Presets toggle pressed');
+            setPresetsExpanded(v => !v);
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '500', color: C.textSecondary, flex: 1 }}>
+            Quick Presets
+          </Text>
+          <ChevronDown
+            size={16}
+            color={C.textSecondary}
+            style={{ transform: [{ rotate: presetsExpanded ? '180deg' : '0deg' }] }}
+          />
+        </Pressable>
+
+        {presetsExpanded && (
+          <PresetChips onPresetTap={(preset) => {
+            handlePresetTap(preset);
+            setPresetsExpanded(false);
+          }} />
+        )}
+
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 

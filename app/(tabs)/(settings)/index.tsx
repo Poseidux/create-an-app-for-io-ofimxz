@@ -12,20 +12,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeContext } from '@/contexts/ThemeContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
-import { Trash2, Plus, Check } from 'lucide-react-native';
+import { Trash2, Plus } from 'lucide-react-native';
 import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
-type ThemeOption = 'system' | 'light' | 'dark';
 
-const THEME_OPTIONS: { value: ThemeOption; label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
 
 // ─── Preset Templates ─────────────────────────────────────────────────────────
 
@@ -43,7 +36,6 @@ export default function SettingsScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { theme, setTheme } = useThemeContext();
   const { categories, addCategory, deleteCategory } = useCategory();
   const { restorePurchases, isSubscribed } = useSubscription();
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -77,11 +69,6 @@ export default function SettingsScreen() {
         },
       ]
     );
-  };
-
-  const handleThemeSelect = (value: ThemeOption) => {
-    console.log(`[Settings] Theme selected: ${value}`);
-    setTheme(value);
   };
 
   const handleRestorePurchases = async () => {
@@ -156,30 +143,10 @@ export default function SettingsScreen() {
         {/* Appearance */}
         <Text style={sectionLabelStyle}>Appearance</Text>
         <View style={cardStyle}>
-          {THEME_OPTIONS.map((opt, idx) => {
-            const isSelected = theme === opt.value;
-            return (
-              <React.Fragment key={opt.value}>
-                <Pressable
-                  onPress={() => handleThemeSelect(opt.value)}
-                  style={({ pressed }) => ({
-                    ...rowStyle,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
-                    {opt.label}
-                  </Text>
-                  {isSelected && (
-                    <Check size={18} color={C.tint} />
-                  )}
-                </Pressable>
-                {idx < THEME_OPTIONS.length - 1 && (
-                  <View style={separatorStyle} />
-                )}
-              </React.Fragment>
-            );
-          })}
+          <View style={rowStyle}>
+            <Text style={{ flex: 1, fontSize: 16, color: C.text }}>Dark Mode</Text>
+            <Text style={{ fontSize: 14, color: C.subtext }}>Always on</Text>
+          </View>
         </View>
 
         {/* Preset Templates */}

@@ -21,11 +21,11 @@ import {
   TrendingUp,
   Timer,
   Share2,
+  Tag,
 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions, deleteSession } from '@/utils/session-storage';
-import { getUnlockedAchievements, checkAndUnlockAchievements, ALL_ACHIEVEMENTS, Achievement } from '@/utils/achievement-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,6 +47,15 @@ function formatDate(iso: string): string {
   }
 }
 
+function formatShortDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
 function getLast7Days(): { label: string; dateKey: string }[] {
   const days = [];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -64,9 +73,78 @@ function formatTimeShort(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSec / 60);
   const hours = Math.floor(minutes / 60);
-  if (hours > 0) return `${hours}h`;
+  if (hours > 0) return `${hours}h${minutes % 60 > 0 ? `${minutes % 60}m` : ''}`;
   if (minutes > 0) return `${minutes}m`;
   return `${totalSec}s`;
+}
+
+function formatAvgSession(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+}
+
+function getDateKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function computeStreaks(sessions: Session[]): { current: number; best: number } {
+  if (sessions.length === 0) return { current: 0, best: 0 };
+
+  const daySet = new Set<string>();
+  for (const s of sessions) {
+    daySet.add(getDateKey(s.startedAt));
+  }
+
+  const sortedDays = Array.from(daySet).sort();
+  let best = 1;
+  let streak = 1;
+
+  for (let i = 1; i < sortedDays.length; i++) {
+    const prev = new Date(sortedDays[i - 1]);
+    const curr = new Date(sortedDays[i]);
+    const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+    if (diff === 1) {
+      streak += 1;
+      if (streak > best) best = streak;
+    } else {
+      streak = 1;
+    }
+  }
+
+  // Current streak: count backwards from today
+  const todayKey = new Date().toISOString().slice(0, 10);
+  let current = 0;
+  let checkDate = new Date();
+  while (true) {
+    const key = checkDate.toISOString().slice(0, 10);
+    if (daySet.has(key)) {
+      current += 1;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return { current, best };
+}
+
+function getMostActiveDayOfWeek(sessions: Session[]): string {
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const counts: number[] = [0, 0, 0, 0, 0, 0, 0];
+  for (const s of sessions) {
+    const d = new Date(s.startedAt);
+    counts[d.getDay()] += 1;
+  }
+  const maxIdx = counts.indexOf(Math.max(...counts));
+  return dayNames[maxIdx];
+}
+
+function getLongestSession(sessions: Session[]): number {
+  if (sessions.length === 0) return 0;
+  return Math.max(...sessions.map(s => s.totalTime));
 }
 
 interface StatsData {
@@ -316,10 +394,11 @@ interface StatCardProps {
   value: string;
   sub?: string;
   accent?: string;
-  icon?: React.ReactNode;
+  iconNode?: React.ReactNode;
+  iconBgColor?: string;
 }
 
-function StatCard({ label, value, sub, accent, icon }: StatCardProps) {
+function StatCard({ label, value, sub, accent, iconNode, iconBgColor }: StatCardProps) {
   const C = useColors();
   return (
     <View
@@ -335,9 +414,22 @@ function StatCard({ label, value, sub, accent, icon }: StatCardProps) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {icon}
-        <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {iconNode && iconBgColor ? (
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: iconBgColor,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {iconNode}
+          </View>
+        ) : null}
+        <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, flex: 1 }}>
           {label}
         </Text>
       </View>
@@ -358,6 +450,110 @@ function StatCard({ label, value, sub, accent, icon }: StatCardProps) {
           {sub}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+// ─── Streak Card ──────────────────────────────────────────────────────────────
+
+function StreakCard({ current, best }: { current: number; best: number }) {
+  const C = useColors();
+  const currentLabel = String(current);
+  const bestLabel = String(best);
+
+  return (
+    <View
+      style={{
+        marginHorizontal: 16,
+        backgroundColor: C.card,
+        borderRadius: 14,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: C.border,
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: 'rgba(255,149,0,0.15)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 12,
+        }}
+      >
+        <Text style={{ fontSize: 18 }}>🔥</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
+          Streak
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
+          <View>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: '#FF9500', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontVariant: ['tabular-nums'] }}>
+              {currentLabel}
+            </Text>
+            <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1 }}>
+              Current
+            </Text>
+          </View>
+          <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
+          <View>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: C.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontVariant: ['tabular-nums'] }}>
+              {bestLabel}
+            </Text>
+            <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1 }}>
+              Best
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Text style={{ fontSize: 11, color: C.subtext }}>
+        days
+      </Text>
+    </View>
+  );
+}
+
+// ─── Mini Stat Chip ───────────────────────────────────────────────────────────
+
+function MiniStatChip({ label, value }: { label: string; value: string }) {
+  const C = useColors();
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: C.card,
+        borderRadius: 12,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: C.border,
+        padding: 12,
+        alignItems: 'center',
+      }}
+    >
+      <Text style={{ fontSize: 10, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: 15,
+          fontWeight: '700',
+          color: C.text,
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+          fontVariant: ['tabular-nums'],
+          textAlign: 'center',
+        }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -425,33 +621,50 @@ interface BarChartProps {
   data: { label: string; value: number; subLabel?: string }[];
   maxBarHeight?: number;
   barColor: string;
+  formatValue?: (v: number) => string;
 }
 
-function BarChart({ data, maxBarHeight = 80, barColor }: BarChartProps) {
+function BarChart({ data, maxBarHeight = 80, barColor, formatValue }: BarChartProps) {
   const C = useColors();
   const maxValue = Math.max(...data.map(d => d.value), 1);
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: maxBarHeight + 48 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: maxBarHeight + 52 }}>
       {data.map((item, idx) => {
         const barH = item.value > 0 ? Math.max(4, Math.round((item.value / maxValue) * maxBarHeight)) : 0;
-        const countLabel = item.value > 0 ? String(item.value) : '';
+        const valueLabel = item.value > 0 ? (formatValue ? formatValue(item.value) : String(item.value)) : '';
         return (
           <View key={idx} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
-            {countLabel !== '' && (
-              <Text style={{ fontSize: 10, fontWeight: '600', color: barColor, marginBottom: 3 }}>
-                {countLabel}
+            {valueLabel !== '' && (
+              <Text style={{ fontSize: 9, fontWeight: '600', color: barColor, marginBottom: 3 }} numberOfLines={1}>
+                {valueLabel}
               </Text>
             )}
+            {/* Bar with subtle highlight layer */}
             <View
               style={{
                 width: '100%',
                 height: barH > 0 ? barH : 2,
                 backgroundColor: barH > 0 ? barColor : C.divider,
                 borderRadius: 4,
-                opacity: barH > 0 ? 0.85 : 0.3,
+                opacity: barH > 0 ? 1 : 0.3,
+                overflow: 'hidden',
               }}
-            />
+            >
+              {barH > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: Math.max(2, Math.round(barH * 0.35)),
+                    backgroundColor: 'rgba(255,255,255,0.18)',
+                    borderRadius: 4,
+                  }}
+                />
+              )}
+            </View>
             <Text style={{ fontSize: 10, color: C.textSecondary, marginTop: 5, fontWeight: '500' }}>
               {item.label}
             </Text>
@@ -467,128 +680,7 @@ function BarChart({ data, maxBarHeight = 80, barColor }: BarChartProps) {
   );
 }
 
-// ─── Achievement Card ─────────────────────────────────────────────────────────
-
-interface AchievementCardProps {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  unlockedAt?: string;
-}
-
-function AchievementCard({ id: _id, title, description, icon, unlockedAt }: AchievementCardProps) {
-  const C = useColors();
-  const isUnlocked = Boolean(unlockedAt);
-
-  let dateLabel = '';
-  if (unlockedAt) {
-    try {
-      const d = new Date(unlockedAt);
-      dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch {
-      dateLabel = '';
-    }
-  }
-
-  const unlockedText = dateLabel ? `Unlocked ${dateLabel}` : 'Unlocked';
-
-  return (
-    <View
-      style={{
-        backgroundColor: isUnlocked ? C.card : C.surfaceSecondary,
-        borderRadius: 12,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: isUnlocked ? C.border : 'transparent',
-        padding: 12,
-        flex: 1,
-        opacity: isUnlocked ? 1 : 0.5,
-      }}
-    >
-      <Text style={{ fontSize: 24, marginBottom: 6 }}>{icon}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 2 }}>
-        {title}
-      </Text>
-      <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 15, marginBottom: 4 }}>
-        {description}
-      </Text>
-      {isUnlocked ? (
-        <Text style={{ fontSize: 10, color: '#34C759', fontWeight: '600' }}>
-          {unlockedText}
-        </Text>
-      ) : (
-        <Text style={{ fontSize: 10, color: C.subtext }}>
-          Locked
-        </Text>
-      )}
-    </View>
-  );
-}
-
-// ─── Achievements Section ─────────────────────────────────────────────────────
-
-function AchievementsSection({
-  unlockedAchievements,
-  sectionLabel,
-}: {
-  unlockedAchievements: Achievement[];
-  sectionLabel: object;
-}) {
-  const C = useColors();
-  const unlockedMap: Record<string, Achievement> = {};
-  for (const a of unlockedAchievements) {
-    unlockedMap[a.id] = a;
-  }
-
-  const rows: Array<[typeof ALL_ACHIEVEMENTS[0], typeof ALL_ACHIEVEMENTS[0] | null]> = [];
-  for (let i = 0; i < ALL_ACHIEVEMENTS.length; i += 2) {
-    rows.push([ALL_ACHIEVEMENTS[i], ALL_ACHIEVEMENTS[i + 1] ?? null]);
-  }
-
-  const unlockedCount = unlockedAchievements.length;
-  const totalCount = ALL_ACHIEVEMENTS.length;
-  const progressLabel = `${unlockedCount}/${totalCount} unlocked`;
-
-  return (
-    <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
-          Achievements
-        </Text>
-        <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '500' }}>
-          {progressLabel}
-        </Text>
-      </View>
-      <View style={{ paddingHorizontal: 16, gap: 8 }}>
-        {rows.map((row, idx) => (
-          <View key={idx} style={{ flexDirection: 'row', gap: 8 }}>
-            <AchievementCard
-              id={row[0].id}
-              title={row[0].title}
-              description={row[0].description}
-              icon={row[0].icon}
-              unlockedAt={unlockedMap[row[0].id]?.unlockedAt}
-            />
-            {row[1] ? (
-              <AchievementCard
-                id={row[1].id}
-                title={row[1].title}
-                description={row[1].description}
-                icon={row[1].icon}
-                unlockedAt={unlockedMap[row[1].id]?.unlockedAt}
-              />
-            ) : (
-              <View style={{ flex: 1 }} />
-            )}
-          </View>
-        ))}
-      </View>
-    </>
-  );
-}
-
-// ─── Goals Section ────────────────────────────────────────────────────────────
+// ─── Goal Row ─────────────────────────────────────────────────────────────────
 
 function goalTypeLabel(type: ItemGoal['goalType']): string {
   switch (type) {
@@ -623,12 +715,19 @@ function GoalRow({ goal }: GoalRowProps) {
   const isAchieved = goal.status === 'achieved';
   const isMissed = goal.status === 'missed';
 
-  const badgeColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : '#007AFF';
-  const badgeBg = isAchieved ? 'rgba(52,199,89,0.12)' : isMissed ? C.surfaceSecondary : 'rgba(0,122,255,0.12)';
+  const badgeColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : '#0A84FF';
+  const badgeBg = isAchieved ? 'rgba(52,199,89,0.12)' : isMissed ? C.surfaceSecondary : 'rgba(10,132,255,0.12)';
   const badgeText = isAchieved ? '✓ Achieved' : isMissed ? '✗ Missed' : 'Active';
 
   const progressFill = isAchieved ? 1 : isMissed ? 0.5 : 0;
   const progressColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : C.primary;
+
+  let dateOrStatus = '';
+  if (isAchieved && goal.achievedAt) {
+    dateOrStatus = formatShortDate(goal.achievedAt);
+  } else if (!isAchieved && !isMissed) {
+    dateOrStatus = 'In progress';
+  }
 
   return (
     <View
@@ -651,6 +750,11 @@ function GoalRow({ goal }: GoalRowProps) {
             {typeLabel}
             {detailText !== '' ? ` · ${detailText}` : ''}
           </Text>
+          {dateOrStatus !== '' && (
+            <Text style={{ fontSize: 11, color: isAchieved ? '#34C759' : C.subtext, marginTop: 3 }}>
+              {dateOrStatus}
+            </Text>
+          )}
         </View>
         <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: badgeBg }}>
           <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>
@@ -673,33 +777,39 @@ function GoalRow({ goal }: GoalRowProps) {
   );
 }
 
-function GoalsSection({ goals, sectionLabel }: { goals: ItemGoal[]; sectionLabel: object }) {
+// ─── Goals Section ────────────────────────────────────────────────────────────
+
+function GoalsSection({ goals }: { goals: ItemGoal[] }) {
   const C = useColors();
 
+  // Sort: achieved first, then active, then missed
   const sorted = [...goals].sort((a, b) => {
-    const order = { active: 0, achieved: 1, missed: 2 };
+    const order: Record<string, number> = { achieved: 0, active: 1, missed: 2 };
     return (order[a.status] ?? 3) - (order[b.status] ?? 3);
   });
 
-  const achievedCount = goals.filter(g => g.status === 'achieved').length;
-  const progressLabel = `${achievedCount}/${goals.length} achieved`;
+  const countLabel = String(goals.length);
 
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
-          Goals
+          Goal History
         </Text>
         {goals.length > 0 && (
-          <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '500' }}>
-            {progressLabel}
-          </Text>
+          <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: C.surfaceSecondary }}>
+            <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
+              {countLabel}
+            </Text>
+          </View>
         )}
       </View>
       <View style={{ paddingHorizontal: 16 }}>
         {sorted.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, color: C.textSecondary }}>No goals set yet</Text>
+            <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+              No goals yet — set a goal on any stopwatch or timer.
+            </Text>
           </View>
         ) : (
           sorted.map(goal => <GoalRow key={goal.id} goal={goal} />)
@@ -714,13 +824,11 @@ function GoalsSection({ goals, sectionLabel }: { goals: ItemGoal[]; sectionLabel
 function StatsContent({
   sessions,
   isLoaded,
-  unlockedAchievements,
   goals,
   listBottomPad,
 }: {
   sessions: Session[];
   isLoaded: boolean;
-  unlockedAchievements: Achievement[];
   goals: ItemGoal[];
   listBottomPad: number;
 }) {
@@ -769,8 +877,7 @@ function StatsContent({
             Complete some sessions to see stats.
           </Text>
         </View>
-        <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
-        <GoalsSection goals={goals} sectionLabel={sectionLabel} />
+        <GoalsSection goals={goals} />
       </ScrollView>
     );
   }
@@ -805,6 +912,13 @@ function StatsContent({
   const slowestDisplay = stats.slowestLap ? formatTime(stats.slowestLap.lapTime) : '—';
   const avgDisplay = stats.avgLapTime > 0 ? formatTime(Math.round(stats.avgLapTime)) : '—';
 
+  const streaks = computeStreaks(sessions);
+  const mostActiveDay = getMostActiveDayOfWeek(sessions);
+  const avgSessionMs = sessions.length > 0 ? stats.totalTime / sessions.length : 0;
+  const avgSessionDisplay = avgSessionMs > 0 ? formatAvgSession(avgSessionMs) : '—';
+  const longestSessionMs = getLongestSession(sessions);
+  const longestSessionDisplay = longestSessionMs > 0 ? formatTime(longestSessionMs) : '—';
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -816,29 +930,38 @@ function StatsContent({
         <StatCard
           label="Total Time"
           value={totalTimeDisplay}
-          icon={<Clock size={13} color={C.textSecondary} />}
+          iconNode={<Timer size={15} color="#34C759" />}
+          iconBgColor="rgba(52,199,89,0.15)"
         />
         <StatCard
           label="Sessions"
           value={String(stats.totalSessions)}
-          icon={<Timer size={13} color={C.textSecondary} />}
+          iconNode={<BarChart2 size={15} color="#0A84FF" />}
+          iconBgColor="rgba(10,132,255,0.15)"
         />
       </View>
       <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
         <StatCard
           label="Total Laps"
           value={String(stats.totalLaps)}
-          icon={<Flag size={13} color={C.textSecondary} />}
+          iconNode={<Flag size={15} color="#FF9500" />}
+          iconBgColor="rgba(255,149,0,0.15)"
         />
         {stats.mostUsedCategory ? (
           <StatCard
             label="Top Category"
             value={stats.mostUsedCategory}
+            iconNode={<Tag size={15} color="#BF5AF2" />}
+            iconBgColor="rgba(191,90,242,0.15)"
           />
         ) : (
           <View style={{ flex: 1 }} />
         )}
       </View>
+
+      {/* Streak */}
+      <Text style={sectionLabel}>Streak</Text>
+      <StreakCard current={streaks.current} best={streaks.best} />
 
       {/* Lap stats */}
       {stats.totalLaps > 0 && (
@@ -849,18 +972,21 @@ function StatsContent({
               label="Fastest"
               value={fastestDisplay}
               accent="#34C759"
-              icon={<Zap size={13} color="#34C759" />}
+              iconNode={<Zap size={15} color="#34C759" />}
+              iconBgColor="rgba(52,199,89,0.15)"
             />
             <StatCard
               label="Slowest"
               value={slowestDisplay}
-              accent="#FF3B30"
-              icon={<TrendingDown size={13} color="#FF3B30" />}
+              accent="#FF453A"
+              iconNode={<TrendingDown size={15} color="#FF453A" />}
+              iconBgColor="rgba(255,69,58,0.15)"
             />
             <StatCard
               label="Average"
               value={avgDisplay}
-              icon={<TrendingUp size={13} color={C.textSecondary} />}
+              iconNode={<TrendingUp size={15} color={C.textSecondary} />}
+              iconBgColor={C.surfaceSecondary}
             />
           </View>
         </>
@@ -901,7 +1027,24 @@ function StatsContent({
               padding: 16,
             }}
           >
-            <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} />
+            <BarChart
+              data={timeChartData}
+              barColor="#34C759"
+              maxBarHeight={80}
+              formatValue={formatTimeShort}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Top Activity summary */}
+      {sessions.length > 0 && (
+        <>
+          <Text style={sectionLabel}>Top Activity</Text>
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+            <MiniStatChip label="Best Day" value={mostActiveDay} />
+            <MiniStatChip label="Avg Session" value={avgSessionDisplay} />
+            <MiniStatChip label="Longest" value={longestSessionDisplay} />
           </View>
         </>
       )}
@@ -938,11 +1081,8 @@ function StatsContent({
         </>
       )}
 
-      {/* Achievements */}
-      <AchievementsSection unlockedAchievements={unlockedAchievements} sectionLabel={sectionLabel} />
-
-      {/* Goals */}
-      <GoalsSection goals={goals} sectionLabel={sectionLabel} />
+      {/* Goal History */}
+      <GoalsSection goals={goals} />
     </ScrollView>
   );
 }
@@ -958,13 +1098,12 @@ export default function InsightsScreen() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedTag, setSelectedTag] = useState('All');
-  const [unlockedAchievements, setUnlockedAchievements] = useState<Achievement[]>([]);
   const [goals, setGoals] = useState<ItemGoal[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       console.log('[InsightsScreen] Focus: loading sessions and goals');
-      Promise.all([getSessions(), getGoals()]).then(async ([data, loadedGoals]) => {
+      Promise.all([getSessions(), getGoals()]).then(([data, loadedGoals]) => {
         const sorted = [...data].sort((a, b) =>
           new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
         );
@@ -972,30 +1111,6 @@ export default function InsightsScreen() {
         setIsLoaded(true);
         setGoals(loadedGoals);
         console.log(`[InsightsScreen] Loaded ${sorted.length} session(s), ${loadedGoals.length} goal(s)`);
-
-        // Compute achievements
-        let totalLaps = 0;
-        let allLaps: Lap[] = [];
-        for (const s of data) {
-          const laps = s.laps ?? [];
-          totalLaps += laps.length;
-          allLaps = allLaps.concat(laps);
-        }
-        const fastestLapMs = allLaps.length > 0
-          ? allLaps.reduce((a, b) => a.lapTime < b.lapTime ? a : b).lapTime
-          : undefined;
-
-        const newlyUnlocked = await checkAndUnlockAchievements({
-          totalSessions: data.length,
-          totalLaps,
-          fastestLapMs,
-        });
-        if (newlyUnlocked.length > 0) {
-          console.log(`[InsightsScreen] Newly unlocked achievements: ${newlyUnlocked.map(a => a.id).join(', ')}`);
-        }
-
-        const unlocked = await getUnlockedAchievements();
-        setUnlockedAchievements(unlocked);
       });
     }, [])
   );
@@ -1195,7 +1310,6 @@ export default function InsightsScreen() {
         <StatsContent
           sessions={sessions}
           isLoaded={isLoaded}
-          unlockedAchievements={unlockedAchievements}
           goals={goals}
           listBottomPad={listBottomPad}
         />

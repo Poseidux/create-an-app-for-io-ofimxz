@@ -710,6 +710,7 @@ export default function TimersScreen() {
             alignItems: 'center',
           }}
         >
+          <View style={{ width: 36 }} />
           <Text
             style={{
               flex: 1,
