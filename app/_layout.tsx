@@ -75,6 +75,14 @@ function AppContent() {
                     />
 
                     <Stack.Screen
+                      name="timer-modal"
+                      options={{ presentation: "modal", headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="goal-modal"
+                      options={{ presentation: "modal", headerShown: false }}
+                    />
+                    <Stack.Screen
                       name="paywall"
                       options={{ headerShown: false, presentation: "modal" }}
                     />

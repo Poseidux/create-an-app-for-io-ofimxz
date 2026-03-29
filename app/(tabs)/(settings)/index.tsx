@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { useCategory } from '@/contexts/CategoryContext';
@@ -26,9 +27,22 @@ const THEME_OPTIONS: { value: ThemeOption; label: string }[] = [
   { value: 'dark', label: 'Dark' },
 ];
 
+// ─── Preset Templates ─────────────────────────────────────────────────────────
+
+const PRESET_TEMPLATES = [
+  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
+  { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
+  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
+  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
+  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
+  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
+  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
+];
+
 export default function SettingsScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { theme, setTheme } = useThemeContext();
   const { categories, addCategory, deleteCategory } = useCategory();
   const { restorePurchases, isSubscribed } = useSubscription();
@@ -87,6 +101,11 @@ export default function SettingsScreen() {
     } finally {
       setIsRestoring(false);
     }
+  };
+
+  const handlePresetTap = (preset: typeof PRESET_TEMPLATES[0]) => {
+    console.log(`[Settings] Preset template tapped: ${preset.key}`);
+    router.push(`/stopwatch-modal?preset=${preset.key}`);
   };
 
   const sectionLabelStyle = {
@@ -161,6 +180,38 @@ export default function SettingsScreen() {
               </React.Fragment>
             );
           })}
+        </View>
+
+        {/* Preset Templates */}
+        <Text style={sectionLabelStyle}>Preset Templates</Text>
+        <View style={cardStyle}>
+          {PRESET_TEMPLATES.map((preset, idx) => (
+            <React.Fragment key={preset.key}>
+              <Pressable
+                onPress={() => handlePresetTap(preset)}
+                style={({ pressed }) => ({
+                  ...rowStyle,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 18, marginRight: 12 }}>{preset.emoji}</Text>
+                <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
+                  {preset.name}
+                </Text>
+                <View
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: preset.color,
+                  }}
+                />
+              </Pressable>
+              {idx < PRESET_TEMPLATES.length - 1 && (
+                <View style={separatorStyle} />
+              )}
+            </React.Fragment>
+          ))}
         </View>
 
         {/* Categories */}

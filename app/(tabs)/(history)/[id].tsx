@@ -3,14 +3,13 @@ import {
   View,
   Text,
   ScrollView,
-  Alert,
-  TextInput,
   Platform,
   Pressable,
+  Share,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flag, Clock, Zap, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { Flag, Clock, Zap, TrendingDown, TrendingUp, Share2 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSession } from '@/utils/session-storage';
@@ -20,6 +19,15 @@ function formatDate(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch {
+    return iso;
+  }
+}
+
+function formatDateShort(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return iso;
   }
@@ -113,7 +121,7 @@ function LapRow({ lap, isFastest, isSlowest }: LapRowProps) {
           {lapTimeDisplay}
         </Text>
         {lap.note ? (
-          <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2 }}>
+          <Text style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
             {lap.note}
           </Text>
         ) : null}
@@ -168,6 +176,7 @@ export default function SessionDetailScreen() {
   const totalTimeDisplay = formatTime(session.totalTime);
   const startedDisplay = formatDate(session.startedAt);
   const endedDisplay = formatDate(session.endedAt);
+  const dateShort = formatDateShort(session.startedAt);
 
   // Lap stats
   let fastestLap: Lap | null = null;
@@ -183,16 +192,69 @@ export default function SessionDetailScreen() {
   const fastestId = fastestLap?.id;
   const slowestId = laps.length >= 2 ? slowestLap?.id : undefined;
 
+  const handleShare = async () => {
+    console.log(`[SessionDetail] Share pressed: id=${session.id}`);
+    const lapCount = laps.length;
+    const fastestDisplay = fastestLap ? formatTime(fastestLap.lapTime) : null;
+    const avgDisplay = avgLapTime > 0 ? formatTime(Math.round(avgLapTime)) : null;
+
+    let message = `📊 Chroniqo Session Summary\n\n`;
+    message += `🏷️ ${session.stopwatchName}\n`;
+    if (session.category) message += `📁 ${session.category}\n`;
+    message += `⏱️ Total Time: ${totalTimeDisplay}\n`;
+    message += `📅 ${dateShort}\n`;
+    message += `🏁 Laps: ${lapCount}\n`;
+    if (fastestDisplay) message += `⚡ Fastest Lap: ${fastestDisplay}\n`;
+    if (avgDisplay) message += `📈 Avg Lap: ${avgDisplay}\n`;
+    message += `\nTracked with Chroniqo`;
+
+    try {
+      await Share.share({ message });
+      console.log(`[SessionDetail] Share completed: id=${session.id}`);
+    } catch (e) {
+      console.log(`[SessionDetail] Share cancelled or failed: ${e}`);
+    }
+  };
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
     >
+      {/* Share button row */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: 4,
+        }}
+      >
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 20,
+            backgroundColor: C.surfaceSecondary,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Share2 size={15} color={C.textSecondary} />
+          <Text style={{ fontSize: 13, fontWeight: '500', color: C.textSecondary }}>Share</Text>
+        </Pressable>
+      </View>
+
       {/* Header card */}
       <View
         style={{
-          margin: 16,
+          marginHorizontal: 16,
+          marginBottom: 16,
           backgroundColor: C.card,
           borderRadius: 16,
           borderCurve: 'continuous',
@@ -320,7 +382,6 @@ export default function SessionDetailScreen() {
               marginBottom: 20,
             }}
           >
-            {/* Column headers */}
             <View style={{ flexDirection: 'row', paddingHorizontal: 14, paddingBottom: 6 }}>
               <View style={{ width: 36 }}>
                 <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>

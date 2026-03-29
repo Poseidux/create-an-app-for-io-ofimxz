@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   Pressable,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,65 @@ function formatDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+// ─── Filter Chips ─────────────────────────────────────────────────────────────
+
+interface FilterChipsProps {
+  tags: string[];
+  selected: string;
+  onSelect: (tag: string) => void;
+}
+
+function FilterChips({ tags, selected, onSelect }: FilterChipsProps) {
+  const C = useColors();
+  const allTags = ['All', ...tags];
+
+  return (
+    <View style={{ height: 44, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 44,
+        }}
+      >
+        {allTags.map(tag => {
+          const isSelected = selected === tag;
+          return (
+            <Pressable
+              key={tag}
+              onPress={() => {
+                console.log(`[HistoryScreen] Filter chip pressed: ${tag}`);
+                onSelect(tag);
+              }}
+              style={({ pressed }) => ({
+                flexShrink: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '500',
+                  color: isSelected ? C.chipSelectedText : C.chipText,
+                }}
+              >
+                {tag}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 }
 
 // ─── Session Row ──────────────────────────────────────────────────────────────
@@ -178,6 +238,7 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedTag, setSelectedTag] = useState('All');
 
   const loadSessions = useCallback(async () => {
     console.log('[HistoryScreen] Loading sessions');
@@ -201,18 +262,50 @@ export default function HistoryScreen() {
     setSessions(prev => prev.filter(s => s.id !== id));
   }, []);
 
+  // Unique tags from sessions
+  const uniqueTags = Array.from(
+    new Set(sessions.map(s => s.category).filter(Boolean))
+  ) as string[];
+
+  const filteredSessions = selectedTag === 'All'
+    ? sessions
+    : sessions.filter(s => s.category === selectedTag);
+
   const showEmpty = isLoaded && sessions.length === 0;
   const listBottomPad = insets.bottom + 100;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      {/* Header */}
+      <View
+        style={{
+          paddingTop: insets.top,
+          backgroundColor: C.background,
+          borderBottomWidth: 1,
+          borderBottomColor: C.separator,
+        }}
+      >
+        <View style={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, textAlign: 'center' }}>
+            History
+          </Text>
+        </View>
+        {uniqueTags.length > 0 && (
+          <FilterChips
+            tags={uniqueTags}
+            selected={selectedTag}
+            onSelect={setSelectedTag}
+          />
+        )}
+      </View>
+
       {showEmpty ? (
         <EmptyState />
       ) : (
         <FlatList
-          data={sessions}
+          data={filteredSessions}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: listBottomPad }}
+          contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
           renderItem={({ item }) => (
             <SessionRow
               session={item}
@@ -220,6 +313,13 @@ export default function HistoryScreen() {
               onDelete={() => handleDelete(item.id)}
             />
           )}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ fontSize: 15, color: C.textSecondary }}>
+                No sessions in this category.
+              </Text>
+            </View>
+          }
         />
       )}
     </View>

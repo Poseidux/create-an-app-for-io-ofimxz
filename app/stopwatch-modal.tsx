@@ -194,19 +194,32 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
+const PRESET_DEFAULTS: Record<string, { name: string; color: string }> = {
+  running:    { name: 'Running',    color: '#22c55e' },
+  swimming:   { name: 'Swimming',   color: '#38bdf8' },
+  cycling:    { name: 'Cycling',    color: '#fb923c' },
+  workout:    { name: 'Workout',    color: '#f87171' },
+  study:      { name: 'Study',      color: '#a78bfa' },
+  meditation: { name: 'Meditation', color: '#2dd4bf' },
+  sport:      { name: 'Sport',      color: '#fbbf24' },
+};
+
 export default function StopwatchModal() {
   const C = useColors();
   const router = useRouter();
-  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { edit, preset } = useLocalSearchParams<{ edit?: string; preset?: string }>();
   const { stopwatches, addStopwatch, renameStopwatch, addLap, clearLaps, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
   const { categories, addCategory } = useCategory();
 
   const isEditing = Boolean(edit);
   const existing = isEditing ? stopwatches.find(sw => sw.id === edit) : undefined;
 
-  const [name, setName] = useState(existing?.name ?? '');
+  // Determine initial name/color from preset or existing
+  const presetDefaults = preset ? (PRESET_DEFAULTS[preset] ?? null) : null;
+
+  const [name, setName] = useState(existing?.name ?? presetDefaults?.name ?? '');
   const [selectedColor, setSelectedColor] = useState(
-    existing?.color ?? DEFAULT_STOPWATCH_COLOR
+    existing?.color ?? presetDefaults?.color ?? DEFAULT_STOPWATCH_COLOR
   );
   const [selectedCategoryId, setSelectedCategoryId] = useState(
     existing?.category ?? 'all'

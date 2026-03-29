@@ -13,7 +13,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
@@ -28,12 +28,68 @@ import {
   Flag,
   FileText,
   X,
+  Target,
 } from 'lucide-react-native';
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
 import { Stopwatch, Lap, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
+import { getTimerConfigs, deleteTimerConfig, TimerConfig } from '@/utils/timer-storage';
+import { getGoals, Goal } from '@/utils/goal-storage';
+
+// ─── Preset Templates ─────────────────────────────────────────────────────────
+
+const PRESETS = [
+  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
+  { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
+  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
+  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
+  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
+  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
+  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
+];
+
+// ─── Timer runtime state ──────────────────────────────────────────────────────
+
+interface TimerRuntime {
+  configId: string;
+  isRunning: boolean;
+  phase: 'work' | 'rest' | 'countdown';
+  currentRound: number;
+  remainingMs: number;
+  accumulatedMs: number; // ms elapsed in current phase since last start
+  startedAt: number | null;
+  isComplete: boolean;
+}
+
+function makeInitialRuntime(config: TimerConfig): TimerRuntime {
+  const phase: 'work' | 'rest' | 'countdown' = config.mode === 'countdown' ? 'countdown' : 'work';
+  const remainingMs = config.mode === 'countdown'
+    ? (config.countdownMs ?? 0)
+    : (config.workMs ?? 0);
+  return {
+    configId: config.id,
+    isRunning: false,
+    phase,
+    currentRound: 1,
+    remainingMs,
+    accumulatedMs: 0,
+    startedAt: null,
+    isComplete: false,
+  };
+}
+
+function getRemainingMs(rt: TimerRuntime, config: TimerConfig): number {
+  if (!rt.isRunning || rt.startedAt === null) return rt.remainingMs;
+  const elapsed = Date.now() - rt.startedAt + rt.accumulatedMs;
+  const phaseDuration = rt.phase === 'countdown'
+    ? (config.countdownMs ?? 0)
+    : rt.phase === 'work'
+    ? (config.workMs ?? 0)
+    : (config.restMs ?? 0);
+  return Math.max(0, phaseDuration - elapsed);
+}
 
 // ─── Pulsing Dot ──────────────────────────────────────────────────────────────
 
@@ -124,6 +180,302 @@ function CategoryChips() {
   );
 }
 
+// ─── Preset Chips ─────────────────────────────────────────────────────────────
+
+interface PresetChipsProps {
+  onPresetTap: (preset: typeof PRESETS[0]) => void;
+}
+
+function PresetChips({ onPresetTap }: PresetChipsProps) {
+  const C = useColors();
+  return (
+    <View style={{ height: 44, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 44,
+        }}
+      >
+        {PRESETS.map(preset => (
+          <Pressable
+            key={preset.key}
+            onPress={() => {
+              console.log(`[StopwatchesScreen] Preset chip tapped: ${preset.key}`);
+              onPresetTap(preset);
+            }}
+            style={({ pressed }) => ({
+              flexShrink: 0,
+              flexGrow: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              backgroundColor: `${preset.color}18`,
+              borderWidth: 1,
+              borderColor: `${preset.color}40`,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 13 }}>{preset.emoji}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: preset.color }}>
+              {preset.name}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Timer Card ───────────────────────────────────────────────────────────────
+
+interface TimerCardProps {
+  config: TimerConfig;
+  runtime: TimerRuntime;
+  onStart: () => void;
+  onPause: () => void;
+  onReset: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}
+
+function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdit }: TimerCardProps) {
+  const C = useColors();
+  const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+  const swColor = config.color;
+
+  const remaining = getRemainingMs(runtime, config);
+  const remainingDisplay = formatTime(remaining);
+
+  const totalRounds = config.rounds ?? 1;
+  const modeLabel = config.mode === 'countdown' ? 'Countdown' : config.mode === 'interval' ? 'Interval' : 'HIIT';
+  const phaseLabel = runtime.phase === 'work' ? 'WORK' : runtime.phase === 'rest' ? 'REST' : '';
+
+  const cardBg = runtime.isRunning ? `${swColor}0a` : C.card;
+  const cardBorderColor = runtime.isRunning ? `${swColor}40` : C.border;
+
+  const handleStartPause = () => {
+    console.log(`[TimerCard] ${runtime.isRunning ? 'Pause' : 'Start'} pressed: id=${config.id}, name="${config.name}"`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (runtime.isRunning) onPause(); else onStart();
+  };
+
+  const handleReset = () => {
+    console.log(`[TimerCard] Reset pressed: id=${config.id}`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onReset();
+  };
+
+  const handleDelete = () => {
+    console.log(`[TimerCard] Delete pressed: id=${config.id}`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      'Delete Timer?',
+      `"${config.name}" will be permanently removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            console.log(`[TimerCard] Delete confirmed: id=${config.id}`);
+            onDelete();
+          },
+        },
+      ]
+    );
+  };
+
+  const doneColor = '#34C759';
+
+  return (
+    <Pressable
+      onLongPress={() => {
+        console.log(`[TimerCard] Long press (edit): id=${config.id}`);
+        onEdit();
+      }}
+      delayLongPress={400}
+      style={{ marginHorizontal: 16, marginBottom: 12 }}
+    >
+      <View
+        style={{
+          backgroundColor: runtime.isComplete ? 'rgba(52,199,89,0.06)' : cardBg,
+          borderRadius: 16,
+          borderCurve: 'continuous',
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: runtime.isComplete ? 'rgba(52,199,89,0.30)' : cardBorderColor,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
+        }}
+      >
+        {runtime.isRunning && !runtime.isComplete && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              backgroundColor: swColor,
+              zIndex: 1,
+            }}
+          />
+        )}
+
+        <View style={{ padding: 16, paddingLeft: runtime.isRunning ? 20 : 16 }}>
+          {/* Top row */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: C.text, marginBottom: 4 }}>
+                {config.name}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {runtime.isRunning && <PulsingDot color={swColor} />}
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 20,
+                    backgroundColor: `${swColor}22`,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: swColor, fontWeight: '600' }}>
+                    {modeLabel}
+                  </Text>
+                </View>
+                {config.mode !== 'countdown' && (
+                  <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
+                    {`Round ${runtime.currentRound}/${totalRounds}`}
+                  </Text>
+                )}
+                {phaseLabel !== '' && (
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 20,
+                      backgroundColor: runtime.phase === 'work' ? 'rgba(255,59,48,0.12)' : 'rgba(52,199,89,0.12)',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: runtime.phase === 'work' ? '#FF3B30' : '#34C759',
+                      }}
+                    >
+                      {phaseLabel}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={{ alignItems: 'flex-end' }}>
+              {runtime.isComplete ? (
+                <Text style={{ fontSize: 22, fontWeight: '700', color: doneColor }}>
+                  ✓ Done
+                </Text>
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '700',
+                    fontFamily: timerFont,
+                    color: runtime.isRunning ? swColor : C.text,
+                    fontVariant: ['tabular-nums'],
+                    letterSpacing: -0.5,
+                    lineHeight: 34,
+                  }}
+                >
+                  {remainingDisplay}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
+
+          {/* Action buttons */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {!runtime.isComplete && (
+              <Pressable
+                onPress={handleStartPause}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: runtime.isRunning ? swColor : C.primary,
+                  borderRadius: 10,
+                  borderCurve: 'continuous',
+                  paddingVertical: 9,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {runtime.isRunning
+                  ? <Pause size={15} color="#fff" fill="#fff" />
+                  : <Play size={15} color="#fff" fill="#fff" />
+                }
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                  {runtime.isRunning ? 'Pause' : 'Start'}
+                </Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={handleReset}
+              style={({ pressed }) => ({
+                flex: runtime.isComplete ? 1 : undefined,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                paddingHorizontal: runtime.isComplete ? undefined : 14,
+                backgroundColor: C.surfaceSecondary,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 9,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <RotateCcw size={14} color={C.textSecondary} />
+              {runtime.isComplete && (
+                <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                  Reset
+                </Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={handleDelete}
+              style={({ pressed }) => ({
+                width: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: C.dangerMuted,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 9,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Trash2 size={14} color={C.danger} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // ─── Details Bottom Sheet ─────────────────────────────────────────────────────
 
 interface DetailsSheetProps {
@@ -139,7 +491,6 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
   const [noteText, setNoteText] = useState(sw.note ?? '');
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
-  // Sync note when sw changes
   useEffect(() => {
     setNoteText(sw.note ?? '');
   }, [sw.note, visible]);
@@ -176,10 +527,7 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
         'Enter a note for this lap:',
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Clear',
-            onPress: () => onUpdateLapNote(lap.id, ''),
-          },
+          { text: 'Clear', onPress: () => onUpdateLapNote(lap.id, '') },
         ]
       );
     }
@@ -198,7 +546,6 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
         style={{ flex: 1, backgroundColor: C.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
         <View
           style={{
             flexDirection: 'row',
@@ -241,7 +588,6 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Note field */}
           <Text
             style={{
               fontSize: 12,
@@ -281,7 +627,6 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
             />
           </View>
 
-          {/* Lap list */}
           {laps.length > 0 && (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
@@ -311,7 +656,6 @@ function DetailsSheet({ sw, visible, onClose, onUpdateNote, onUpdateLapNote }: D
                   marginBottom: 16,
                 }}
               >
-                {/* Column headers */}
                 <View
                   style={{
                     flexDirection: 'row',
@@ -424,6 +768,7 @@ interface CardProps {
   sw: Stopwatch;
   index: number;
   total: number;
+  goal: Goal | null;
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -433,12 +778,14 @@ interface CardProps {
   onLongPress: () => void;
   onLap: () => void;
   onOpenDetails: () => void;
+  onOpenGoal: () => void;
 }
 
 function StopwatchCard({
   sw,
   index,
   total,
+  goal,
   onStart,
   onPause,
   onReset,
@@ -448,6 +795,7 @@ function StopwatchCard({
   onLongPress,
   onLap,
   onOpenDetails,
+  onOpenGoal,
 }: CardProps) {
   const C = useColors();
   const { categories } = useCategory();
@@ -492,6 +840,8 @@ function StopwatchCard({
   const lapCountLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
 
   const canLap = sw.isRunning || (sw.accumulatedMs > 0 && !sw.isRunning);
+
+  const goalTargetDisplay = goal ? formatTime(goal.targetMs) : null;
 
   const handleStartPause = () => {
     console.log(`[StopwatchCard] ${sw.isRunning ? 'Pause' : 'Start'} pressed: id=${sw.id}, name="${sw.name}"`);
@@ -622,7 +972,7 @@ function StopwatchCard({
                     {categoryLabel}
                   </Text>
                 )}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   {sw.isRunning && <PulsingDot color={swColor} />}
                   <View
                     style={{
@@ -652,6 +1002,29 @@ function StopwatchCard({
                     >
                       <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
                         {lapCountLabel}
+                      </Text>
+                    </Pressable>
+                  )}
+                  {goalTargetDisplay !== null && (
+                    <Pressable
+                      onPress={() => {
+                        console.log(`[StopwatchCard] Goal badge pressed: id=${sw.id}`);
+                        onOpenGoal();
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 3,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 20,
+                        backgroundColor: 'rgba(251,191,36,0.15)',
+                        opacity: pressed ? 0.6 : 1,
+                      })}
+                    >
+                      <Target size={10} color="#f59e0b" />
+                      <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '600' }}>
+                        {goalTargetDisplay}
                       </Text>
                     </Pressable>
                   )}
@@ -926,6 +1299,7 @@ export default function StopwatchesScreen() {
     addLap,
     updateNote,
     updateLapNote,
+    addStopwatch,
   } = useStopwatch();
   const { selectedCategory } = useCategory();
 
@@ -933,14 +1307,104 @@ export default function StopwatchesScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
 
+  // Timer configs and runtimes
+  const [timerConfigs, setTimerConfigs] = useState<TimerConfig[]>([]);
+  const [timerRuntimes, setTimerRuntimes] = useState<Record<string, TimerRuntime>>({});
+
+  // Goals
+  const [goals, setGoals] = useState<Goal[]>([]);
+
   // Details sheet state
   const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
   const detailsSw = detailsSwId ? stopwatches.find(sw => sw.id === detailsSwId) ?? null : null;
 
+  // Load timer configs and goals on focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[StopwatchesScreen] Focus: loading timer configs and goals');
+      getTimerConfigs().then(configs => {
+        setTimerConfigs(configs);
+        // Initialize runtimes for new configs
+        setTimerRuntimes(prev => {
+          const next = { ...prev };
+          for (const cfg of configs) {
+            if (!next[cfg.id]) {
+              next[cfg.id] = makeInitialRuntime(cfg);
+            }
+          }
+          // Remove runtimes for deleted configs
+          for (const id of Object.keys(next)) {
+            if (!configs.find(c => c.id === id)) {
+              delete next[id];
+            }
+          }
+          return next;
+        });
+      });
+      getGoals().then(setGoals);
+    }, [])
+  );
+
+  // Tick interval for stopwatches and timers
+  const anyTimerRunning = Object.values(timerRuntimes).some(rt => rt.isRunning);
+
   useEffect(() => {
-    if (anyRunning) {
+    if (anyRunning || anyTimerRunning) {
       intervalRef.current = setInterval(() => {
         setTick(t => t + 1);
+        // Advance timer runtimes
+        setTimerRuntimes(prev => {
+          let changed = false;
+          const next = { ...prev };
+          for (const id of Object.keys(next)) {
+            const rt = next[id];
+            if (!rt.isRunning || rt.isComplete) continue;
+            const cfg = timerConfigs.find(c => c.id === id);
+            if (!cfg) continue;
+
+            const remaining = getRemainingMs(rt, cfg);
+            if (remaining <= 0) {
+              // Phase complete
+              if (cfg.mode === 'countdown') {
+                next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
+                console.log(`[TimerRuntime] Countdown complete: id=${id}`);
+              } else {
+                // interval / hiit
+                if (rt.phase === 'work') {
+                  // Switch to rest
+                  next[id] = {
+                    ...rt,
+                    phase: 'rest',
+                    remainingMs: cfg.restMs ?? 0,
+                    accumulatedMs: 0,
+                    startedAt: Date.now(),
+                  };
+                  console.log(`[TimerRuntime] Switching to REST: id=${id}, round=${rt.currentRound}`);
+                } else {
+                  // rest done — next round
+                  const nextRound = rt.currentRound + 1;
+                  const totalRounds = cfg.rounds ?? 1;
+                  if (nextRound > totalRounds) {
+                    next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
+                    console.log(`[TimerRuntime] All rounds complete: id=${id}`);
+                  } else {
+                    next[id] = {
+                      ...rt,
+                      phase: 'work',
+                      currentRound: nextRound,
+                      remainingMs: cfg.workMs ?? 0,
+                      accumulatedMs: 0,
+                      startedAt: Date.now(),
+                    };
+                    console.log(`[TimerRuntime] Starting round ${nextRound}: id=${id}`);
+                  }
+                }
+              }
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
       }, 100);
     } else {
       if (intervalRef.current) {
@@ -954,7 +1418,37 @@ export default function StopwatchesScreen() {
         intervalRef.current = null;
       }
     };
-  }, [anyRunning]);
+  }, [anyRunning, anyTimerRunning, timerConfigs]);
+
+  const openAddChoice = useCallback(() => {
+    console.log('[StopwatchesScreen] Header + button pressed — showing choice');
+    Alert.alert(
+      'Add New',
+      'What would you like to create?',
+      [
+        {
+          text: 'Stopwatch',
+          onPress: () => {
+            console.log('[StopwatchesScreen] Choice: Stopwatch selected');
+            if (!canAddStopwatch) {
+              console.log('[StopwatchesScreen] Free tier limit reached — redirecting to paywall');
+              router.push('/paywall');
+              return;
+            }
+            router.push('/stopwatch-modal');
+          },
+        },
+        {
+          text: 'Timer',
+          onPress: () => {
+            console.log('[StopwatchesScreen] Choice: Timer selected');
+            router.push('/timer-modal');
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }, [router, canAddStopwatch]);
 
   const openAddModal = useCallback(() => {
     if (!canAddStopwatch) {
@@ -970,6 +1464,17 @@ export default function StopwatchesScreen() {
     console.log(`[StopwatchesScreen] Open edit modal for id=${id}`);
     router.push(`/stopwatch-modal?edit=${id}`);
   }, [router]);
+
+  const handlePresetTap = useCallback((preset: typeof PRESETS[0]) => {
+    console.log(`[StopwatchesScreen] Preset tapped: ${preset.key}`);
+    if (!canAddStopwatch) {
+      console.log('[StopwatchesScreen] Preset: free tier limit — redirecting to paywall');
+      router.push('/paywall');
+      return;
+    }
+    addStopwatch(preset.name, preset.color, undefined);
+    if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [canAddStopwatch, addStopwatch, router]);
 
   const handleStart = useCallback((id: string) => {
     startStopwatch(id);
@@ -999,9 +1504,23 @@ export default function StopwatchesScreen() {
       };
       console.log(`[StopwatchesScreen] Saving session: id=${session.id}`);
       await saveSession(session);
+
+      // Check goal
+      const swGoal = goals.find(g => g.stopwatchId === sw.id);
+      if (swGoal) {
+        const laps = sw.laps ?? [];
+        const fastestLap = laps.length > 0 ? laps.reduce((a, b) => a.lapTime < b.lapTime ? a : b) : null;
+        const beatGoal =
+          (swGoal.type === 'total' && elapsedMs <= swGoal.targetMs) ||
+          (swGoal.type === 'lap' && fastestLap !== null && fastestLap.lapTime <= swGoal.targetMs);
+        if (beatGoal) {
+          console.log(`[StopwatchesScreen] Goal achieved for id=${sw.id}!`);
+          Alert.alert('🎯 Goal Achieved!', `You hit your goal for "${sw.name}"!`);
+        }
+      }
     }
     resetStopwatch(id);
-  }, [stopwatches, resetStopwatch]);
+  }, [stopwatches, resetStopwatch, goals]);
 
   const handleDelete = useCallback((id: string) => {
     deleteStopwatch(id);
@@ -1035,6 +1554,72 @@ export default function StopwatchesScreen() {
     addLap(id, lap);
   }, [stopwatches, addLap]);
 
+  // Timer actions
+  const handleTimerStart = useCallback((id: string) => {
+    console.log(`[StopwatchesScreen] Timer start: id=${id}`);
+    setTimerRuntimes(prev => {
+      const rt = prev[id];
+      if (!rt) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...rt,
+          isRunning: true,
+          startedAt: Date.now(),
+          accumulatedMs: 0,
+        },
+      };
+    });
+  }, []);
+
+  const handleTimerPause = useCallback((id: string) => {
+    console.log(`[StopwatchesScreen] Timer pause: id=${id}`);
+    setTimerRuntimes(prev => {
+      const rt = prev[id];
+      if (!rt || !rt.isRunning || rt.startedAt === null) return prev;
+      const cfg = timerConfigs.find(c => c.id === id);
+      if (!cfg) return prev;
+      const remaining = getRemainingMs(rt, cfg);
+      const phaseDuration = rt.phase === 'countdown'
+        ? (cfg.countdownMs ?? 0)
+        : rt.phase === 'work'
+        ? (cfg.workMs ?? 0)
+        : (cfg.restMs ?? 0);
+      const elapsed = phaseDuration - remaining;
+      return {
+        ...prev,
+        [id]: {
+          ...rt,
+          isRunning: false,
+          remainingMs: remaining,
+          accumulatedMs: elapsed,
+          startedAt: null,
+        },
+      };
+    });
+  }, [timerConfigs]);
+
+  const handleTimerReset = useCallback((id: string) => {
+    console.log(`[StopwatchesScreen] Timer reset: id=${id}`);
+    const cfg = timerConfigs.find(c => c.id === id);
+    if (!cfg) return;
+    setTimerRuntimes(prev => ({
+      ...prev,
+      [id]: makeInitialRuntime(cfg),
+    }));
+  }, [timerConfigs]);
+
+  const handleTimerDelete = useCallback(async (id: string) => {
+    console.log(`[StopwatchesScreen] Timer delete: id=${id}`);
+    await deleteTimerConfig(id);
+    setTimerConfigs(prev => prev.filter(c => c.id !== id));
+    setTimerRuntimes(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
   const filteredStopwatches = selectedCategory === 'all'
     ? stopwatches
     : stopwatches.filter(sw => sw.category === selectedCategory);
@@ -1049,7 +1634,17 @@ export default function StopwatchesScreen() {
     prevCountRef.current = filteredStopwatches.length;
   }, [filteredStopwatches.length]);
 
-  const showEmpty = isLoaded && filteredStopwatches.length === 0;
+  const showEmpty = isLoaded && filteredStopwatches.length === 0 && timerConfigs.length === 0;
+
+  // Build list data: timers first, then stopwatches
+  type ListItem =
+    | { type: 'timer'; config: TimerConfig }
+    | { type: 'stopwatch'; sw: Stopwatch; index: number };
+
+  const listData: ListItem[] = [
+    ...timerConfigs.map(config => ({ type: 'timer' as const, config })),
+    ...filteredStopwatches.map((sw, index) => ({ type: 'stopwatch' as const, sw, index })),
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -1075,10 +1670,7 @@ export default function StopwatchesScreen() {
           </Text>
 
           <Pressable
-            onPress={() => {
-              console.log('[StopwatchesScreen] Header + button pressed');
-              openAddModal();
-            }}
+            onPress={openAddChoice}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -1094,36 +1686,60 @@ export default function StopwatchesScreen() {
         </View>
 
         <CategoryChips />
+        <PresetChips onPresetTap={handlePresetTap} />
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
       <View style={{ flex: 1, display: showEmpty ? 'flex' : 'none' }}>
         <EmptyState onAdd={openAddModal} />
       </View>
+
       <FlatList
         style={{ flex: 1, display: showEmpty ? 'none' : 'flex' }}
-        data={filteredStopwatches}
-        keyExtractor={item => item.id}
+        data={listData}
+        keyExtractor={item => item.type === 'timer' ? `timer-${item.config.id}` : `sw-${item.sw.id}`}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-        renderItem={({ item, index }) => (
-          <StopwatchCard
-            sw={item}
-            index={index}
-            total={filteredStopwatches.length}
-            onStart={() => handleStart(item.id)}
-            onPause={() => handlePause(item.id)}
-            onReset={() => handleReset(item.id)}
-            onDelete={() => handleDelete(item.id)}
-            onMoveUp={() => handleMoveUp(item.id)}
-            onMoveDown={() => handleMoveDown(item.id)}
-            onLongPress={() => openEditModal(item.id)}
-            onLap={() => handleLap(item.id)}
-            onOpenDetails={() => {
-              console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
-              setDetailsSwId(item.id);
-            }}
-          />
-        )}
+        renderItem={({ item }) => {
+          if (item.type === 'timer') {
+            const rt = timerRuntimes[item.config.id] ?? makeInitialRuntime(item.config);
+            return (
+              <TimerCard
+                config={item.config}
+                runtime={rt}
+                onStart={() => handleTimerStart(item.config.id)}
+                onPause={() => handleTimerPause(item.config.id)}
+                onReset={() => handleTimerReset(item.config.id)}
+                onDelete={() => handleTimerDelete(item.config.id)}
+                onEdit={() => router.push(`/timer-modal?edit=${item.config.id}`)}
+              />
+            );
+          }
+          const swGoal = goals.find(g => g.stopwatchId === item.sw.id) ?? null;
+          return (
+            <StopwatchCard
+              sw={item.sw}
+              index={item.index}
+              total={filteredStopwatches.length}
+              goal={swGoal}
+              onStart={() => handleStart(item.sw.id)}
+              onPause={() => handlePause(item.sw.id)}
+              onReset={() => handleReset(item.sw.id)}
+              onDelete={() => handleDelete(item.sw.id)}
+              onMoveUp={() => handleMoveUp(item.sw.id)}
+              onMoveDown={() => handleMoveDown(item.sw.id)}
+              onLongPress={() => openEditModal(item.sw.id)}
+              onLap={() => handleLap(item.sw.id)}
+              onOpenDetails={() => {
+                console.log(`[StopwatchesScreen] Open details for id=${item.sw.id}`);
+                setDetailsSwId(item.sw.id);
+              }}
+              onOpenGoal={() => {
+                console.log(`[StopwatchesScreen] Open goal modal for id=${item.sw.id}`);
+                router.push(`/goal-modal?stopwatchId=${item.sw.id}&stopwatchName=${encodeURIComponent(item.sw.name)}`);
+              }}
+            />
+          );
+        }}
       />
 
       {/* Details bottom sheet */}
