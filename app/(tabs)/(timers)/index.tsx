@@ -161,9 +161,7 @@ function TimerGoalBadge({ goal, timerColor }: { goal: ItemGoal; timerColor: stri
     );
   }
 
-  const activeLabel = goal.goalType === 'complete_countdown'
-    ? 'Target: Complete countdown'
-    : 'Target: Complete all rounds';
+  const activeLabel = 'Goal: Complete';
 
   return (
     <View
@@ -303,9 +301,6 @@ function TimerCard({ config, runtime, goal, categoryName, onStart, onPause, onRe
                   {categoryName}
                 </Text>
               )}
-              {goal != null && (
-                <TimerGoalBadge goal={goal} timerColor={swColor} />
-              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {runtime.isRunning && <PulsingDot color={swColor} />}
                 <View
@@ -374,10 +369,19 @@ function TimerCard({ config, runtime, goal, categoryName, onStart, onPause, onRe
             </View>
           </View>
 
-          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 14 }} />
+          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+
+          {goal != null && (
+            <>
+              <View style={{ paddingHorizontal: 0, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+                <TimerGoalBadge goal={goal} timerColor={swColor} />
+              </View>
+              <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+            </>
+          )}
 
           {/* Action buttons */}
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             {!runtime.isComplete && (
               <Pressable
                 onPress={handleStartPause}

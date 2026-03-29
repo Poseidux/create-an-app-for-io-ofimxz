@@ -35,7 +35,7 @@ import { useColors } from '@/constants/Colors';
 import { Stopwatch, Lap, getElapsedMs, formatTime, getDays, DEFAULT_STOPWATCH_COLOR } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
 import { Category } from '@/utils/category-storage';
-import { getGoals, ItemGoal } from '@/utils/goal-storage';
+import { getGoals, ItemGoal, markGoalAchieved, markGoalMissed } from '@/utils/goal-storage';
 
 // ─── Preset Templates ─────────────────────────────────────────────────────────
 
@@ -479,12 +479,12 @@ function GoalBadge({ goal, swColor }: { goal: ItemGoal; swColor: string }) {
 
   const activeLabel = (() => {
     switch (goal.goalType) {
-      case 'target_duration': return goal.targetMs != null ? `🎯 Duration: ${formatTime(goal.targetMs)}` : '🎯 Duration goal';
-      case 'target_laps': return goal.targetLaps != null ? `🎯 Target: ${goal.targetLaps} laps` : '🎯 Laps goal';
-      case 'beat_personal_best': return goal.personalBestMs != null ? `🎯 Beat: ${formatTime(goal.personalBestMs)}` : '🎯 Personal best';
-      case 'complete_countdown': return '🎯 Complete countdown';
-      case 'complete_all_rounds': return '🎯 Complete all rounds';
-      default: return '🎯 Goal';
+      case 'target_duration': return goal.targetMs != null ? `Goal: ${formatTime(goal.targetMs)}` : 'Goal';
+      case 'target_laps': return goal.targetLaps != null ? `Goal: ${goal.targetLaps} laps` : 'Goal';
+      case 'beat_personal_best': return goal.personalBestMs != null ? `Goal: ${formatTime(goal.personalBestMs)}` : 'Goal';
+      case 'complete_countdown': return 'Goal: Complete';
+      case 'complete_all_rounds': return 'Goal: Complete';
+      default: return 'Goal';
     }
   })();
 
@@ -1064,9 +1064,13 @@ export default function StopwatchesScreen() {
           achieved = elapsedMs <= swGoal.personalBestMs;
         }
         if (achieved) {
-          console.log(`[StopwatchesScreen] Goal achieved for id=${sw.id}!`);
-          Alert.alert('🎯 Goal Achieved!', `You hit your goal for "${sw.name}"!`);
+          console.log(`[StopwatchesScreen] Goal achieved for id=${sw.id}`);
+          await markGoalAchieved(sw.id);
+        } else {
+          console.log(`[StopwatchesScreen] Goal missed for id=${sw.id}`);
+          await markGoalMissed(sw.id);
         }
+        getGoals().then(updatedGoals => setGoals(updatedGoals));
       }
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

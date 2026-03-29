@@ -90,47 +90,6 @@ function getDateKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function computeStreaks(sessions: Session[]): { current: number; best: number } {
-  if (sessions.length === 0) return { current: 0, best: 0 };
-
-  const daySet = new Set<string>();
-  for (const s of sessions) {
-    daySet.add(getDateKey(s.startedAt));
-  }
-
-  const sortedDays = Array.from(daySet).sort();
-  let best = 1;
-  let streak = 1;
-
-  for (let i = 1; i < sortedDays.length; i++) {
-    const prev = new Date(sortedDays[i - 1]);
-    const curr = new Date(sortedDays[i]);
-    const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
-      streak += 1;
-      if (streak > best) best = streak;
-    } else {
-      streak = 1;
-    }
-  }
-
-  // Current streak: count backwards from today
-  const todayKey = new Date().toISOString().slice(0, 10);
-  let current = 0;
-  let checkDate = new Date();
-  while (true) {
-    const key = checkDate.toISOString().slice(0, 10);
-    if (daySet.has(key)) {
-      current += 1;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-
-  return { current, best };
-}
-
 function getMostActiveDayOfWeek(sessions: Session[]): string {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const counts: number[] = [0, 0, 0, 0, 0, 0, 0];
@@ -450,72 +409,6 @@ function StatCard({ label, value, sub, accent, iconNode, iconBgColor }: StatCard
           {sub}
         </Text>
       ) : null}
-    </View>
-  );
-}
-
-// ─── Streak Card ──────────────────────────────────────────────────────────────
-
-function StreakCard({ current, best }: { current: number; best: number }) {
-  const C = useColors();
-  const currentLabel = String(current);
-  const bestLabel = String(best);
-
-  return (
-    <View
-      style={{
-        marginHorizontal: 16,
-        backgroundColor: C.card,
-        borderRadius: 14,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: C.border,
-        padding: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      }}
-    >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: 'rgba(255,149,0,0.15)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 12,
-        }}
-      >
-        <Text style={{ fontSize: 18 }}>🔥</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
-          Streak
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
-          <View>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#FF9500', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontVariant: ['tabular-nums'] }}>
-              {currentLabel}
-            </Text>
-            <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1 }}>
-              Current
-            </Text>
-          </View>
-          <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
-          <View>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: C.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontVariant: ['tabular-nums'] }}>
-              {bestLabel}
-            </Text>
-            <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1 }}>
-              Best
-            </Text>
-          </View>
-        </View>
-      </View>
-      <Text style={{ fontSize: 11, color: C.subtext }}>
-        days
-      </Text>
     </View>
   );
 }
@@ -912,7 +805,6 @@ function StatsContent({
   const slowestDisplay = stats.slowestLap ? formatTime(stats.slowestLap.lapTime) : '—';
   const avgDisplay = stats.avgLapTime > 0 ? formatTime(Math.round(stats.avgLapTime)) : '—';
 
-  const streaks = computeStreaks(sessions);
   const mostActiveDay = getMostActiveDayOfWeek(sessions);
   const avgSessionMs = sessions.length > 0 ? stats.totalTime / sessions.length : 0;
   const avgSessionDisplay = avgSessionMs > 0 ? formatAvgSession(avgSessionMs) : '—';
@@ -958,10 +850,6 @@ function StatsContent({
           <View style={{ flex: 1 }} />
         )}
       </View>
-
-      {/* Streak */}
-      <Text style={sectionLabel}>Streak</Text>
-      <StreakCard current={streaks.current} best={streaks.best} />
 
       {/* Lap stats */}
       {stats.totalLaps > 0 && (

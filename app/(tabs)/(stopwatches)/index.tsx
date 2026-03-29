@@ -617,17 +617,17 @@ function GoalBadge({ goal, swColor }: { goal: ItemGoal; swColor: string }) {
   const activeLabel = (() => {
     switch (goal.goalType) {
       case 'target_duration':
-        return goal.targetMs != null ? `🎯 Duration: ${formatTime(goal.targetMs)}` : '🎯 Duration goal';
+        return goal.targetMs != null ? `Goal: ${formatTime(goal.targetMs)}` : 'Goal';
       case 'target_laps':
-        return goal.targetLaps != null ? `🎯 Target: ${goal.targetLaps} laps` : '🎯 Laps goal';
+        return goal.targetLaps != null ? `Goal: ${goal.targetLaps} laps` : 'Goal';
       case 'beat_personal_best':
-        return goal.personalBestMs != null ? `🎯 Beat: ${formatTime(goal.personalBestMs)}` : '🎯 Personal best';
+        return goal.personalBestMs != null ? `Goal: ${formatTime(goal.personalBestMs)}` : 'Goal';
       case 'complete_countdown':
-        return '🎯 Complete countdown';
+        return 'Goal: Complete';
       case 'complete_all_rounds':
-        return '🎯 Complete all rounds';
+        return 'Goal: Complete';
       default:
-        return '🎯 Goal';
+        return 'Goal';
     }
   })();
 
