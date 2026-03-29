@@ -955,7 +955,7 @@ export default function StopwatchesScreen() {
     updateLapNote,
     addStopwatch,
   } = useStopwatch();
-  const { selectedCategory } = useCategory();
+  const { selectedCategory, categories } = useCategory();
 
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1017,7 +1017,7 @@ export default function StopwatchesScreen() {
         id: Math.random().toString(36).slice(2),
         stopwatchId: sw.id,
         stopwatchName: sw.name,
-        category: sw.category ?? '',
+        category: sw.category ? (categories.find((c: { id: string; name: string }) => c.id === sw.category)?.name ?? sw.category) : '',
         color: sw.color ?? DEFAULT_STOPWATCH_COLOR,
         totalTime: elapsedMs,
         laps: sw.laps ?? [],

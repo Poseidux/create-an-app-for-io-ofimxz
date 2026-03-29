@@ -6,10 +6,11 @@ import {
   Pressable,
   Alert,
   ScrollView,
+  Share,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Clock, Trash2 } from 'lucide-react-native';
+import { Clock, Trash2, Share2 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, formatTime } from '@/types/stopwatch';
 import { getSessions, deleteSession } from '@/utils/session-storage';
@@ -271,6 +272,16 @@ export default function HistoryScreen() {
     ? sessions
     : sessions.filter(s => s.category === selectedTag);
 
+  const handleShare = async () => {
+    console.log('[HistoryScreen] Share button pressed');
+    const lines = filteredSessions.slice(0, 10).map(s =>
+      `${s.stopwatchName} — ${formatTime(s.totalTime)}`
+    );
+    const summary = `Chroniqo History\n\n${lines.join('\n')}`;
+    console.log(`[HistoryScreen] Sharing ${lines.length} session(s)`);
+    await Share.share({ message: summary });
+  };
+
   const showEmpty = isLoaded && sessions.length === 0;
   const listBottomPad = insets.bottom + 100;
 
@@ -285,10 +296,27 @@ export default function HistoryScreen() {
           borderBottomColor: C.separator,
         }}
       >
-        <View style={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, textAlign: 'center' }}>
+        <View style={{ height: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1 }} />
+          <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', color: C.text, textAlign: 'center' }}>
             History
           </Text>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Pressable
+              onPress={handleShare}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: C.surfaceSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Share2 size={18} color={C.textSecondary} />
+            </Pressable>
+          </View>
         </View>
         {uniqueTags.length > 0 && (
           <FilterChips

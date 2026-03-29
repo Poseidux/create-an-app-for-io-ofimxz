@@ -21,6 +21,7 @@ import {
   saveGoal,
   deleteGoalForItem,
 } from '@/utils/goal-storage';
+import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/timer-category-storage';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -78,8 +79,8 @@ function ColorSwatch({
 // ─── Number Input ─────────────────────────────────────────────────────────────
 
 function NumberInput({
-  label, value, onChange, min = 0, max = 999,
-}: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+  label, value, onChange, min = 0, max = 999, width = 72,
+}: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; width?: number }) {
   const C = useColors();
   const [text, setText] = useState(String(value));
 
@@ -102,7 +103,7 @@ function NumberInput({
           borderRadius: 10,
           borderWidth: 1,
           borderColor: C.border,
-          width: 72,
+          width,
           alignItems: 'center',
         }}
       >
@@ -139,7 +140,9 @@ export default function TimerModal() {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#22c55e');
 
-  // Countdown
+  // Countdown — now with days + hours
+  const [cdDays, setCdDays] = useState(0);
+  const [cdHours, setCdHours] = useState(0);
   const [cdMinutes, setCdMinutes] = useState(5);
   const [cdSeconds, setCdSeconds] = useState(0);
 
@@ -158,9 +161,20 @@ export default function TimerModal() {
   const [hiitRestSec, setHiitRestSec] = useState(10);
   const [hiitRounds, setHiitRounds] = useState(8);
 
+  // Category
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [timerCategories, setTimerCategories] = useState<TimerCategory[]>([]);
+  const [newCatName, setNewCatName] = useState('');
+
   // Goal state
   const [goalEnabled, setGoalEnabled] = useState(false);
+  const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
+
+  // Load categories on mount
+  useEffect(() => {
+    loadTimerCategories().then(setTimerCategories);
+  }, []);
 
   // Load existing config if editing
   useEffect(() => {
@@ -172,10 +186,17 @@ export default function TimerModal() {
       setMode(cfg.mode);
       setName(cfg.name);
       setColor(cfg.color);
+      setSelectedCategoryId(cfg.category ?? 'all');
       if (cfg.mode === 'countdown' && cfg.countdownMs) {
         const totalSec = Math.floor(cfg.countdownMs / 1000);
-        setCdMinutes(Math.floor(totalSec / 60));
-        setCdSeconds(totalSec % 60);
+        const days = Math.floor(totalSec / 86400);
+        const hours = Math.floor((totalSec % 86400) / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        setCdDays(days);
+        setCdHours(hours);
+        setCdMinutes(mins);
+        setCdSeconds(secs);
       }
       if (cfg.mode === 'interval' || cfg.mode === 'hiit') {
         const wSec = Math.floor((cfg.workMs ?? 0) / 1000);
@@ -202,6 +223,7 @@ export default function TimerModal() {
       if (!goal) return;
       setExistingGoal(goal);
       setGoalEnabled(true);
+      setGoalName(goal.goalName ?? '');
       console.log(`[TimerModal] Existing goal loaded: type=${goal.goalType}`);
     });
   }, [edit]);
@@ -217,27 +239,39 @@ export default function TimerModal() {
     }
   };
 
+  const handleAddCategory = async () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    console.log(`[TimerModal] Add category pressed: "${trimmed}"`);
+    const updated = await addTimerCategory(trimmed);
+    setTimerCategories(updated);
+    const found = updated.find(c => c.name === trimmed && !c.isBuiltIn);
+    if (found) setSelectedCategoryId(found.id);
+    setNewCatName('');
+  };
+
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
     let config: TimerConfig;
     const id = edit ?? Math.random().toString(36).slice(2);
+    const category = selectedCategoryId === 'all' ? undefined : selectedCategoryId;
 
     if (mode === 'countdown') {
-      const countdownMs = (cdMinutes * 60 + cdSeconds) * 1000;
-      config = { id, name: trimmed, mode, color, countdownMs };
+      const countdownMs = ((cdDays * 86400) + (cdHours * 3600) + (cdMinutes * 60) + cdSeconds) * 1000;
+      config = { id, name: trimmed, mode, color, category, countdownMs };
     } else if (mode === 'interval') {
       const workMs = (ivWorkMin * 60 + ivWorkSec) * 1000;
       const restMs = (ivRestMin * 60 + ivRestSec) * 1000;
-      config = { id, name: trimmed, mode, color, workMs, restMs, rounds: ivRounds };
+      config = { id, name: trimmed, mode, color, category, workMs, restMs, rounds: ivRounds };
     } else {
       const workMs = (hiitWorkMin * 60 + hiitWorkSec) * 1000;
       const restMs = (hiitRestMin * 60 + hiitRestSec) * 1000;
-      config = { id, name: trimmed, mode, color, workMs, restMs, rounds: hiitRounds };
+      config = { id, name: trimmed, mode, color, category, workMs, restMs, rounds: hiitRounds };
     }
 
-    console.log(`[TimerModal] Saving timer config: id=${id}, name="${trimmed}", mode=${mode}`);
+    console.log(`[TimerModal] Saving timer config: id=${id}, name="${trimmed}", mode=${mode}, category=${category}`);
     if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await saveTimerConfig(config);
 
@@ -250,6 +284,7 @@ export default function TimerModal() {
         itemName: trimmed,
         itemKind: 'timer',
         goalType,
+        goalName: goalName.trim() || undefined,
         status: existingGoal?.status ?? 'active',
         createdAt: existingGoal?.createdAt ?? new Date().toISOString(),
       };
@@ -264,6 +299,7 @@ export default function TimerModal() {
   };
 
   const canSave = name.trim().length > 0;
+  const canAddCat = newCatName.trim().length > 0;
   const isEditing = Boolean(edit);
   const title = isEditing ? 'Edit Timer' : 'New Timer';
 
@@ -410,12 +446,16 @@ export default function TimerModal() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 16,
+                  gap: 8,
                 }}
               >
-                <NumberInput label="Minutes" value={cdMinutes} onChange={setCdMinutes} max={99} />
-                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
-                <NumberInput label="Seconds" value={cdSeconds} onChange={setCdSeconds} max={59} />
+                <NumberInput label="Days" value={cdDays} onChange={setCdDays} max={99} width={56} />
+                <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>d</Text>
+                <NumberInput label="Hours" value={cdHours} onChange={setCdHours} max={23} width={56} />
+                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <NumberInput label="Minutes" value={cdMinutes} onChange={setCdMinutes} max={59} width={56} />
+                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <NumberInput label="Seconds" value={cdSeconds} onChange={setCdSeconds} max={59} width={56} />
               </View>
             </>
           )}
@@ -593,6 +633,87 @@ export default function TimerModal() {
             ))}
           </View>
 
+          {/* Category section */}
+          <Text style={sectionLabel}>Category</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}
+            style={{ flexShrink: 0, marginBottom: 12 }}
+          >
+            {timerCategories.map(cat => {
+              const isSelected = selectedCategoryId === cat.id;
+              return (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => {
+                    console.log(`[TimerModal] Category chip pressed: ${cat.id}`);
+                    setSelectedCategoryId(cat.id);
+                  }}
+                  style={({ pressed }) => ({
+                    flexShrink: 0,
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                    borderRadius: 20,
+                    backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText }}>
+                    {cat.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 28,
+              paddingHorizontal: 4,
+            }}
+          >
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: C.inputBg,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: C.border,
+                paddingHorizontal: 12,
+                paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+              }}
+            >
+              <TextInput
+                value={newCatName}
+                onChangeText={setNewCatName}
+                placeholder="New category..."
+                placeholderTextColor={C.placeholder}
+                returnKeyType="done"
+                onSubmitEditing={handleAddCategory}
+                style={{ fontSize: 14, color: C.text, padding: 0, margin: 0 }}
+              />
+            </View>
+            <Pressable
+              onPress={handleAddCategory}
+              disabled={!canAddCat}
+              style={({ pressed }) => ({
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 10,
+                backgroundColor: canAddCat ? C.tint : C.chipBackground,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.subtext }}>
+                Add
+              </Text>
+            </Pressable>
+          </View>
+
           {/* Goal section */}
           <Text style={sectionLabel}>Goal</Text>
           <View
@@ -636,7 +757,33 @@ export default function TimerModal() {
             {goalEnabled && (
               <>
                 <View style={{ height: 1, backgroundColor: C.divider }} />
-                <View style={{ padding: 14, gap: 8 }}>
+                <View style={{ padding: 14, gap: 10 }}>
+                  {/* Goal name input */}
+                  <View>
+                    <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 6 }}>
+                      Goal Name (optional)
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: C.inputBg,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        paddingHorizontal: 12,
+                        paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                      }}
+                    >
+                      <TextInput
+                        value={goalName}
+                        onChangeText={setGoalName}
+                        placeholder="e.g. Complete Tabata"
+                        placeholderTextColor={C.placeholder}
+                        returnKeyType="done"
+                        style={{ fontSize: 14, color: C.text, padding: 0, margin: 0 }}
+                      />
+                    </View>
+                  </View>
+
                   <View
                     style={{
                       flexDirection: 'row',

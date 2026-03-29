@@ -16,6 +16,7 @@ export interface ItemGoal {
   itemName: string;
   itemKind: 'stopwatch' | 'timer';
   goalType: GoalType;
+  goalName?: string;
   targetMs?: number;
   targetLaps?: number;
   personalBestMs?: number;

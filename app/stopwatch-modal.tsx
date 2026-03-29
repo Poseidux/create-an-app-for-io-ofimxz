@@ -310,6 +310,7 @@ export default function StopwatchModal() {
   const [goalMinutes, setGoalMinutes] = useState(30);
   const [goalSeconds, setGoalSeconds] = useState(0);
   const [goalLaps, setGoalLaps] = useState(10);
+  const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
 
   // ─── Lap / Timer state (only in edit mode) ────────────────────────────────
@@ -335,6 +336,7 @@ export default function StopwatchModal() {
       setExistingGoal(goal);
       setGoalEnabled(true);
       setGoalType(goal.goalType as StopwatchGoalType);
+      setGoalName(goal.goalName ?? '');
       if (goal.goalType === 'target_laps' && goal.targetLaps != null) {
         setGoalLaps(goal.targetLaps);
       } else {
@@ -393,6 +395,7 @@ export default function StopwatchModal() {
         itemName: trimmed,
         itemKind: 'stopwatch',
         goalType,
+        goalName: goalName.trim() || undefined,
         targetMs,
         personalBestMs,
         targetLaps,
@@ -465,11 +468,14 @@ export default function StopwatchModal() {
     console.log(`[StopwatchModal] Reset pressed: id=${edit}, totalTime=${elapsedMs}ms`);
 
     if (elapsedMs > 0) {
+      const categoryName = existing.category
+        ? (categories.find(c => c.id === existing.category)?.name ?? existing.category)
+        : '';
       const session = {
         id: Math.random().toString(36).slice(2),
         stopwatchId: existing.id,
         stopwatchName: existing.name,
-        category: existing.category ?? '',
+        category: categoryName,
         color: existing.color ?? DEFAULT_STOPWATCH_COLOR,
         totalTime: elapsedMs,
         laps: existing.laps ?? [],

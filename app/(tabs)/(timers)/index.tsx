@@ -23,6 +23,29 @@ import {
 import { useColors } from '@/constants/Colors';
 import { TimerConfig, getTimerConfigs, deleteTimerConfig } from '@/utils/timer-storage';
 import { formatTime } from '@/types/stopwatch';
+import { ItemGoal, getGoals, markGoalAchieved, markGoalMissed } from '@/utils/goal-storage';
+import { loadTimerCategories, TimerCategory } from '@/utils/timer-category-storage';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  if (days > 0) {
+    const hPart = hours > 0 ? `${hours}h ` : '';
+    const mPart = mins > 0 ? `${mins}m` : '';
+    return `${days}d ${hPart}${mPart}`.trim();
+  }
+  if (hours > 0) {
+    const mPart = mins > 0 ? `${mins}m` : '';
+    return `${hours}h ${mPart}`.trim();
+  }
+  if (mins > 0) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  return `${secs}s`;
+}
 
 // ─── Timer Runtime ─────────────────────────────────────────────────────────────
 
@@ -95,11 +118,78 @@ function PulsingDot({ color }: { color: string }) {
   );
 }
 
+// ─── Goal Badge ───────────────────────────────────────────────────────────────
+
+function TimerGoalBadge({ goal, timerColor }: { goal: ItemGoal; timerColor: string }) {
+  const C = useColors();
+
+  if (goal.status === 'achieved') {
+    return (
+      <View
+        style={{
+          alignSelf: 'flex-start',
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 20,
+          backgroundColor: 'rgba(52,199,89,0.12)',
+          marginBottom: 6,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '600' }}>
+          ✓ Goal achieved
+        </Text>
+      </View>
+    );
+  }
+
+  if (goal.status === 'missed') {
+    return (
+      <View
+        style={{
+          alignSelf: 'flex-start',
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 20,
+          backgroundColor: 'rgba(180,180,180,0.12)',
+          marginBottom: 6,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>
+          ✗ Goal missed
+        </Text>
+      </View>
+    );
+  }
+
+  const activeLabel = goal.goalType === 'complete_countdown'
+    ? 'Target: Complete countdown'
+    : 'Target: Complete all rounds';
+
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 20,
+        backgroundColor: `${timerColor}18`,
+        marginBottom: 6,
+      }}
+    >
+      <Text style={{ fontSize: 11, color: timerColor, fontWeight: '600' }}>
+        {activeLabel}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Timer Card ───────────────────────────────────────────────────────────────
 
 interface TimerCardProps {
   config: TimerConfig;
   runtime: TimerRuntime;
+  goal?: ItemGoal | null;
+  categoryName?: string | null;
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -107,7 +197,7 @@ interface TimerCardProps {
   onEdit: () => void;
 }
 
-function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdit }: TimerCardProps) {
+function TimerCard({ config, runtime, goal, categoryName, onStart, onPause, onReset, onDelete, onEdit }: TimerCardProps) {
   const C = useColors();
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
   const swColor = config.color;
@@ -121,6 +211,17 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
 
   const cardBg = runtime.isRunning ? `${swColor}0a` : C.card;
   const cardBorderColor = runtime.isRunning ? `${swColor}40` : C.border;
+
+  // Secondary info below time display
+  const secondaryInfo = (() => {
+    if (config.mode === 'countdown' && config.countdownMs) {
+      return formatDuration(config.countdownMs) + ' total';
+    }
+    if (config.mode === 'interval' || config.mode === 'hiit') {
+      return `Round ${runtime.currentRound} / ${totalRounds}`;
+    }
+    return null;
+  })();
 
   const handleStartPause = () => {
     console.log(`[TimersScreen] TimerCard ${runtime.isRunning ? 'Pause' : 'Start'} pressed: id=${config.id}, name="${config.name}"`);
@@ -190,13 +291,21 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
           />
         )}
 
-        <View style={{ padding: 16, paddingLeft: runtime.isRunning ? 20 : 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, paddingLeft: runtime.isRunning ? 20 : 16 }}>
           {/* Top row */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 }}>
             <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: C.text, marginBottom: 4 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: C.text, marginBottom: 8 }}>
                 {config.name}
               </Text>
+              {categoryName != null && (
+                <Text style={{ fontSize: 12, color: C.subtext, marginBottom: 4 }}>
+                  {categoryName}
+                </Text>
+              )}
+              {goal != null && (
+                <TimerGoalBadge goal={goal} timerColor={swColor} />
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {runtime.isRunning && <PulsingDot color={swColor} />}
                 <View
@@ -211,11 +320,6 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                     {modeLabel}
                   </Text>
                 </View>
-                {config.mode !== 'countdown' && (
-                  <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
-                    {`Round ${runtime.currentRound}/${totalRounds}`}
-                  </Text>
-                )}
                 {phaseLabel !== '' && (
                   <View
                     style={{
@@ -245,27 +349,35 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                   ✓ Done
                 </Text>
               ) : (
-                <Text
-                  style={{
-                    fontSize: 28,
-                    fontWeight: '700',
-                    fontFamily: timerFont,
-                    color: runtime.isRunning ? swColor : C.text,
-                    fontVariant: ['tabular-nums'],
-                    letterSpacing: -0.5,
-                    lineHeight: 34,
-                  }}
-                >
-                  {remainingDisplay}
-                </Text>
+                <>
+                  <Text
+                    style={{
+                      fontSize: 28,
+                      fontWeight: '700',
+                      fontFamily: timerFont,
+                      color: runtime.isRunning ? swColor : C.text,
+                      fontVariant: ['tabular-nums'],
+                      letterSpacing: -0.5,
+                      lineHeight: 34,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {remainingDisplay}
+                  </Text>
+                  {secondaryInfo != null && (
+                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
+                      {secondaryInfo}
+                    </Text>
+                  )}
+                </>
               )}
             </View>
           </View>
 
-          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 12 }} />
+          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 14 }} />
 
           {/* Action buttons */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             {!runtime.isComplete && (
               <Pressable
                 onPress={handleStartPause}
@@ -278,7 +390,7 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                   backgroundColor: runtime.isRunning ? swColor : C.primary,
                   borderRadius: 10,
                   borderCurve: 'continuous',
-                  paddingVertical: 9,
+                  paddingVertical: 10,
                   opacity: pressed ? 0.8 : 1,
                 })}
               >
@@ -286,7 +398,7 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                   ? <Pause size={15} color="#fff" fill="#fff" />
                   : <Play size={15} color="#fff" fill="#fff" />
                 }
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
                   {runtime.isRunning ? 'Pause' : 'Start'}
                 </Text>
               </Pressable>
@@ -304,13 +416,13 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                 backgroundColor: C.surfaceSecondary,
                 borderRadius: 10,
                 borderCurve: 'continuous',
-                paddingVertical: 9,
+                paddingVertical: 10,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
               <RotateCcw size={14} color={C.textSecondary} />
               {runtime.isComplete && (
-                <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: C.textSecondary }}>
                   Reset
                 </Text>
               )}
@@ -325,7 +437,7 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
                 backgroundColor: C.dangerMuted,
                 borderRadius: 10,
                 borderCurve: 'continuous',
-                paddingVertical: 9,
+                paddingVertical: 10,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
@@ -335,6 +447,57 @@ function TimerCard({ config, runtime, onStart, onPause, onReset, onDelete, onEdi
         </View>
       </View>
     </Pressable>
+  );
+}
+
+// ─── Category Chips ───────────────────────────────────────────────────────────
+
+interface CategoryChipsProps {
+  categories: TimerCategory[];
+  selected: string;
+  onSelect: (id: string) => void;
+}
+
+function TimerCategoryChips({ categories, selected, onSelect }: CategoryChipsProps) {
+  const C = useColors();
+  return (
+    <View style={{ height: 48, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 48,
+        }}
+      >
+        {categories.map(cat => {
+          const isSelected = selected === cat.id;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => {
+                console.log(`[TimersScreen] Category chip pressed: ${cat.id}`);
+                onSelect(cat.id);
+              }}
+              style={({ pressed }) => ({
+                flexShrink: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText }}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -349,13 +512,16 @@ export default function TimersScreen() {
   const [timerRuntimes, setTimerRuntimes] = useState<Record<string, TimerRuntime>>({});
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [goalsMap, setGoalsMap] = useState<Record<string, ItemGoal>>({});
+  const [timerCategories, setTimerCategories] = useState<TimerCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const anyTimerRunning = Object.values(timerRuntimes).some(rt => rt.isRunning);
 
   useFocusEffect(
     useCallback(() => {
-      console.log('[TimersScreen] Focus: loading timer configs');
-      getTimerConfigs().then(configs => {
+      console.log('[TimersScreen] Focus: loading timer configs, goals, categories');
+      Promise.all([getTimerConfigs(), getGoals(), loadTimerCategories()]).then(([configs, goals, cats]) => {
         setTimerConfigs(configs);
         setTimerRuntimes(prev => {
           const next = { ...prev };
@@ -371,7 +537,11 @@ export default function TimersScreen() {
           }
           return next;
         });
-        console.log(`[TimersScreen] Loaded ${configs.length} timer config(s)`);
+        const map: Record<string, ItemGoal> = {};
+        for (const g of goals) { map[g.itemId] = g; }
+        setGoalsMap(map);
+        setTimerCategories(cats);
+        console.log(`[TimersScreen] Loaded ${configs.length} timer config(s), ${goals.length} goal(s), ${cats.length} categories`);
       });
     }, [])
   );
@@ -394,6 +564,13 @@ export default function TimersScreen() {
               if (cfg.mode === 'countdown') {
                 next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
                 console.log(`[TimersScreen] Countdown complete: id=${id}`);
+                markGoalAchieved(id).then(() => {
+                  getGoals().then(goals => {
+                    const map: Record<string, ItemGoal> = {};
+                    for (const g of goals) { map[g.itemId] = g; }
+                    setGoalsMap(map);
+                  });
+                });
               } else {
                 if (rt.phase === 'work') {
                   next[id] = {
@@ -410,6 +587,13 @@ export default function TimersScreen() {
                   if (nextRound > totalRounds) {
                     next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
                     console.log(`[TimersScreen] All rounds complete: id=${id}`);
+                    markGoalAchieved(id).then(() => {
+                      getGoals().then(goals => {
+                        const map: Record<string, ItemGoal> = {};
+                        for (const g of goals) { map[g.itemId] = g; }
+                        setGoalsMap(map);
+                      });
+                    });
                   } else {
                     next[id] = {
                       ...rt,
@@ -480,8 +664,20 @@ export default function TimersScreen() {
     console.log(`[TimersScreen] Timer reset: id=${id}`);
     const cfg = timerConfigs.find(c => c.id === id);
     if (!cfg) return;
+    const rt = timerRuntimes[id];
+    // Mark goal missed if timer had started and was not complete
+    if (rt && !rt.isComplete && (rt.accumulatedMs > 0 || rt.startedAt !== null)) {
+      console.log(`[TimersScreen] Marking goal missed on reset: id=${id}`);
+      markGoalMissed(id).then(() => {
+        getGoals().then(goals => {
+          const map: Record<string, ItemGoal> = {};
+          for (const g of goals) { map[g.itemId] = g; }
+          setGoalsMap(map);
+        });
+      });
+    }
     setTimerRuntimes(prev => ({ ...prev, [id]: makeInitialRuntime(cfg) }));
-  }, [timerConfigs]);
+  }, [timerConfigs, timerRuntimes]);
 
   const handleTimerDelete = useCallback(async (id: string) => {
     console.log(`[TimersScreen] Timer delete: id=${id}`);
@@ -494,8 +690,13 @@ export default function TimersScreen() {
     });
   }, []);
 
+  const filteredConfigs = selectedCategory === 'all'
+    ? timerConfigs
+    : timerConfigs.filter(c => c.category === selectedCategory);
+
   const listBottomPad = insets.bottom + 100;
   const showEmpty = timerConfigs.length === 0;
+  const showCategoryChips = timerCategories.length > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -538,6 +739,13 @@ export default function TimersScreen() {
             <Plus size={20} color={C.primary} />
           </Pressable>
         </View>
+        {showCategoryChips && (
+          <TimerCategoryChips
+            categories={timerCategories}
+            selected={selectedCategory}
+            onSelect={setSelectedCategory}
+          />
+        )}
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
@@ -607,15 +815,28 @@ export default function TimersScreen() {
       ) : (
         <FlatList
           style={{ flex: 1 }}
-          data={timerConfigs}
+          data={filteredConfigs}
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ fontSize: 15, color: C.textSecondary }}>
+                No timers in this category.
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => {
             const rt = timerRuntimes[item.id] ?? makeInitialRuntime(item);
+            const goal = goalsMap[item.id] ?? null;
+            const catName = item.category
+              ? (timerCategories.find(c => c.id === item.category)?.name ?? null)
+              : null;
             return (
               <TimerCard
                 config={item}
                 runtime={rt}
+                goal={goal}
+                categoryName={catName}
                 onStart={() => handleTimerStart(item.id)}
                 onPause={() => handleTimerPause(item.id)}
                 onReset={() => handleTimerReset(item.id)}

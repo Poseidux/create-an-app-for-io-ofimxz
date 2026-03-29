@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Platform } from 'react-native';
+import { View, Text, ScrollView, Platform, Pressable, Share } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart2, Clock, Flag, Zap, TrendingDown, TrendingUp, Timer, Target } from 'lucide-react-native';
+import { BarChart2, Clock, Flag, Zap, TrendingDown, TrendingUp, Timer, Target, Share2 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions } from '@/utils/session-storage';
-import { getGoals, ItemGoal } from '@/utils/goal-storage';
+import { getGoals, ItemGoal, GoalStatus } from '@/utils/goal-storage';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -166,6 +166,20 @@ function BarChart({ data, maxBarHeight = 80, barColor }: BarChartProps) {
   );
 }
 
+// ─── Goal Progress Bar ────────────────────────────────────────────────────────
+
+function GoalProgressBar({ status, color }: { status: GoalStatus; color: string }) {
+  const C = useColors();
+  const fillPercent = status === 'achieved' ? 1 : status === 'missed' ? 0 : 0.4;
+  const fillColor = status === 'achieved' ? '#34C759' : status === 'missed' ? '#FF6B6B' : color;
+  const fillWidth = `${fillPercent * 100}%` as `${number}%`;
+  return (
+    <View style={{ height: 4, backgroundColor: C.surfaceSecondary, borderRadius: 2, marginTop: 8, overflow: 'hidden' }}>
+      <View style={{ height: 4, width: fillWidth, backgroundColor: fillColor, borderRadius: 2 }} />
+    </View>
+  );
+}
+
 // ─── Goal Row ─────────────────────────────────────────────────────────────────
 
 function GoalRow({ goal }: { goal: ItemGoal }) {
@@ -188,6 +202,7 @@ function GoalRow({ goal }: { goal: ItemGoal }) {
     }
   })();
 
+  const primaryLabel = goal.goalName ? goal.goalName : goal.itemName;
   const statusColor = goal.status === 'achieved' ? '#34C759' : goal.status === 'missed' ? '#FF6B6B' : C.primary;
   const statusLabel = goal.status === 'achieved' ? 'Achieved' : goal.status === 'missed' ? 'Missed' : 'Active';
   const statusBg = goal.status === 'achieved' ? 'rgba(52,199,89,0.12)' : goal.status === 'missed' ? 'rgba(255,107,107,0.12)' : `${C.primary}14`;
@@ -205,39 +220,40 @@ function GoalRow({ goal }: { goal: ItemGoal }) {
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderBottomWidth: 1,
         borderBottomColor: C.divider,
       }}
     >
-      <View style={{ flex: 1, marginRight: 10 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }} numberOfLines={1}>
-          {goal.itemName}
-        </Text>
-        <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
-          {goalTypeText}
-        </Text>
-        {achievedDateLabel !== '' && (
-          <Text style={{ fontSize: 11, color: '#34C759', marginTop: 2 }}>
-            {achievedDateLabel}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }} numberOfLines={1}>
+            {primaryLabel}
           </Text>
-        )}
+          <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+            {goalTypeText}
+          </Text>
+          {achievedDateLabel !== '' && (
+            <Text style={{ fontSize: 11, color: '#34C759', marginTop: 2 }}>
+              {achievedDateLabel}
+            </Text>
+          )}
+        </View>
+        <View
+          style={{
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 20,
+            backgroundColor: statusBg,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '600', color: statusColor }}>
+            {statusLabel}
+          </Text>
+        </View>
       </View>
-      <View
-        style={{
-          paddingHorizontal: 8,
-          paddingVertical: 3,
-          borderRadius: 20,
-          backgroundColor: statusBg,
-        }}
-      >
-        <Text style={{ fontSize: 11, fontWeight: '600', color: statusColor }}>
-          {statusLabel}
-        </Text>
-      </View>
+      <GoalProgressBar status={goal.status} color={C.primary} />
     </View>
   );
 }
@@ -437,169 +453,228 @@ export default function StatsScreen() {
   const completionRateNum = totalGoalsChecked > 0 ? Math.round((achievedGoals / totalGoalsChecked) * 100) : 0;
   const completionRate = totalGoalsChecked > 0 ? `${completionRateNum}%` : '—';
 
-  if (sessions.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: C.background }}>
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }}
-        >
-          <EmptyState />
-          <GoalsSection goals={goals} sectionLabel={sectionLabel} activeGoals={activeGoals} achievedGoals={achievedGoals} missedGoals={missedGoals} completionRate={completionRate} />
-        </ScrollView>
-      </View>
-    );
-  }
+  const stats = sessions.length > 0 ? computeStats(sessions) : null;
+  const totalTimeDisplay = stats ? formatTime(stats.totalTime) : '0:00';
 
-  const stats = computeStats(sessions);
-  const totalTimeDisplay = formatTime(stats.totalTime);
-  const fastestDisplay = stats.fastestLap ? formatTime(stats.fastestLap.lapTime) : '—';
-  const slowestDisplay = stats.slowestLap ? formatTime(stats.slowestLap.lapTime) : '—';
-  const avgDisplay = stats.avgLapTime > 0 ? formatTime(Math.round(stats.avgLapTime)) : '—';
+  const handleShare = async () => {
+    console.log('[StatsScreen] Share button pressed');
+    const goalLine = goals.length > 0
+      ? `Goals: ${achievedGoals} achieved, ${activeGoals} active`
+      : null;
+    const lines = [
+      'Chroniqo Stats',
+      `Total Time: ${totalTimeDisplay}`,
+      stats ? `Sessions: ${stats.totalSessions}` : null,
+      stats ? `Total Laps: ${stats.totalLaps}` : null,
+      goalLine,
+    ].filter(Boolean) as string[];
+    const summary = lines.join('\n');
+    console.log(`[StatsScreen] Sharing stats summary`);
+    await Share.share({ message: summary });
+  };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
-      contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }}
-    >
-      {/* Overview */}
-      <Text style={sectionLabel}>Overview</Text>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
-        <StatCard
-          label="Total Time"
-          value={totalTimeDisplay}
-          icon={<Clock size={13} color={C.textSecondary} />}
-        />
-        <StatCard
-          label="Sessions"
-          value={String(stats.totalSessions)}
-          icon={<Timer size={13} color={C.textSecondary} />}
-        />
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      {/* Header */}
+      <View
+        style={{
+          paddingTop: insets.top,
+          paddingHorizontal: 16,
+          paddingBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: C.background,
+        }}
+      >
+        <View style={{ flex: 1 }} />
+        <Text
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            fontSize: 17,
+            fontWeight: '600',
+            color: C.text,
+          }}
+        >
+          Insights
+        </Text>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Pressable
+            onPress={handleShare}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: C.surfaceSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Share2 size={18} color={C.textSecondary} />
+          </Pressable>
+        </View>
       </View>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
-        <StatCard
-          label="Total Laps"
-          value={String(stats.totalLaps)}
-          icon={<Flag size={13} color={C.textSecondary} />}
-        />
-        {stats.mostUsedCategory ? (
-          <StatCard
-            label="Top Category"
-            value={stats.mostUsedCategory}
-          />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: insets.bottom + 100 }}
+      >
+        {sessions.length === 0 ? (
+          <>
+            <EmptyState />
+            <GoalsSection
+              goals={goals}
+              sectionLabel={sectionLabel}
+              activeGoals={activeGoals}
+              achievedGoals={achievedGoals}
+              missedGoals={missedGoals}
+              completionRate={completionRate}
+            />
+          </>
         ) : (
-          <View style={{ flex: 1 }} />
-        )}
-      </View>
-
-      {/* Lap stats */}
-      {stats.totalLaps > 0 && (
-        <>
-          <Text style={sectionLabel}>Lap Records</Text>
-          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
-            <StatCard
-              label="Fastest"
-              value={fastestDisplay}
-              accent="#34C759"
-              icon={<Zap size={13} color="#34C759" />}
-            />
-            <StatCard
-              label="Slowest"
-              value={slowestDisplay}
-              accent="#FF3B30"
-              icon={<TrendingDown size={13} color="#FF3B30" />}
-            />
-            <StatCard
-              label="Average"
-              value={avgDisplay}
-              icon={<TrendingUp size={13} color={C.textSecondary} />}
-            />
-          </View>
-        </>
-      )}
-
-      {/* Sessions Over Time chart */}
-      {hasChartData && (
-        <>
-          <Text style={sectionLabel}>Sessions (Last 7 Days)</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              padding: 16,
-            }}
-          >
-            <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
-          </View>
-        </>
-      )}
-
-      {/* Time Per Day chart */}
-      {hasChartData && (
-        <>
-          <Text style={sectionLabel}>Time Tracked (Last 7 Days)</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              padding: 16,
-            }}
-          >
-            <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} />
-          </View>
-        </>
-      )}
-
-      {/* Per-stopwatch breakdown */}
-      {stats.perStopwatch.length > 0 && (
-        <>
-          <Text style={sectionLabel}>By Stopwatch</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              overflow: 'hidden',
-            }}
-          >
-            {stats.perStopwatch.map((sw, idx) => (
-              <View
-                key={sw.id}
-                style={idx === stats.perStopwatch.length - 1 ? { borderBottomWidth: 0 } : {}}
-              >
-                <SwStatRow
-                  name={sw.name}
-                  color={sw.color}
-                  sessionCount={sw.sessions}
-                  totalTime={sw.totalTime}
+          <>
+            {/* Overview */}
+            <Text style={sectionLabel}>Overview</Text>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
+              <StatCard
+                label="Total Time"
+                value={totalTimeDisplay}
+                icon={<Clock size={13} color={C.textSecondary} />}
+              />
+              <StatCard
+                label="Sessions"
+                value={String(stats!.totalSessions)}
+                icon={<Timer size={13} color={C.textSecondary} />}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
+              <StatCard
+                label="Total Laps"
+                value={String(stats!.totalLaps)}
+                icon={<Flag size={13} color={C.textSecondary} />}
+              />
+              {stats!.mostUsedCategory ? (
+                <StatCard
+                  label="Top Category"
+                  value={stats!.mostUsedCategory}
                 />
-              </View>
-            ))}
-          </View>
-        </>
-      )}
+              ) : (
+                <View style={{ flex: 1 }} />
+              )}
+            </View>
 
-      {/* Goals */}
-      <GoalsSection
-        goals={goals}
-        sectionLabel={sectionLabel}
-        activeGoals={activeGoals}
-        achievedGoals={achievedGoals}
-        missedGoals={missedGoals}
-        completionRate={completionRate}
-      />
-    </ScrollView>
+            {/* Lap stats */}
+            {stats!.totalLaps > 0 && (
+              <>
+                <Text style={sectionLabel}>Lap Records</Text>
+                <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
+                  <StatCard
+                    label="Fastest"
+                    value={stats!.fastestLap ? formatTime(stats!.fastestLap.lapTime) : '—'}
+                    accent="#34C759"
+                    icon={<Zap size={13} color="#34C759" />}
+                  />
+                  <StatCard
+                    label="Slowest"
+                    value={stats!.slowestLap ? formatTime(stats!.slowestLap.lapTime) : '—'}
+                    accent="#FF3B30"
+                    icon={<TrendingDown size={13} color="#FF3B30" />}
+                  />
+                  <StatCard
+                    label="Average"
+                    value={stats!.avgLapTime > 0 ? formatTime(Math.round(stats!.avgLapTime)) : '—'}
+                    icon={<TrendingUp size={13} color={C.textSecondary} />}
+                  />
+                </View>
+              </>
+            )}
+
+            {/* Sessions Over Time chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Sessions (Last 7 Days)</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
+                </View>
+              </>
+            )}
+
+            {/* Time Per Day chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Time Tracked (Last 7 Days)</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} />
+                </View>
+              </>
+            )}
+
+            {/* Per-stopwatch breakdown */}
+            {stats!.perStopwatch.length > 0 && (
+              <>
+                <Text style={sectionLabel}>By Stopwatch</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {stats!.perStopwatch.map((sw, idx) => (
+                    <View
+                      key={sw.id}
+                      style={idx === stats!.perStopwatch.length - 1 ? { borderBottomWidth: 0 } : {}}
+                    >
+                      <SwStatRow
+                        name={sw.name}
+                        color={sw.color}
+                        sessionCount={sw.sessions}
+                        totalTime={sw.totalTime}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Goals */}
+            <GoalsSection
+              goals={goals}
+              sectionLabel={sectionLabel}
+              activeGoals={activeGoals}
+              achievedGoals={achievedGoals}
+              missedGoals={missedGoals}
+              completionRate={completionRate}
+            />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 

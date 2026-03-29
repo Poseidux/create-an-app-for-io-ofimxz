@@ -7,6 +7,7 @@ export interface TimerConfig {
   name: string;
   mode: TimerMode;
   color: string;
+  category?: string;
   // countdown
   countdownMs?: number;
   // interval
