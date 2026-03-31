@@ -1,7 +1,15 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Platform, Pressable, Share } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Platform,
+  Pressable,
+  Share,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   BarChart2,
   Flag,
@@ -12,11 +20,27 @@ import {
   Target,
   Share2,
   Tag,
+  Calendar,
+  Clock,
+  ChevronDown,
 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal, GoalStatus } from '@/utils/goal-storage';
+import { getRoutines, Routine } from '@/utils/routine-storage';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Completion {
+  id: string;
+  sessionName: string;
+  durationMs: number;
+  focusRating: number;
+  note: string;
+  completedAt: string;
+  routineId?: string;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,6 +97,49 @@ function formatShortDate(iso: string): string {
   } catch {
     return '';
   }
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ' · ' +
+      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+/** Returns Monday of the current week as a Date at midnight */
+function getWeekStart(): Date {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diff = (day === 0 ? -6 : 1 - day);
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function computeStreak(sessions: Session[]): number {
+  if (sessions.length === 0) return 0;
+  const daySet = new Set<string>();
+  for (const s of sessions) {
+    daySet.add(s.startedAt.slice(0, 10));
+  }
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    if (daySet.has(key)) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
 }
 
 // ─── Stats computation ────────────────────────────────────────────────────────
@@ -244,40 +311,83 @@ function MiniStatChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ─── Week Stat ────────────────────────────────────────────────────────────────
+
+function WeekStat({ label, value }: { label: string; value: string }) {
+  const C = useColors();
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: '800',
+          color: C.text,
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+          fontVariant: ['tabular-nums'],
+        }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Text>
+      <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2 }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Per-Stopwatch Row ────────────────────────────────────────────────────────
 
-function SwStatRow({ name, color, sessionCount, totalTime }: { name: string; color: string; sessionCount: number; totalTime: number }) {
+function SwStatRow({
+  name,
+  color,
+  sessionCount,
+  totalTime,
+  totalTimeAll,
+}: {
+  name: string;
+  color: string;
+  sessionCount: number;
+  totalTime: number;
+  totalTimeAll: number;
+}) {
   const C = useColors();
   const totalTimeDisplay = formatTime(totalTime);
   const sessionLabel = `${sessionCount} session${sessionCount !== 1 ? 's' : ''}`;
+  const sharePercent = totalTimeAll > 0 ? Math.round((totalTime / totalTimeAll) * 100) : 0;
+  const barWidth = `${sharePercent}%` as `${number}%`;
 
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderBottomWidth: 1,
         borderBottomColor: C.divider,
       }}
     >
-      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginRight: 10 }} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }}>{name}</Text>
-        <Text style={{ fontSize: 12, color: C.subtext }}>{sessionLabel}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }}>{name}</Text>
+          <Text style={{ fontSize: 12, color: C.subtext }}>{sessionLabel}</Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+            color: C.text,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {totalTimeDisplay}
+        </Text>
       </View>
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-          color: C.text,
-          fontVariant: ['tabular-nums'],
-        }}
-      >
-        {totalTimeDisplay}
-      </Text>
+      <View style={{ height: 3, backgroundColor: C.surfaceSecondary, borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+        <View style={{ height: 3, width: barWidth, backgroundColor: color, borderRadius: 2 }} />
+      </View>
     </View>
   );
 }
@@ -511,26 +621,255 @@ function GoalsSection({
   );
 }
 
+// ─── Weekly Review Card ───────────────────────────────────────────────────────
+
+function WeeklyReviewCard({
+  sessions,
+  completions,
+  routines,
+}: {
+  sessions: Session[];
+  completions: Completion[];
+  routines: Routine[];
+}) {
+  const C = useColors();
+  const weekStart = getWeekStart();
+
+  const weekSessions = sessions.filter(s => new Date(s.startedAt) >= weekStart);
+  const weekTimeMs = weekSessions.reduce((sum, s) => sum + s.totalTime, 0);
+  const weekTimeDisplay = weekTimeMs > 0 ? formatTimeShort(weekTimeMs) : '0m';
+  const weekSessionCount = weekSessions.length;
+  const streak = computeStreak(sessions);
+  const streakDisplay = `${streak}d`;
+
+  // Routine usage this week
+  const weekCompletions = completions.filter(c => new Date(c.completedAt) >= weekStart);
+  const routineUsageMap: Record<string, number> = {};
+  for (const c of weekCompletions) {
+    if (c.routineId) {
+      routineUsageMap[c.routineId] = (routineUsageMap[c.routineId] ?? 0) + 1;
+    }
+  }
+  const topRoutines = Object.entries(routineUsageMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([id, count]) => {
+      const routine = routines.find(r => r.id === id);
+      return { name: routine ? routine.name : 'Unknown', count };
+    });
+
+  // Recent reflections this week
+  const weekReflections = weekCompletions
+    .filter(c => c.note || c.focusRating > 0)
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+    .slice(0, 2);
+
+  const dividerColor = C.divider;
+
+  return (
+    <View
+      style={{
+        backgroundColor: C.card,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: C.border,
+        marginHorizontal: 16,
+        padding: 16,
+        marginBottom: 28,
+      }}
+    >
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 }}>
+        <Calendar size={15} color={C.primary} />
+        <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, letterSpacing: 0.2 }}>
+          This Week
+        </Text>
+      </View>
+
+      {/* Stats row */}
+      <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+        <WeekStat label="Focused" value={weekTimeDisplay} />
+        <WeekStat label="Sessions" value={String(weekSessionCount)} />
+        <WeekStat label="Streak" value={streakDisplay} />
+      </View>
+
+      {/* Divider */}
+      <View style={{ height: 1, backgroundColor: dividerColor, marginBottom: 12 }} />
+
+      {/* Routine Usage */}
+      <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        Routine Usage
+      </Text>
+      {topRoutines.length > 0 ? (
+        topRoutines.map((r, i) => {
+          const sessionCountLabel = `${r.count} session${r.count !== 1 ? 's' : ''}`;
+          return (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: C.text, flex: 1 }} numberOfLines={1}>
+                {r.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: C.subtext }}>
+                {sessionCountLabel}
+              </Text>
+            </View>
+          );
+        })
+      ) : (
+        <Text style={{ fontSize: 13, color: C.subtext, marginBottom: 4 }}>
+          No routines used this week
+        </Text>
+      )}
+
+      {/* Divider */}
+      <View style={{ height: 1, backgroundColor: dividerColor, marginTop: 10, marginBottom: 12 }} />
+
+      {/* Recent Reflections */}
+      <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        Recent Reflections
+      </Text>
+      {weekReflections.length > 0 ? (
+        weekReflections.map((r, i) => {
+          const stars = buildStars(r.focusRating);
+          const dateLabel = formatShortDate(r.completedAt);
+          return (
+            <View key={i} style={{ marginBottom: i < weekReflections.length - 1 ? 8 : 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <Text style={{ fontSize: 13, letterSpacing: 1 }}>
+                  {stars}
+                </Text>
+                <Text style={{ fontSize: 11, color: C.subtext }}>
+                  {dateLabel}
+                </Text>
+              </View>
+              {r.note ? (
+                <Text style={{ fontSize: 13, color: C.text, lineHeight: 18 }} numberOfLines={1}>
+                  {r.note}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })
+      ) : (
+        <Text style={{ fontSize: 13, color: C.subtext }}>
+          No reflections this week
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function buildStars(rating: number): string {
+  const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+  const filled = '★'.repeat(clamped);
+  const empty = '☆'.repeat(5 - clamped);
+  return filled + empty;
+}
+
+// ─── Session History Row ──────────────────────────────────────────────────────
+
+function SessionHistoryRow({ session }: { session: Session }) {
+  const C = useColors();
+  const durationDisplay = formatTime(session.totalTime);
+  const lapLabel = session.laps && session.laps.length > 0
+    ? `${session.laps.length} lap${session.laps.length !== 1 ? 's' : ''} · `
+    : '';
+  const dateLabel = formatDateTime(session.startedAt);
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: C.divider,
+      }}
+    >
+      <View
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 5,
+          backgroundColor: session.color || C.primary,
+          marginRight: 10,
+          flexShrink: 0,
+        }}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }} numberOfLines={1}>
+          {session.stopwatchName}
+        </Text>
+        <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }} numberOfLines={1}>
+          {lapLabel}
+          {dateLabel}
+        </Text>
+      </View>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: '600',
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+          color: C.text,
+          fontVariant: ['tabular-nums'],
+          marginLeft: 8,
+        }}
+      >
+        {durationDisplay}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [goals, setGoals] = useState<ItemGoal[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [completions, setCompletions] = useState<Completion[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      console.log('[InsightsScreen] Focus: loading sessions and goals');
-      Promise.all([getSessions(), getGoals()]).then(([sessionData, goalData]) => {
-        setSessions(sessionData);
+      console.log('[InsightsScreen] Focus: loading sessions, goals, routines, completions');
+      Promise.all([
+        getSessions(),
+        getGoals(),
+        getRoutines(),
+        AsyncStorage.getItem('@chroniqo_completions'),
+      ]).then(([sessionData, goalData, routineData, completionsRaw]) => {
+        let parsedCompletions: Completion[] = [];
+        try {
+          parsedCompletions = completionsRaw ? JSON.parse(completionsRaw) : [];
+        } catch {
+          parsedCompletions = [];
+        }
+        setAllSessions(sessionData);
         setGoals(goalData);
+        setRoutines(routineData);
+        setCompletions(parsedCompletions);
         setIsLoaded(true);
-        console.log(`[InsightsScreen] Loaded ${sessionData.length} session(s) and ${goalData.length} goal(s)`);
+        console.log(
+          `[InsightsScreen] Loaded ${sessionData.length} session(s), ${goalData.length} goal(s), ` +
+          `${routineData.length} routine(s), ${parsedCompletions.length} completion(s)`
+        );
       });
     }, [])
   );
+
+  // Filter chips — unique stopwatch names, up to 4
+  const uniqueNames = Array.from(new Set(allSessions.map(s => s.stopwatchName))).slice(0, 4);
+  const filterChips = ['All', ...uniqueNames];
+
+  // Filtered sessions
+  const sessions = activeFilter === 'All'
+    ? allSessions
+    : allSessions.filter(s => s.stopwatchName === activeFilter);
 
   const activeGoals = goals.filter(g => g.status === 'active').length;
   const achievedGoals = goals.filter(g => g.status === 'achieved').length;
@@ -542,6 +881,13 @@ export default function InsightsScreen() {
   const stats = sessions.length > 0 ? computeStats(sessions) : null;
   const totalTimeDisplay = stats ? formatTime(stats.totalTime) : '0:00';
 
+  // Weekly stats for share
+  const weekStart = getWeekStart();
+  const weekSessions = allSessions.filter(s => new Date(s.startedAt) >= weekStart);
+  const weekTimeMs = weekSessions.reduce((sum, s) => sum + s.totalTime, 0);
+  const weekTimeDisplay = weekTimeMs > 0 ? formatTimeShort(weekTimeMs) : '0m';
+  const streak = computeStreak(allSessions);
+
   const handleShare = async () => {
     console.log('[InsightsScreen] Share button pressed');
     const goalLine = goals.length > 0
@@ -549,6 +895,8 @@ export default function InsightsScreen() {
       : null;
     const lines = [
       'Chroniqo Stats',
+      `This Week: ${weekTimeDisplay} focused, ${weekSessions.length} sessions`,
+      `Streak: ${streak} day${streak !== 1 ? 's' : ''}`,
       `Total Time: ${totalTimeDisplay}`,
       stats ? `Sessions: ${stats.totalSessions}` : null,
       stats ? `Total Laps: ${stats.totalLaps}` : null,
@@ -600,6 +948,14 @@ export default function InsightsScreen() {
   const longestSessionMs = getLongestSession(sessions);
   const longestSessionDisplay = longestSessionMs > 0 ? formatTime(longestSessionMs) : '—';
 
+  // Session history
+  const MAX_HISTORY = 20;
+  const sortedSessions = [...sessions].sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  );
+  const visibleSessions = historyExpanded ? sortedSessions : sortedSessions.slice(0, MAX_HISTORY);
+  const hiddenCount = sortedSessions.length - MAX_HISTORY;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* Header */}
@@ -645,13 +1001,60 @@ export default function InsightsScreen() {
         </View>
       </View>
 
+      {/* Filter Bar */}
+      {filterChips.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
+          style={{ backgroundColor: C.background, borderBottomWidth: 1, borderBottomColor: C.separator }}
+        >
+          {filterChips.map(chip => {
+            const isSelected = activeFilter === chip;
+            return (
+              <Pressable
+                key={chip}
+                onPress={() => {
+                  console.log(`[InsightsScreen] Filter chip pressed: ${chip}`);
+                  setActiveFilter(chip);
+                }}
+                style={{
+                  backgroundColor: isSelected ? C.primary : C.chipBackground,
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: isSelected ? '#fff' : C.chipText,
+                  }}
+                >
+                  {chip}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: insets.bottom + 100 }}
       >
-        {sessions.length === 0 ? (
+        {/* Weekly Review — always shown */}
+        <WeeklyReviewCard
+          sessions={allSessions}
+          completions={completions}
+          routines={routines}
+        />
+
+        {allSessions.length === 0 ? (
           <>
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 60 }}>
+            {/* Empty state */}
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 40 }}>
               <View
                 style={{
                   width: 72,
@@ -684,7 +1087,47 @@ export default function InsightsScreen() {
           </>
         ) : (
           <>
-            {/* Overview */}
+            {/* Sessions bar chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Sessions — Last 7 Days</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
+                </View>
+              </>
+            )}
+
+            {/* Time tracked bar chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Time Tracked — Last 7 Days</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} formatValue={formatTimeShort} />
+                </View>
+              </>
+            )}
+
+            {/* Overview stats 2×2 */}
             <Text style={sectionLabel}>Overview</Text>
             <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
               <StatCard
@@ -719,7 +1162,15 @@ export default function InsightsScreen() {
               )}
             </View>
 
-            {/* Lap stats */}
+            {/* Performance stats row */}
+            <Text style={sectionLabel}>Performance</Text>
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+              <MiniStatChip label="Avg Session" value={avgSessionDisplay} />
+              <MiniStatChip label="Longest" value={longestSessionDisplay} />
+              <MiniStatChip label="Most Active" value={mostActiveDay} />
+            </View>
+
+            {/* Lap Records */}
             {stats!.totalLaps > 0 && (
               <>
                 <Text style={sectionLabel}>Lap Records</Text>
@@ -748,62 +1199,10 @@ export default function InsightsScreen() {
               </>
             )}
 
-            {/* Sessions Over Time chart */}
-            {hasChartData && (
-              <>
-                <Text style={sectionLabel}>Sessions (Last 7 Days)</Text>
-                <View
-                  style={{
-                    marginHorizontal: 16,
-                    backgroundColor: C.card,
-                    borderRadius: 14,
-                    borderCurve: 'continuous',
-                    borderWidth: 1,
-                    borderColor: C.border,
-                    padding: 16,
-                  }}
-                >
-                  <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
-                </View>
-              </>
-            )}
-
-            {/* Time Per Day chart */}
-            {hasChartData && (
-              <>
-                <Text style={sectionLabel}>Time Tracked (Last 7 Days)</Text>
-                <View
-                  style={{
-                    marginHorizontal: 16,
-                    backgroundColor: C.card,
-                    borderRadius: 14,
-                    borderCurve: 'continuous',
-                    borderWidth: 1,
-                    borderColor: C.border,
-                    padding: 16,
-                  }}
-                >
-                  <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} formatValue={formatTimeShort} />
-                </View>
-              </>
-            )}
-
-            {/* Top Activity summary */}
-            {sessions.length > 0 && (
-              <>
-                <Text style={sectionLabel}>Top Activity</Text>
-                <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
-                  <MiniStatChip label="Best Day" value={mostActiveDay} />
-                  <MiniStatChip label="Avg Session" value={avgSessionDisplay} />
-                  <MiniStatChip label="Longest" value={longestSessionDisplay} />
-                </View>
-              </>
-            )}
-
-            {/* Per-stopwatch breakdown */}
+            {/* Activity Breakdown */}
             {stats!.perStopwatch.length > 0 && (
               <>
-                <Text style={sectionLabel}>By Stopwatch</Text>
+                <Text style={sectionLabel}>By Activity</Text>
                 <View
                   style={{
                     marginHorizontal: 16,
@@ -817,9 +1216,65 @@ export default function InsightsScreen() {
                 >
                   {stats!.perStopwatch.map((sw, idx) => (
                     <View key={sw.id} style={idx === stats!.perStopwatch.length - 1 ? { borderBottomWidth: 0 } : {}}>
-                      <SwStatRow name={sw.name} color={sw.color} sessionCount={sw.sessions} totalTime={sw.totalTime} />
+                      <SwStatRow
+                        name={sw.name}
+                        color={sw.color}
+                        sessionCount={sw.sessions}
+                        totalTime={sw.totalTime}
+                        totalTimeAll={stats!.totalTime}
+                      />
                     </View>
                   ))}
+                </View>
+              </>
+            )}
+
+            {/* Session History */}
+            {sessions.length > 0 && (
+              <>
+                <Text style={sectionLabel}>Session History</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {visibleSessions.map((session, idx) => (
+                    <View
+                      key={session.id}
+                      style={idx === visibleSessions.length - 1 && (historyExpanded || hiddenCount <= 0) ? { borderBottomWidth: 0 } : {}}
+                    >
+                      <SessionHistoryRow session={session} />
+                    </View>
+                  ))}
+                  {!historyExpanded && hiddenCount > 0 && (
+                    <Pressable
+                      onPress={() => {
+                        console.log(`[InsightsScreen] Show more sessions pressed (${hiddenCount} more)`);
+                        setHistoryExpanded(true);
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 13,
+                        gap: 6,
+                        opacity: pressed ? 0.6 : 1,
+                        borderTopWidth: 1,
+                        borderTopColor: C.divider,
+                      })}
+                    >
+                      <ChevronDown size={14} color={C.primary} />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: C.primary }}>
+                        Show {hiddenCount} more
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               </>
             )}
