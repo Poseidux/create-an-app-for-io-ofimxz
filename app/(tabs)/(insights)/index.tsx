@@ -1006,8 +1006,8 @@ export default function InsightsScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-          style={{ backgroundColor: C.background, borderBottomWidth: 1, borderBottomColor: C.separator }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' }}
+          style={{ backgroundColor: C.background, borderBottomWidth: 1, borderBottomColor: C.separator, flexGrow: 0 }}
         >
           {filterChips.map(chip => {
             const isSelected = activeFilter === chip;
@@ -1023,6 +1023,7 @@ export default function InsightsScreen() {
                   borderRadius: 20,
                   paddingHorizontal: 14,
                   paddingVertical: 7,
+                  alignSelf: 'center',
                 }}
               >
                 <Text

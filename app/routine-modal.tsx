@@ -160,18 +160,17 @@ export default function RoutineModal() {
   const titleText = isEditing ? 'Edit Routine' : 'New Routine';
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* ── Header ── */}
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      {/* ── Header — outside KeyboardAvoidingView so it's never pushed off-screen ── */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingTop: insets.top + 16,
+          paddingTop: insets.top + 12,
           paddingHorizontal: 16,
           paddingBottom: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderBottomWidth: 1,
+          borderBottomColor: C.border,
         }}
       >
         <Pressable
@@ -220,10 +219,19 @@ export default function RoutineModal() {
         </Pressable>
       </View>
 
+      {/* ── Keyboard-aware scroll area ── */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 20,
+          paddingBottom: insets.bottom + 40,
+        }}
       >
         {/* ── Name ── */}
         <View style={{ marginBottom: 24 }}>
@@ -441,6 +449,7 @@ export default function RoutineModal() {
           </Pressable>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
