@@ -164,7 +164,7 @@ export default function RoutineModal() {
       {/* ── Header — outside KeyboardAvoidingView so it's never pushed off-screen ── */}
       <View
         style={{
-          paddingTop: insets.top + 12,
+          paddingTop: insets.top + 8,
           paddingHorizontal: 16,
           paddingBottom: 12,
           flexDirection: 'row',
@@ -251,7 +251,6 @@ export default function RoutineModal() {
               onChangeText={setName}
               placeholder="e.g. Deep Focus"
               placeholderTextColor={C.placeholder}
-              autoFocus
               style={{
                 fontSize: 16,
                 color: C.text,

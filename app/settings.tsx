@@ -109,7 +109,7 @@ export default function SettingsScreen() {
 
   const cardStyle = {
     backgroundColor: C.card,
-    borderRadius: 12,
+    borderRadius: 14,
     borderCurve: 'continuous' as const,
     marginHorizontal: 16,
     overflow: 'hidden' as const,
@@ -121,7 +121,7 @@ export default function SettingsScreen() {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 14,
   };
 
   const separatorStyle = {
@@ -156,11 +156,11 @@ export default function SettingsScreen() {
           <Pressable
             onPress={handleBack}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 18,
+              borderRadius: 22,
               backgroundColor: pressed ? C.border : 'transparent',
             })}
           >
@@ -352,6 +352,7 @@ export default function SettingsScreen() {
             disabled={isRestoring}
             style={({ pressed }) => ({
               ...rowStyle,
+              paddingVertical: 16,
               opacity: pressed || isRestoring ? 0.6 : 1,
             })}
           >

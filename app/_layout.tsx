@@ -93,9 +93,8 @@ function AppContent() {
                     <Stack.Screen
                       name="routine-modal"
                       options={{
-                        presentation: 'formSheet',
+                        presentation: 'modal',
                         headerShown: false,
-                        sheetGrabberVisible: true,
                       }}
                     />
                     <Stack.Screen

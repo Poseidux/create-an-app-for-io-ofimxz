@@ -164,11 +164,11 @@ export default function ProfileScreen() {
           <Pressable
             onPress={handleSettingsPress}
             style={({ pressed }) => ({
-              width: 38,
-              height: 38,
+              width: 44,
+              height: 44,
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 19,
+              borderRadius: 22,
               backgroundColor: pressed ? C.border : 'transparent',
             })}
           >
@@ -202,9 +202,9 @@ export default function ProfileScreen() {
           {/* Avatar */}
           <View
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 32,
+              width: 68,
+              height: 68,
+              borderRadius: 34,
               backgroundColor: avatarBg,
               alignItems: 'center',
               justifyContent: 'center',
@@ -213,7 +213,7 @@ export default function ProfileScreen() {
             {avatarInitial ? (
               <Text
                 style={{
-                  fontSize: 26,
+                  fontSize: 28,
                   fontWeight: '700',
                   color: C.primary,
                 }}
@@ -361,15 +361,15 @@ export default function ProfileScreen() {
                         flexDirection: 'row',
                         alignItems: 'center',
                         paddingHorizontal: 16,
-                        paddingVertical: 13,
+                        paddingVertical: 14,
                         gap: 12,
                       }}
                     >
                       <View
                         style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 5,
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
                           backgroundColor: sw.color || C.primary,
                         }}
                       />
@@ -436,12 +436,12 @@ function StatChip({ label, value, C }: StatChipProps) {
     <View
       style={{
         flex: 1,
-        minWidth: '45%',
+        minWidth: '46%',
         backgroundColor: C.card,
         borderRadius: 14,
         borderWidth: 1,
         borderColor: C.border,
-        padding: 14,
+        padding: 16,
       }}
     >
       <Text
@@ -458,7 +458,7 @@ function StatChip({ label, value, C }: StatChipProps) {
       </Text>
       <Text
         style={{
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: '800',
           color: C.text,
           fontVariant: ['tabular-nums'],

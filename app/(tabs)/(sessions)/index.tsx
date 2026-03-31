@@ -280,7 +280,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
         opacity: fadeAnim,
         transform: [{ translateY: translateAnim }],
         marginHorizontal: 16,
-        marginBottom: 10,
+        marginBottom: 12,
       }}
     >
       <Pressable
@@ -301,7 +301,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
             borderColor: sw.isRunning ? swColor + '60' : C.border,
             borderLeftWidth: 4,
             borderLeftColor: sw.isRunning ? swColor : C.border,
-            padding: 14,
+            padding: 16,
           }}
         >
           {/* Top row: name + status */}
@@ -315,8 +315,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
             </Text>
             <View
               style={{
-                paddingHorizontal: 8,
-                paddingVertical: 3,
+                paddingHorizontal: 9,
+                paddingVertical: 4,
                 borderRadius: 10,
                 backgroundColor: sw.isRunning
                   ? 'rgba(34,197,94,0.12)'
@@ -334,12 +334,12 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
           {/* Time display */}
           <Text
             style={{
-              fontSize: 30,
+              fontSize: 32,
               fontWeight: '700',
               fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
               color: sw.isRunning ? swColor : C.text,
               fontVariant: ['tabular-nums'],
-              letterSpacing: -1,
+              letterSpacing: -1.5,
               marginBottom: 4,
             }}
           >
@@ -380,7 +380,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               onPress={handleStartPause}
               style={({ pressed }) => ({
                 flex: 1,
-                height: 36,
+                height: 38,
                 borderRadius: 10,
                 backgroundColor: sw.isRunning ? 'rgba(251,146,60,0.15)' : C.primaryMuted,
                 alignItems: 'center',
@@ -404,7 +404,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               <Pressable
                 onPress={handleLap}
                 style={({ pressed }) => ({
-                  height: 36,
+                  height: 38,
                   paddingHorizontal: 14,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
@@ -422,7 +422,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               <Pressable
                 onPress={handleReset}
                 style={({ pressed }) => ({
-                  height: 36,
+                  height: 38,
                   paddingHorizontal: 14,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
@@ -443,7 +443,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
                   moveUp(sw.id);
                 }}
                 style={({ pressed }) => ({
-                  height: 36,
+                  height: 38,
                   paddingHorizontal: 10,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
@@ -464,7 +464,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
                   moveDown(sw.id);
                 }}
                 style={({ pressed }) => ({
-                  height: 36,
+                  height: 38,
                   paddingHorizontal: 10,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
@@ -481,7 +481,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
             <Pressable
               onPress={handleDelete}
               style={({ pressed }) => ({
-                height: 36,
+                height: 38,
                 paddingHorizontal: 12,
                 borderRadius: 10,
                 backgroundColor: C.dangerMuted,
@@ -849,7 +849,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
   };
 
   return (
-    <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
+    <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
       <Pressable
         onLongPress={handleLongPress}
         delayLongPress={400}
@@ -864,7 +864,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
             borderColor: runtime.isRunning ? timerColor + '60' : C.border,
             borderLeftWidth: 4,
             borderLeftColor: runtime.isRunning ? timerColor : C.border,
-            padding: 14,
+            padding: 16,
           }}
         >
           {/* Top row */}
@@ -922,12 +922,12 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
           ) : (
             <Text
               style={{
-                fontSize: 30,
+                fontSize: 32,
                 fontWeight: '700',
                 fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                 color: runtime.isRunning ? timerColor : C.text,
                 fontVariant: ['tabular-nums'],
-                letterSpacing: -1,
+                letterSpacing: -1.5,
                 marginBottom: 4,
               }}
             >
@@ -942,7 +942,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 3,
-                  borderRadius: 10,
+                  borderRadius: 6,
                   backgroundColor:
                     runtime.phase === 'work'
                       ? 'rgba(34,197,94,0.12)'
@@ -1002,7 +1002,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
             <Pressable
               onPress={handleReset}
               style={({ pressed }) => ({
-                height: 36,
+                height: 38,
                 paddingHorizontal: 14,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
@@ -1017,7 +1017,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
             <Pressable
               onPress={handleDelete}
               style={({ pressed }) => ({
-                height: 36,
+                height: 38,
                 paddingHorizontal: 12,
                 borderRadius: 10,
                 backgroundColor: C.dangerMuted,
@@ -1296,9 +1296,9 @@ export default function SessionsScreen() {
               setShowAddSheet(true);
             }}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 44,
+              height: 44,
+              borderRadius: 22,
               backgroundColor: C.primary,
               alignItems: 'center',
               justifyContent: 'center',
@@ -1323,16 +1323,16 @@ export default function SessionsScreen() {
             alignItems: 'center',
             paddingHorizontal: 16,
             marginTop: 24,
-            marginBottom: 10,
+            marginBottom: 8,
           }}
         >
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: '600',
               color: C.subtext,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 0.8,
               flex: 1,
             }}
           >
@@ -1519,16 +1519,16 @@ export default function SessionsScreen() {
             alignItems: 'center',
             paddingHorizontal: 16,
             marginTop: 28,
-            marginBottom: 10,
+            marginBottom: 8,
           }}
         >
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: '600',
               color: C.subtext,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 0.8,
               flex: 1,
             }}
           >

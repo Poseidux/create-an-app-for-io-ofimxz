@@ -149,6 +149,7 @@ function SectionHeader({ title }: { title: string }) {
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginBottom: 10,
+        marginTop: 4,
         marginHorizontal: 16,
       }}
     >
@@ -310,7 +311,7 @@ export default function TodayScreen() {
         {/* ── Welcome (new users only) ── */}
         {isNewUser && (
           <AnimatedItem index={1}>
-            <View style={{ marginHorizontal: 16, marginBottom: 28 }}>
+            <View style={{ marginHorizontal: 16, marginBottom: 24 }}>
               <View
                 style={{
                   backgroundColor: C.card,
@@ -447,7 +448,7 @@ export default function TodayScreen() {
                     borderCurve: 'continuous',
                     borderWidth: 1,
                     borderColor: `${runningColor}40`,
-                    padding: 16,
+                    padding: 18,
                     flexDirection: 'row',
                     alignItems: 'center',
                     overflow: 'hidden',
@@ -479,7 +480,7 @@ export default function TodayScreen() {
                   </View>
                   <Text
                     style={{
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: '700',
                       fontFamily: timerFont,
                       color: runningColor,
@@ -497,7 +498,7 @@ export default function TodayScreen() {
 
         {/* ── Today's Sessions ── */}
         <AnimatedItem index={2}>
-          <View style={{ marginBottom: 28 }}>
+          <View style={{ marginBottom: 24 }}>
             <SectionHeader title="Today's Sessions" />
             {todaySessions.length === 0 ? (
               <View style={{ marginHorizontal: 16 }}>
@@ -552,14 +553,14 @@ export default function TodayScreen() {
                           flexDirection: 'row',
                           alignItems: 'center',
                           paddingHorizontal: 14,
-                          paddingVertical: 12,
+                          paddingVertical: 13,
                         }}
                       >
                         <View
                           style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
                             backgroundColor: session.color,
                             marginRight: 12,
                           }}
@@ -607,7 +608,7 @@ export default function TodayScreen() {
 
         {/* ── Quick Start ── */}
         <AnimatedItem index={3}>
-          <View style={{ marginBottom: 28 }}>
+          <View style={{ marginBottom: 24 }}>
             <SectionHeader title="Quick Start" />
             <ScrollView
               horizontal
@@ -629,8 +630,8 @@ export default function TodayScreen() {
                     alignItems: 'center',
                     gap: 6,
                     paddingHorizontal: 14,
-                    paddingVertical: 8,
-                    borderRadius: 22,
+                    paddingVertical: 9,
+                    borderRadius: 24,
                     backgroundColor: `${preset.color}18`,
                     borderWidth: 1,
                     borderColor: `${preset.color}40`,
@@ -649,7 +650,7 @@ export default function TodayScreen() {
 
         {/* ── Routines ── */}
         <AnimatedItem index={4}>
-          <View style={{ marginBottom: 28 }}>
+          <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginHorizontal: 16 }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
                 Routines
@@ -707,12 +708,12 @@ export default function TodayScreen() {
                       }}
                       delayLongPress={500}
                       style={({ pressed }) => ({
-                        width: 140,
+                        width: 148,
                         backgroundColor: C.card,
                         borderRadius: 16,
                         borderWidth: 1,
                         borderColor: C.border,
-                        padding: 14,
+                        padding: 16,
                         opacity: pressed ? 0.8 : 1,
                         borderTopWidth: 3,
                         borderTopColor: routine.color,
@@ -732,7 +733,7 @@ export default function TodayScreen() {
                           × used
                         </Text>
                       )}
-                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 6, alignItems: 'center' }}>
+                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 10, paddingVertical: 8, alignItems: 'center' }}>
                         <Text style={{ fontSize: 12, fontWeight: '600', color: routine.color }}>Start</Text>
                       </View>
                     </Pressable>
@@ -763,7 +764,7 @@ export default function TodayScreen() {
 
         {/* ── Active Goals ── */}
         <AnimatedItem index={5}>
-          <View style={{ marginBottom: 28 }}>
+          <View style={{ marginBottom: 24 }}>
             <SectionHeader title="Active Goals" />
             {activeGoals.length === 0 ? (
               <View style={{ marginHorizontal: 16 }}>
@@ -827,9 +828,9 @@ export default function TodayScreen() {
                       >
                         <View
                           style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
+                            width: 34,
+                            height: 34,
+                            borderRadius: 9,
                             backgroundColor: C.primaryMuted,
                             alignItems: 'center',
                             justifyContent: 'center',

@@ -153,12 +153,12 @@ export default function SessionComplete() {
 
           <Text
             style={{
-              fontSize: 36,
+              fontSize: 40,
               fontWeight: '800',
               fontFamily: timerFont,
               color: sessionColor,
               fontVariant: ['tabular-nums'],
-              letterSpacing: -1,
+              letterSpacing: -2,
             }}
           >
             {durationDisplay}
@@ -179,7 +179,7 @@ export default function SessionComplete() {
           >
             How was your focus?
           </Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             {[1, 2, 3, 4, 5].map(star => {
               const isFilled = star <= focusRating;
               return (
@@ -189,7 +189,7 @@ export default function SessionComplete() {
                   style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <Star
-                    size={32}
+                    size={34}
                     color={isFilled ? '#fbbf24' : C.border}
                     fill={isFilled ? '#fbbf24' : 'transparent'}
                     strokeWidth={1.5}
@@ -222,8 +222,8 @@ export default function SessionComplete() {
             multiline
             style={{
               backgroundColor: C.surfaceSecondary,
-              borderRadius: 12,
-              padding: 12,
+              borderRadius: 14,
+              padding: 14,
               fontSize: 15,
               color: C.text,
               maxHeight: 80,
@@ -238,8 +238,8 @@ export default function SessionComplete() {
             onPress={handleSave}
             style={({ pressed }) => ({
               backgroundColor: C.primary,
-              borderRadius: 14,
-              paddingVertical: 16,
+              borderRadius: 16,
+              paddingVertical: 17,
               width: '100%',
               alignItems: 'center',
               opacity: pressed ? 0.8 : 1,
@@ -254,8 +254,8 @@ export default function SessionComplete() {
             onPress={handleSkip}
             style={({ pressed }) => ({
               backgroundColor: C.surfaceSecondary,
-              borderRadius: 14,
-              paddingVertical: 14,
+              borderRadius: 16,
+              paddingVertical: 15,
               width: '100%',
               alignItems: 'center',
               opacity: pressed ? 0.7 : 1,
