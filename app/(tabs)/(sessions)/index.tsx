@@ -1255,7 +1255,7 @@ export default function SessionsScreen() {
   }, []);
 
   // ── Category chips ──────────────────────────────────────────────────────────
-  const allCategoryChips = [{ id: 'all', name: 'All' }, ...categories];
+  const allCategoryChips = categories;
 
   // ── Tick value for stopwatch cards ─────────────────────────────────────────
   const [tick] = useState(0);
