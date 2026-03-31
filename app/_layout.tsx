@@ -86,6 +86,10 @@ function AppContent() {
                       name="paywall"
                       options={{ headerShown: false, presentation: "modal" }}
                     />
+                    <Stack.Screen
+                      name="settings"
+                      options={{ headerShown: false }}
+                    />
                   </Stack>
                   <SystemBars style={"auto"} />
                 </GestureHandlerRootView>

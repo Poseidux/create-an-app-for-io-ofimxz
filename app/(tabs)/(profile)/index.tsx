@@ -1,367 +1,471 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   Pressable,
   TextInput,
-  Alert,
   ScrollView,
   Platform,
-  KeyboardAvoidingView,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCategory } from '@/contexts/CategoryContext';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColors } from '@/constants/Colors';
-import { Trash2, Plus, Settings } from 'lucide-react-native';
-import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
-import { useSubscription } from '@/contexts/SubscriptionContext';
+import { getSessions } from '@/utils/session-storage';
+import { getGoals } from '@/utils/goal-storage';
+import { Session } from '@/types/stopwatch';
+import { ItemGoal } from '@/utils/goal-storage';
+import { Settings, User, Clock, Target, TrendingUp } from 'lucide-react-native';
 
-// ─── Preset Templates ─────────────────────────────────────────────────────────
+const PROFILE_NAME_KEY = '@chroniqo_profile_name';
 
-const PRESET_TEMPLATES = [
-  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
-  { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
-  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
-  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
-  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
-  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
-  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
-];
+function formatTotalTime(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${totalSec}s`;
+}
+
+interface TopStopwatch {
+  id: string;
+  name: string;
+  color: string;
+  sessionCount: number;
+  totalTime: number;
+}
 
 export default function ProfileScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { categories, addCategory, deleteCategory } = useCategory();
-  const { restorePurchases, isSubscribed } = useSubscription();
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isRestoring, setIsRestoring] = useState(false);
 
-  const customCategories = categories.filter(c => !c.isBuiltIn);
-  const builtInCategories = BUILT_IN_CATEGORIES;
+  const [name, setName] = useState('');
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [goals, setGoals] = useState<ItemGoal[]>([]);
 
-  const handleAddCategory = () => {
-    const trimmed = newCategoryName.trim();
-    if (!trimmed) return;
-    console.log(`[ProfileScreen] Add category pressed: "${trimmed}"`);
-    addCategory(trimmed);
-    setNewCategoryName('');
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        console.log('[ProfileScreen] Focus — loading profile data');
+        const [storedName, loadedSessions, loadedGoals] = await Promise.all([
+          AsyncStorage.getItem(PROFILE_NAME_KEY),
+          getSessions(),
+          getGoals(),
+        ]);
+        setName(storedName ?? '');
+        setSessions(loadedSessions);
+        setGoals(loadedGoals);
+        console.log(
+          `[ProfileScreen] Loaded: name="${storedName}", sessions=${loadedSessions.length}, goals=${loadedGoals.length}`
+        );
+      };
+      load();
+    }, [])
+  );
+
+  const handleNameBlur = async () => {
+    const trimmed = name.trim();
+    console.log(`[ProfileScreen] Name field blur — saving name: "${trimmed}"`);
+    await AsyncStorage.setItem(PROFILE_NAME_KEY, trimmed);
+    setName(trimmed);
   };
 
-  const handleDeleteCategory = (id: string, name: string) => {
-    console.log(`[ProfileScreen] Delete category pressed: id=${id}, name="${name}"`);
-    Alert.alert(
-      'Delete Category?',
-      `"${name}" will be removed. Stopwatches in this category won't be deleted.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            console.log(`[ProfileScreen] Delete category confirmed: id=${id}`);
-            deleteCategory(id);
-          },
-        },
-      ]
-    );
+  const handleSettingsPress = () => {
+    console.log('[ProfileScreen] Settings gear icon pressed');
+    router.push('/settings');
   };
 
-  const handleRestorePurchases = async () => {
-    console.log('[ProfileScreen] Restore Purchases pressed');
-    setIsRestoring(true);
-    try {
-      const restored = await restorePurchases();
-      console.log(`[ProfileScreen] Restore Purchases result: restored=${restored}`);
-      if (restored) {
-        Alert.alert('Purchases Restored', 'Your unlimited stopwatches are now active.');
-      } else {
-        Alert.alert('No Purchases Found', 'No previous purchases found.');
-      }
-    } catch (error) {
-      console.log('[ProfileScreen] Restore Purchases error:', error);
-      Alert.alert('Restore Failed', 'Restore failed. Please try again.');
-    } finally {
-      setIsRestoring(false);
+  // Derived stats
+  const totalSessions = sessions.length;
+  const totalTimeMs = sessions.reduce((acc, s) => acc + (s.totalTime ?? 0), 0);
+  const totalTimeDisplay = formatTotalTime(totalTimeMs);
+  const goalsAchieved = goals.filter(g => g.status === 'achieved').length;
+  const goalsActive = goals.filter(g => g.status === 'active').length;
+
+  // Top stopwatches by total session time
+  const stopwatchMap = new Map<string, TopStopwatch>();
+  for (const s of sessions) {
+    const existing = stopwatchMap.get(s.stopwatchId);
+    if (existing) {
+      existing.sessionCount += 1;
+      existing.totalTime += s.totalTime ?? 0;
+    } else {
+      stopwatchMap.set(s.stopwatchId, {
+        id: s.stopwatchId,
+        name: s.stopwatchName,
+        color: s.color,
+        sessionCount: 1,
+        totalTime: s.totalTime ?? 0,
+      });
     }
-  };
+  }
+  const topStopwatches = Array.from(stopwatchMap.values())
+    .sort((a, b) => b.totalTime - a.totalTime)
+    .slice(0, 3);
 
-  const handlePresetTap = (preset: typeof PRESET_TEMPLATES[0]) => {
-    console.log(`[ProfileScreen] Preset template tapped: ${preset.key}`);
-    router.push(`/stopwatch-modal?preset=${preset.key}`);
-  };
+  const hasData = totalSessions > 0 || goals.length > 0 || name.trim().length > 0;
 
-  const sectionLabelStyle = {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: C.subtext,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-    marginTop: 28,
-  };
+  const trimmedName = name.trim();
+  const avatarInitial = trimmedName.length > 0 ? trimmedName[0].toUpperCase() : null;
+  const editHintVisible = trimmedName.length === 0;
 
-  const cardStyle = {
-    backgroundColor: C.card,
-    borderRadius: 12,
-    borderCurve: 'continuous' as const,
-    marginHorizontal: 16,
-    overflow: 'hidden' as const,
-    borderWidth: 1,
-    borderColor: C.border,
-  };
+  const avatarBg = `${C.primary}33`;
 
-  const rowStyle = {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  };
-
-  const separatorStyle = {
-    height: 1,
-    backgroundColor: C.separator,
-    marginLeft: 16,
-  };
+  const sectionTitle = (label: string) => (
+    <Text
+      style={{
+        fontSize: 13,
+        fontWeight: '600',
+        color: C.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        paddingHorizontal: 16,
+        marginBottom: 10,
+        marginTop: 28,
+      }}
+    >
+      {label}
+    </Text>
+  );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* Header */}
       <View
         style={{
           paddingTop: insets.top,
           backgroundColor: C.background,
           borderBottomWidth: 1,
-          borderBottomColor: C.separator,
+          borderBottomColor: C.border,
         }}
       >
         <View
           style={{
-            height: 44,
+            height: 52,
             paddingHorizontal: 16,
             flexDirection: 'row',
             alignItems: 'center',
           }}
         >
-          <View style={{ width: 36 }} />
           <Text
             style={{
               flex: 1,
-              textAlign: 'center',
-              fontSize: 17,
-              fontWeight: '600',
+              fontSize: 28,
+              fontWeight: '700',
               color: C.text,
+              letterSpacing: -0.5,
             }}
           >
             Profile
           </Text>
           <Pressable
-            onPress={() => {
-              console.log('[ProfileScreen] Settings gear icon pressed');
-            }}
+            onPress={handleSettingsPress}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
+              borderRadius: 19,
+              backgroundColor: pressed ? C.border : 'transparent',
             })}
           >
-            <Settings size={20} color={C.textSecondary} />
+            <Settings size={22} color={C.textSecondary} />
           </Pressable>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{
+          paddingTop: 20,
+          paddingBottom: insets.bottom + 100,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Appearance */}
-        <Text style={sectionLabelStyle}>Appearance</Text>
-        <View style={cardStyle}>
-          <View style={rowStyle}>
-            <Text style={{ flex: 1, fontSize: 16, color: C.text }}>Dark Mode</Text>
-            <Text style={{ fontSize: 14, color: C.subtext }}>Always on</Text>
+        {/* Profile Card */}
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: C.card,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+          }}
+        >
+          {/* Avatar */}
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: avatarBg,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {avatarInitial ? (
+              <Text
+                style={{
+                  fontSize: 26,
+                  fontWeight: '700',
+                  color: C.primary,
+                }}
+              >
+                {avatarInitial}
+              </Text>
+            ) : (
+              <User size={28} color={C.primary} />
+            )}
+          </View>
+
+          {/* Name + hint */}
+          <View style={{ flex: 1 }}>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              onBlur={handleNameBlur}
+              onSubmitEditing={handleNameBlur}
+              placeholder="Your name"
+              placeholderTextColor={C.placeholder}
+              returnKeyType="done"
+              style={{
+                fontSize: 20,
+                fontWeight: '600',
+                color: C.text,
+                padding: 0,
+                paddingVertical: Platform.OS === 'ios' ? 2 : 0,
+              }}
+            />
+            {editHintVisible && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: C.textSecondary,
+                  marginTop: 4,
+                }}
+              >
+                Tap to edit your name
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* Preset Templates */}
-        <Text style={sectionLabelStyle}>Preset Templates</Text>
-        <View style={cardStyle}>
-          {PRESET_TEMPLATES.map((preset, idx) => (
-            <React.Fragment key={preset.key}>
-              <Pressable
-                onPress={() => handlePresetTap(preset)}
-                style={({ pressed }) => ({
-                  ...rowStyle,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ fontSize: 18, marginRight: 12 }}>{preset.emoji}</Text>
-                <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
-                  {preset.name}
-                </Text>
-                <View
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    backgroundColor: preset.color,
-                  }}
-                />
-              </Pressable>
-              {idx < PRESET_TEMPLATES.length - 1 && (
-                <View style={separatorStyle} />
-              )}
-            </React.Fragment>
-          ))}
-        </View>
-
-        {/* Categories */}
-        <Text style={sectionLabelStyle}>Categories</Text>
-
-        {/* Built-in categories */}
-        <View style={cardStyle}>
-          {builtInCategories.map((cat, idx) => (
-            <React.Fragment key={cat.id}>
-              <View style={rowStyle}>
-                <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
-                  {cat.name}
-                </Text>
-                <Text style={{ fontSize: 13, color: C.subtext }}>
-                  Built-in
-                </Text>
-              </View>
-              {idx < builtInCategories.length - 1 && (
-                <View style={separatorStyle} />
-              )}
-            </React.Fragment>
-          ))}
-        </View>
-
-        {/* Custom categories */}
-        {customCategories.length > 0 && (
-          <>
+        {/* Empty state */}
+        {!hasData && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 24,
+              backgroundColor: C.card,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: C.border,
+              padding: 28,
+              alignItems: 'center',
+            }}
+          >
+            <TrendingUp size={36} color={C.textSecondary} style={{ marginBottom: 12 }} />
             <Text
               style={{
-                fontSize: 13,
-                color: C.subtext,
-                paddingHorizontal: 16,
-                marginTop: 16,
-                marginBottom: 8,
+                fontSize: 16,
+                fontWeight: '600',
+                color: C.text,
+                marginBottom: 6,
+                textAlign: 'center',
               }}
             >
-              Custom
+              Your profile is empty
             </Text>
-            <View style={cardStyle}>
-              {customCategories.map((cat, idx) => (
-                <React.Fragment key={cat.id}>
-                  <View style={rowStyle}>
-                    <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
-                      {cat.name}
-                    </Text>
-                    <Pressable
-                      onPress={() => handleDeleteCategory(cat.id, cat.name)}
-                      style={({ pressed }) => ({
-                        padding: 6,
-                        opacity: pressed ? 0.6 : 1,
-                      })}
-                    >
-                      <Trash2 size={16} color={C.destructive} />
-                    </Pressable>
-                  </View>
-                  {idx < customCategories.length - 1 && (
-                    <View style={separatorStyle} />
-                  )}
-                </React.Fragment>
-              ))}
+            <Text
+              style={{
+                fontSize: 14,
+                color: C.textSecondary,
+                textAlign: 'center',
+                lineHeight: 20,
+              }}
+            >
+              Start tracking sessions and your stats will appear here
+            </Text>
+          </View>
+        )}
+
+        {/* Stats Summary */}
+        {hasData && (
+          <>
+            {sectionTitle('Your Stats')}
+            <View
+              style={{
+                marginHorizontal: 16,
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
+              <StatChip
+                label="Total Sessions"
+                value={String(totalSessions)}
+                icon={<Clock size={14} color={C.textSecondary} />}
+                C={C}
+              />
+              <StatChip
+                label="Total Time"
+                value={totalTimeDisplay}
+                icon={<Clock size={14} color={C.textSecondary} />}
+                C={C}
+              />
+              <StatChip
+                label="Goals Achieved"
+                value={String(goalsAchieved)}
+                icon={<Target size={14} color={C.textSecondary} />}
+                C={C}
+              />
+              <StatChip
+                label="Active Goals"
+                value={String(goalsActive)}
+                icon={<Target size={14} color={C.textSecondary} />}
+                C={C}
+              />
             </View>
           </>
         )}
 
-        {/* Add category */}
-        <Text
-          style={{
-            fontSize: 13,
-            color: C.subtext,
-            paddingHorizontal: 16,
-            marginTop: 16,
-            marginBottom: 8,
-          }}
-        >
-          Add Category
-        </Text>
-        <View
-          style={{
-            ...cardStyle,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 4,
-          }}
-        >
-          <TextInput
-            value={newCategoryName}
-            onChangeText={setNewCategoryName}
-            placeholder="Category name"
-            placeholderTextColor={C.placeholder}
-            returnKeyType="done"
-            onSubmitEditing={handleAddCategory}
-            style={{
-              flex: 1,
-              fontSize: 16,
-              color: C.text,
-              paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-            }}
-          />
-          <Pressable
-            onPress={() => {
-              console.log(`[ProfileScreen] Add category button pressed: "${newCategoryName}"`);
-              handleAddCategory();
-            }}
-            disabled={newCategoryName.trim().length === 0}
-            style={({ pressed }) => ({
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: newCategoryName.trim().length === 0 ? C.chipBackground : C.tint,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Plus size={16} color={newCategoryName.trim().length === 0 ? C.subtext : '#fff'} />
-          </Pressable>
-        </View>
-
-        {/* Purchases */}
-        <Text style={sectionLabelStyle}>Purchases</Text>
-        <View style={cardStyle}>
-          <Pressable
-            onPress={handleRestorePurchases}
-            disabled={isRestoring}
-            style={({ pressed }) => ({
-              ...rowStyle,
-              opacity: pressed || isRestoring ? 0.6 : 1,
-            })}
-          >
-            <Text style={{ flex: 1, fontSize: 16, color: C.tint }}>
-              Restore Purchases
-            </Text>
-            {isRestoring && (
-              <ActivityIndicator size="small" color={C.tint} />
-            )}
-          </Pressable>
-        </View>
+        {/* Most Used */}
+        {totalSessions > 0 && topStopwatches.length > 0 && (
+          <>
+            {sectionTitle('Most Used')}
+            <View
+              style={{
+                marginHorizontal: 16,
+                backgroundColor: C.card,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: C.border,
+                overflow: 'hidden',
+              }}
+            >
+              {topStopwatches.map((sw, idx) => {
+                const sessionCountLabel = sw.sessionCount === 1 ? '1 session' : `${sw.sessionCount} sessions`;
+                const timeLabel = formatTotalTime(sw.totalTime);
+                const isLast = idx === topStopwatches.length - 1;
+                return (
+                  <View key={sw.id}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 16,
+                        paddingVertical: 13,
+                        gap: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: sw.color || C.primary,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 15,
+                          fontWeight: '500',
+                          color: C.text,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {sw.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: C.textSecondary,
+                          marginRight: 8,
+                        }}
+                      >
+                        {sessionCountLabel}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '600',
+                          color: C.text,
+                          fontVariant: ['tabular-nums'],
+                        }}
+                      >
+                        {timeLabel}
+                      </Text>
+                    </View>
+                    {!isLast && (
+                      <View
+                        style={{
+                          height: 1,
+                          backgroundColor: C.border,
+                          marginLeft: 38,
+                        }}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+interface StatChipProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  C: ReturnType<typeof useColors>;
+}
+
+function StatChip({ label, value, C }: StatChipProps) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        minWidth: '45%',
+        backgroundColor: C.card,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: C.border,
+        padding: 14,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '600',
+          color: C.textSecondary,
+          textTransform: 'uppercase',
+          letterSpacing: 0.4,
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: '800',
+          color: C.text,
+          fontVariant: ['tabular-nums'],
+        }}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
