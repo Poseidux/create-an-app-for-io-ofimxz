@@ -14,11 +14,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
-import { Trash2, Plus } from 'lucide-react-native';
+import { Trash2, Plus, Settings } from 'lucide-react-native';
 import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-
-
 
 // ─── Preset Templates ─────────────────────────────────────────────────────────
 
@@ -32,7 +30,7 @@ const PRESET_TEMPLATES = [
   { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
 ];
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -47,13 +45,13 @@ export default function SettingsScreen() {
   const handleAddCategory = () => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    console.log(`[Settings] Add category pressed: "${trimmed}"`);
+    console.log(`[ProfileScreen] Add category pressed: "${trimmed}"`);
     addCategory(trimmed);
     setNewCategoryName('');
   };
 
   const handleDeleteCategory = (id: string, name: string) => {
-    console.log(`[Settings] Delete category pressed: id=${id}, name="${name}"`);
+    console.log(`[ProfileScreen] Delete category pressed: id=${id}, name="${name}"`);
     Alert.alert(
       'Delete Category?',
       `"${name}" will be removed. Stopwatches in this category won't be deleted.`,
@@ -63,7 +61,7 @@ export default function SettingsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            console.log(`[Settings] Delete category confirmed: id=${id}`);
+            console.log(`[ProfileScreen] Delete category confirmed: id=${id}`);
             deleteCategory(id);
           },
         },
@@ -72,18 +70,18 @@ export default function SettingsScreen() {
   };
 
   const handleRestorePurchases = async () => {
-    console.log('[Settings] Restore Purchases pressed');
+    console.log('[ProfileScreen] Restore Purchases pressed');
     setIsRestoring(true);
     try {
       const restored = await restorePurchases();
-      console.log(`[Settings] Restore Purchases result: restored=${restored}`);
+      console.log(`[ProfileScreen] Restore Purchases result: restored=${restored}`);
       if (restored) {
         Alert.alert('Purchases Restored', 'Your unlimited stopwatches are now active.');
       } else {
         Alert.alert('No Purchases Found', 'No previous purchases found.');
       }
     } catch (error) {
-      console.log('[Settings] Restore Purchases error:', error);
+      console.log('[ProfileScreen] Restore Purchases error:', error);
       Alert.alert('Restore Failed', 'Restore failed. Please try again.');
     } finally {
       setIsRestoring(false);
@@ -91,7 +89,7 @@ export default function SettingsScreen() {
   };
 
   const handlePresetTap = (preset: typeof PRESET_TEMPLATES[0]) => {
-    console.log(`[Settings] Preset template tapped: ${preset.key}`);
+    console.log(`[ProfileScreen] Preset template tapped: ${preset.key}`);
     router.push(`/stopwatch-modal?preset=${preset.key}`);
   };
 
@@ -135,8 +133,54 @@ export default function SettingsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      {/* Header */}
+      <View
+        style={{
+          paddingTop: insets.top,
+          backgroundColor: C.background,
+          borderBottomWidth: 1,
+          borderBottomColor: C.separator,
+        }}
+      >
+        <View
+          style={{
+            height: 44,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <View style={{ width: 36 }} />
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              fontSize: 17,
+              fontWeight: '600',
+              color: C.text,
+            }}
+          >
+            Profile
+          </Text>
+          <Pressable
+            onPress={() => {
+              console.log('[ProfileScreen] Settings gear icon pressed');
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Settings size={20} color={C.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
+
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -279,7 +323,10 @@ export default function SettingsScreen() {
             }}
           />
           <Pressable
-            onPress={handleAddCategory}
+            onPress={() => {
+              console.log(`[ProfileScreen] Add category button pressed: "${newCategoryName}"`);
+              handleAddCategory();
+            }}
             disabled={newCategoryName.trim().length === 0}
             style={({ pressed }) => ({
               width: 32,

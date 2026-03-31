@@ -41,13 +41,19 @@ import {
   markGoalAchieved,
   markGoalMissed,
 } from '@/utils/goal-storage';
+import { TimerConfig, getTimerConfigs, deleteTimerConfig } from '@/utils/timer-storage';
+import { loadTimerCategories, TimerCategory } from '@/utils/timer-category-storage';
+
+// ─── Segment type ─────────────────────────────────────────────────────────────
+
+type Segment = 'stopwatches' | 'timers';
 
 // ─── Preset Templates ─────────────────────────────────────────────────────────
 
 const PRESETS = [
   { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
   { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
-  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
+  { key: 'cycling',   emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
   { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
   { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
   { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
@@ -84,7 +90,7 @@ function PulsingDot({ color }: { color: string }) {
   );
 }
 
-// ─── Category Chips ───────────────────────────────────────────────────────────
+// ─── Category Chips (Stopwatches) ─────────────────────────────────────────────
 
 function CategoryChips() {
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
@@ -111,7 +117,7 @@ function CategoryChips() {
             <Pressable
               key={cat.id}
               onPress={() => {
-                console.log(`[StopwatchesScreen] Category chip pressed: ${cat.id}`);
+                console.log(`[TodayScreen] SW category chip pressed: ${cat.id}`);
                 setSelectedCategory(cat.id);
               }}
               style={({ pressed }) => ({
@@ -167,7 +173,7 @@ function PresetChips({ onPresetTap }: PresetChipsProps) {
           <Pressable
             key={preset.key}
             onPress={() => {
-              console.log(`[StopwatchesScreen] Preset chip tapped: ${preset.key}`);
+              console.log(`[TodayScreen] Preset chip tapped: ${preset.key}`);
               onPresetTap(preset);
             }}
             style={({ pressed }) => ({
@@ -613,7 +619,6 @@ function GoalBadge({ goal, swColor }: { goal: ItemGoal; swColor: string }) {
     );
   }
 
-  // Active goal — show target
   const activeLabel = (() => {
     switch (goal.goalType) {
       case 'target_duration':
@@ -835,7 +840,6 @@ function StopwatchCard({
           )}
 
           <View style={{ padding: 16, paddingLeft: sw.isRunning ? 20 : 16 }}>
-            {/* Top row: name/status + timer/controls */}
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text
@@ -962,9 +966,7 @@ function StopwatchCard({
               </>
             )}
 
-            {/* Action buttons row */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-              {/* Start/Pause */}
               <Pressable
                 onPress={handleStartPause}
                 style={({ pressed }) => ({
@@ -989,7 +991,6 @@ function StopwatchCard({
                 </Text>
               </Pressable>
 
-              {/* Lap */}
               <Pressable
                 onPress={handleLap}
                 disabled={!canLap}
@@ -1012,7 +1013,6 @@ function StopwatchCard({
                 </Text>
               </Pressable>
 
-              {/* Notes/Details */}
               <Pressable
                 onPress={() => {
                   console.log(`[StopwatchCard] Details button pressed: id=${sw.id}`);
@@ -1032,7 +1032,6 @@ function StopwatchCard({
                 <FileText size={15} color={C.textSecondary} />
               </Pressable>
 
-              {/* Reset */}
               <Pressable
                 onPress={handleReset}
                 style={({ pressed }) => ({
@@ -1054,7 +1053,6 @@ function StopwatchCard({
                 </Text>
               </Pressable>
 
-              {/* Delete */}
               <Pressable
                 onPress={handleDelete}
                 style={({ pressed }) => ({
@@ -1078,9 +1076,9 @@ function StopwatchCard({
   );
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
+// ─── Stopwatch Empty State ────────────────────────────────────────────────────
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function StopwatchEmptyState({ onAdd }: { onAdd: () => void }) {
   const C = useColors();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
@@ -1122,7 +1120,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </Text>
       <Pressable
         onPress={() => {
-          console.log('[StopwatchesScreen] Empty state "Add Stopwatch" pressed');
+          console.log('[TodayScreen] SW empty state "Add Stopwatch" pressed');
           onAdd();
         }}
         style={({ pressed }) => ({
@@ -1147,12 +1145,516 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+// ─── Timer Runtime ─────────────────────────────────────────────────────────────
+
+interface TimerRuntime {
+  configId: string;
+  isRunning: boolean;
+  phase: 'work' | 'rest' | 'countdown';
+  currentRound: number;
+  remainingMs: number;
+  accumulatedMs: number;
+  startedAt: number | null;
+  isComplete: boolean;
+}
+
+function makeInitialRuntime(config: TimerConfig): TimerRuntime {
+  const phase: 'work' | 'rest' | 'countdown' = config.mode === 'countdown' ? 'countdown' : 'work';
+  const remainingMs = config.mode === 'countdown'
+    ? (config.countdownMs ?? 0)
+    : (config.workMs ?? 0);
+  return {
+    configId: config.id,
+    isRunning: false,
+    phase,
+    currentRound: 1,
+    remainingMs,
+    accumulatedMs: 0,
+    startedAt: null,
+    isComplete: false,
+  };
+}
+
+function getRemainingMs(rt: TimerRuntime, config: TimerConfig): number {
+  if (!rt.isRunning || rt.startedAt === null) return rt.remainingMs;
+  const elapsed = Date.now() - rt.startedAt + rt.accumulatedMs;
+  const phaseDuration = rt.phase === 'countdown'
+    ? (config.countdownMs ?? 0)
+    : rt.phase === 'work'
+    ? (config.workMs ?? 0)
+    : (config.restMs ?? 0);
+  return Math.max(0, phaseDuration - elapsed);
+}
+
+// ─── Timer Goal Badge ─────────────────────────────────────────────────────────
+
+function TimerGoalBadge({ goal, timerColor }: { goal: ItemGoal; timerColor: string }) {
+  if (goal.status === 'achieved') {
+    return (
+      <View
+        style={{
+          alignSelf: 'flex-start',
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 20,
+          backgroundColor: 'rgba(52,199,89,0.12)',
+          marginBottom: 6,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '600' }}>
+          ✓ Goal achieved
+        </Text>
+      </View>
+    );
+  }
+
+  if (goal.status === 'missed') {
+    return (
+      <View
+        style={{
+          alignSelf: 'flex-start',
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 20,
+          backgroundColor: 'rgba(180,180,180,0.12)',
+          marginBottom: 6,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>
+          ✗ Goal missed
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 20,
+        backgroundColor: `${timerColor}18`,
+        marginBottom: 6,
+      }}
+    >
+      <Text style={{ fontSize: 11, color: timerColor, fontWeight: '600' }}>
+        Goal: Complete
+      </Text>
+    </View>
+  );
+}
+
+// ─── Timer Card ───────────────────────────────────────────────────────────────
+
+interface TimerCardProps {
+  config: TimerConfig;
+  runtime: TimerRuntime;
+  goal?: ItemGoal | null;
+  categoryName?: string | null;
+  onStart: () => void;
+  onPause: () => void;
+  onReset: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}
+
+function TimerCard({ config, runtime, goal, categoryName, onStart, onPause, onReset, onDelete, onEdit }: TimerCardProps) {
+  const C = useColors();
+  const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+  const swColor = config.color;
+
+  const remaining = getRemainingMs(runtime, config);
+  const remainingDisplay = formatTime(remaining);
+
+  const totalRounds = config.rounds ?? 1;
+  const modeLabel = config.mode === 'countdown' ? 'Countdown' : config.mode === 'interval' ? 'Interval' : 'HIIT';
+  const phaseLabel = runtime.phase === 'work' ? 'WORK' : runtime.phase === 'rest' ? 'REST' : '';
+
+  const cardBg = runtime.isRunning ? `${swColor}0a` : C.card;
+  const cardBorderColor = runtime.isRunning ? `${swColor}40` : C.border;
+
+  const secondaryInfo = (() => {
+    if (config.mode === 'countdown' && config.countdownMs) {
+      const totalSec = Math.floor(config.countdownMs / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      let dur = '';
+      if (days > 0) dur = `${days}d ${hours > 0 ? `${hours}h ` : ''}${mins > 0 ? `${mins}m` : ''}`.trim();
+      else if (hours > 0) dur = `${hours}h ${mins > 0 ? `${mins}m` : ''}`.trim();
+      else if (mins > 0) dur = secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+      else dur = `${secs}s`;
+      return dur + ' total';
+    }
+    if (config.mode === 'interval' || config.mode === 'hiit') {
+      return `Round ${runtime.currentRound} / ${totalRounds}`;
+    }
+    return null;
+  })();
+
+  const handleStartPause = () => {
+    console.log(`[TodayScreen] TimerCard ${runtime.isRunning ? 'Pause' : 'Start'} pressed: id=${config.id}, name="${config.name}"`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (runtime.isRunning) onPause(); else onStart();
+  };
+
+  const handleReset = () => {
+    console.log(`[TodayScreen] TimerCard Reset pressed: id=${config.id}`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onReset();
+  };
+
+  const handleDelete = () => {
+    console.log(`[TodayScreen] TimerCard Delete pressed: id=${config.id}`);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      'Delete Timer?',
+      `"${config.name}" will be permanently removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            console.log(`[TodayScreen] TimerCard Delete confirmed: id=${config.id}`);
+            onDelete();
+          },
+        },
+      ]
+    );
+  };
+
+  const doneColor = '#34C759';
+
+  return (
+    <Pressable
+      onLongPress={() => {
+        console.log(`[TodayScreen] TimerCard Long press (edit): id=${config.id}`);
+        onEdit();
+      }}
+      delayLongPress={400}
+      style={{ marginHorizontal: 16, marginBottom: 12 }}
+    >
+      <View
+        style={{
+          backgroundColor: runtime.isComplete ? 'rgba(52,199,89,0.06)' : cardBg,
+          borderRadius: 16,
+          borderCurve: 'continuous',
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: runtime.isComplete ? 'rgba(52,199,89,0.30)' : cardBorderColor,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
+        }}
+      >
+        {runtime.isRunning && !runtime.isComplete && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              backgroundColor: swColor,
+              zIndex: 1,
+            }}
+          />
+        )}
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, paddingLeft: runtime.isRunning ? 20 : 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: C.text, marginBottom: 8 }}>
+                {config.name}
+              </Text>
+              {categoryName != null && (
+                <Text style={{ fontSize: 12, color: C.subtext, marginBottom: 4 }}>
+                  {categoryName}
+                </Text>
+              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {runtime.isRunning && <PulsingDot color={swColor} />}
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 20,
+                    backgroundColor: `${swColor}22`,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: swColor, fontWeight: '600' }}>
+                    {modeLabel}
+                  </Text>
+                </View>
+                {phaseLabel !== '' && (
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 20,
+                      backgroundColor: runtime.phase === 'work' ? 'rgba(255,59,48,0.12)' : 'rgba(52,199,89,0.12)',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: runtime.phase === 'work' ? '#FF3B30' : '#34C759',
+                      }}
+                    >
+                      {phaseLabel}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={{ alignItems: 'flex-end' }}>
+              {runtime.isComplete ? (
+                <Text style={{ fontSize: 22, fontWeight: '700', color: doneColor }}>
+                  ✓ Done
+                </Text>
+              ) : (
+                <>
+                  <Text
+                    style={{
+                      fontSize: 28,
+                      fontWeight: '700',
+                      fontFamily: timerFont,
+                      color: runtime.isRunning ? swColor : C.text,
+                      fontVariant: ['tabular-nums'],
+                      letterSpacing: -0.5,
+                      lineHeight: 34,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {remainingDisplay}
+                  </Text>
+                  {secondaryInfo != null && (
+                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
+                      {secondaryInfo}
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+
+          {goal != null && (
+            <>
+              <View style={{ paddingHorizontal: 0, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+                <TimerGoalBadge goal={goal} timerColor={swColor} />
+              </View>
+              <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 0 }} />
+            </>
+          )}
+
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            {!runtime.isComplete && (
+              <Pressable
+                onPress={handleStartPause}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: runtime.isRunning ? swColor : C.primary,
+                  borderRadius: 10,
+                  borderCurve: 'continuous',
+                  paddingVertical: 10,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {runtime.isRunning
+                  ? <Pause size={15} color="#fff" fill="#fff" />
+                  : <Play size={15} color="#fff" fill="#fff" />
+                }
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
+                  {runtime.isRunning ? 'Pause' : 'Start'}
+                </Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={handleReset}
+              style={({ pressed }) => ({
+                flex: runtime.isComplete ? 1 : undefined,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                paddingHorizontal: runtime.isComplete ? undefined : 14,
+                backgroundColor: C.surfaceSecondary,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 10,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <RotateCcw size={14} color={C.textSecondary} />
+              {runtime.isComplete && (
+                <Text style={{ fontSize: 14, fontWeight: '600', color: C.textSecondary }}>
+                  Reset
+                </Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={handleDelete}
+              style={({ pressed }) => ({
+                width: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: C.dangerMuted,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                paddingVertical: 10,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Trash2 size={14} color={C.danger} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// ─── Timer Category Chips ─────────────────────────────────────────────────────
+
+interface TimerCategoryChipsProps {
+  categories: TimerCategory[];
+  selected: string;
+  onSelect: (id: string) => void;
+}
+
+function TimerCategoryChips({ categories, selected, onSelect }: TimerCategoryChipsProps) {
+  const C = useColors();
+  return (
+    <View style={{ height: 48, overflow: 'hidden' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          gap: 8,
+          height: 48,
+        }}
+      >
+        {categories.map(cat => {
+          const isSelected = selected === cat.id;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => {
+                console.log(`[TodayScreen] Timer category chip pressed: ${cat.id}`);
+                onSelect(cat.id);
+              }}
+              style={({ pressed }) => ({
+                flexShrink: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText }}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Timer Empty State ────────────────────────────────────────────────────────
+
+function TimerEmptyState({ onAdd }: { onAdd: () => void }) {
+  const C = useColors();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+      <View
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 24,
+          borderCurve: 'continuous',
+          backgroundColor: C.primaryMuted,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 20,
+        }}
+      >
+        <Timer size={40} color={C.primary} />
+      </View>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: '600',
+          color: C.text,
+          marginBottom: 8,
+          textAlign: 'center',
+        }}
+      >
+        No timers yet
+      </Text>
+      <Text
+        style={{
+          fontSize: 15,
+          color: C.textSecondary,
+          textAlign: 'center',
+          marginBottom: 28,
+          lineHeight: 22,
+        }}
+      >
+        Tap + to create your first timer
+      </Text>
+      <Pressable
+        onPress={() => {
+          console.log('[TodayScreen] Timer empty state "Add Timer" pressed');
+          onAdd();
+        }}
+        style={({ pressed }) => ({
+          backgroundColor: C.primary,
+          borderRadius: 12,
+          borderCurve: 'continuous',
+          paddingHorizontal: 24,
+          paddingVertical: 13,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          opacity: pressed ? 0.8 : 1,
+          boxShadow: '0 4px 16px rgba(0,122,255,0.30)',
+        })}
+      >
+        <Plus size={18} color="#fff" />
+        <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>
+          Add Timer
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function StopwatchesScreen() {
+export default function TodayScreen() {
   const C = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const [segment, setSegment] = useState<Segment>('stopwatches');
+
+  // ── Stopwatch state ──
   const {
     stopwatches,
     isLoaded,
@@ -1171,70 +1673,140 @@ export default function StopwatchesScreen() {
   const { selectedCategory, categories } = useCategory();
 
   const [, setTick] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const swIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const anyRunning = stopwatches.some(sw => sw.isRunning);
   const [presetsExpanded, setPresetsExpanded] = useState(false);
-
-  // Goals keyed by itemId
   const [goalsMap, setGoalsMap] = useState<Record<string, ItemGoal>>({});
-
-  // Details sheet state
   const [detailsSwId, setDetailsSwId] = useState<string | null>(null);
   const detailsSw = detailsSwId ? stopwatches.find(sw => sw.id === detailsSwId) ?? null : null;
 
-  // Load goals on focus
+  // ── Timer state ──
+  const [timerConfigs, setTimerConfigs] = useState<TimerConfig[]>([]);
+  const [timerRuntimes, setTimerRuntimes] = useState<Record<string, TimerRuntime>>({});
+  const [, setTimerTick] = useState(0);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [timerGoalsMap, setTimerGoalsMap] = useState<Record<string, ItemGoal>>({});
+  const [timerCategories, setTimerCategories] = useState<TimerCategory[]>([]);
+  const [selectedTimerCategory, setSelectedTimerCategory] = useState('all');
+  const anyTimerRunning = Object.values(timerRuntimes).some(rt => rt.isRunning);
+
+  // ── Load on focus ──
   useFocusEffect(
     useCallback(() => {
-      console.log('[StopwatchesScreen] Focus: loading goals');
-      getGoals().then(goals => {
+      console.log('[TodayScreen] Focus: loading goals, timer configs, timer categories');
+      Promise.all([getGoals(), getTimerConfigs(), loadTimerCategories()]).then(([goals, configs, cats]) => {
         const map: Record<string, ItemGoal> = {};
-        for (const g of goals) {
-          map[g.itemId] = g;
-        }
+        for (const g of goals) { map[g.itemId] = g; }
         setGoalsMap(map);
+        setTimerGoalsMap(map);
+
+        setTimerConfigs(configs);
+        setTimerRuntimes(prev => {
+          const next = { ...prev };
+          for (const cfg of configs) {
+            if (!next[cfg.id]) next[cfg.id] = makeInitialRuntime(cfg);
+          }
+          for (const id of Object.keys(next)) {
+            if (!configs.find(c => c.id === id)) delete next[id];
+          }
+          return next;
+        });
+        setTimerCategories(cats);
+        console.log(`[TodayScreen] Loaded ${goals.length} goal(s), ${configs.length} timer(s), ${cats.length} timer categories`);
       });
     }, [])
   );
 
-  // Tick interval for stopwatches only
+  // ── Stopwatch tick ──
   useEffect(() => {
     if (anyRunning) {
-      intervalRef.current = setInterval(() => {
-        setTick(t => t + 1);
-      }, 100);
+      swIntervalRef.current = setInterval(() => setTick(t => t + 1), 100);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (swIntervalRef.current) { clearInterval(swIntervalRef.current); swIntervalRef.current = null; }
     }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
+    return () => { if (swIntervalRef.current) { clearInterval(swIntervalRef.current); swIntervalRef.current = null; } };
   }, [anyRunning]);
 
-  const openAddModal = useCallback(() => {
+  // ── Timer tick ──
+  useEffect(() => {
+    if (anyTimerRunning) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerTick(t => t + 1);
+        setTimerRuntimes(prev => {
+          let changed = false;
+          const next = { ...prev };
+          for (const id of Object.keys(next)) {
+            const rt = next[id];
+            if (!rt.isRunning || rt.isComplete) continue;
+            const cfg = timerConfigs.find(c => c.id === id);
+            if (!cfg) continue;
+            const remaining = getRemainingMs(rt, cfg);
+            if (remaining <= 0) {
+              if (cfg.mode === 'countdown') {
+                next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
+                console.log(`[TodayScreen] Countdown complete: id=${id}`);
+                markGoalAchieved(id).then(() => {
+                  getGoals().then(goals => {
+                    const map: Record<string, ItemGoal> = {};
+                    for (const g of goals) { map[g.itemId] = g; }
+                    setTimerGoalsMap(map);
+                  });
+                });
+              } else {
+                if (rt.phase === 'work') {
+                  next[id] = { ...rt, phase: 'rest', remainingMs: cfg.restMs ?? 0, accumulatedMs: 0, startedAt: Date.now() };
+                  console.log(`[TodayScreen] Switching to REST: id=${id}, round=${rt.currentRound}`);
+                } else {
+                  const nextRound = rt.currentRound + 1;
+                  const totalRounds = cfg.rounds ?? 1;
+                  if (nextRound > totalRounds) {
+                    next[id] = { ...rt, isRunning: false, remainingMs: 0, isComplete: true };
+                    console.log(`[TodayScreen] All rounds complete: id=${id}`);
+                    markGoalAchieved(id).then(() => {
+                      getGoals().then(goals => {
+                        const map: Record<string, ItemGoal> = {};
+                        for (const g of goals) { map[g.itemId] = g; }
+                        setTimerGoalsMap(map);
+                      });
+                    });
+                  } else {
+                    next[id] = { ...rt, phase: 'work', currentRound: nextRound, remainingMs: cfg.workMs ?? 0, accumulatedMs: 0, startedAt: Date.now() };
+                    console.log(`[TodayScreen] Starting round ${nextRound}: id=${id}`);
+                  }
+                }
+              }
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      }, 100);
+    } else {
+      if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+    }
+    return () => { if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; } };
+  }, [anyTimerRunning, timerConfigs]);
+
+  // ── Stopwatch handlers ──
+  const openAddStopwatch = useCallback(() => {
     if (!canAddStopwatch) {
-      console.log('[StopwatchesScreen] Free tier limit reached — redirecting to paywall');
+      console.log('[TodayScreen] Free tier limit reached — redirecting to paywall');
       router.push('/paywall');
       return;
     }
-    console.log('[StopwatchesScreen] Header + button pressed — opening stopwatch modal');
+    console.log('[TodayScreen] Header + button pressed — opening stopwatch modal');
     router.push('/stopwatch-modal');
   }, [router, canAddStopwatch]);
 
-  const openEditModal = useCallback((id: string) => {
-    console.log(`[StopwatchesScreen] Open edit modal for id=${id}`);
+  const openEditStopwatch = useCallback((id: string) => {
+    console.log(`[TodayScreen] Open edit modal for stopwatch id=${id}`);
     router.push(`/stopwatch-modal?edit=${id}`);
   }, [router]);
 
   const handlePresetTap = useCallback((preset: typeof PRESETS[0]) => {
-    console.log(`[StopwatchesScreen] Preset tapped: ${preset.key}`);
+    console.log(`[TodayScreen] Preset tapped: ${preset.key}`);
     if (!canAddStopwatch) {
-      console.log('[StopwatchesScreen] Preset: free tier limit — redirecting to paywall');
+      console.log('[TodayScreen] Preset: free tier limit — redirecting to paywall');
       router.push('/paywall');
       return;
     }
@@ -1242,19 +1814,11 @@ export default function StopwatchesScreen() {
     if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [canAddStopwatch, addStopwatch, router]);
 
-  const handleStart = useCallback((id: string) => {
-    startStopwatch(id);
-  }, [startStopwatch]);
-
-  const handlePause = useCallback((id: string) => {
-    pauseStopwatch(id);
-  }, [pauseStopwatch]);
-
   const handleReset = useCallback(async (id: string) => {
     const sw = stopwatches.find(s => s.id === id);
     if (!sw) return;
     const elapsedMs = getElapsedMs(sw);
-    console.log(`[StopwatchesScreen] Reset & Save: id=${id}, totalTime=${elapsedMs}ms`);
+    console.log(`[TodayScreen] Reset & Save: id=${id}, totalTime=${elapsedMs}ms`);
     if (elapsedMs > 0) {
       const categoryName = sw.category
         ? (categories.find(c => c.id === sw.category)?.name ?? sw.category)
@@ -1271,10 +1835,9 @@ export default function StopwatchesScreen() {
         startedAt: new Date(Date.now() - elapsedMs).toISOString(),
         endedAt: new Date().toISOString(),
       };
-      console.log(`[StopwatchesScreen] Saving session: id=${session.id}`);
+      console.log(`[TodayScreen] Saving session: id=${session.id}`);
       await saveSession(session);
 
-      // Check goal
       const goal = await getGoalForItem(id);
       if (goal && goal.status === 'active') {
         const laps = sw.laps ?? [];
@@ -1287,27 +1850,21 @@ export default function StopwatchesScreen() {
           achieved = elapsedMs <= goal.personalBestMs;
         }
         if (achieved) {
-          console.log(`[StopwatchesScreen] Goal achieved for id=${id}`);
+          console.log(`[TodayScreen] Goal achieved for id=${id}`);
           await markGoalAchieved(id);
-          // Refresh goals map
-          getGoals().then(goals => {
-            const map: Record<string, ItemGoal> = {};
-            for (const g of goals) { map[g.itemId] = g; }
-            setGoalsMap(map);
-          });
         } else {
-          console.log(`[StopwatchesScreen] Goal missed for id=${id}`);
+          console.log(`[TodayScreen] Goal missed for id=${id}`);
           await markGoalMissed(id);
-          getGoals().then(goals => {
-            const map: Record<string, ItemGoal> = {};
-            for (const g of goals) { map[g.itemId] = g; }
-            setGoalsMap(map);
-          });
         }
+        getGoals().then(goals => {
+          const map: Record<string, ItemGoal> = {};
+          for (const g of goals) { map[g.itemId] = g; }
+          setGoalsMap(map);
+        });
       }
     }
     resetStopwatch(id);
-  }, [stopwatches, resetStopwatch]);
+  }, [stopwatches, resetStopwatch, categories]);
 
   const handleDelete = useCallback((id: string) => {
     deleteStopwatch(id);
@@ -1337,28 +1894,108 @@ export default function StopwatchesScreen() {
       splitTime: elapsedMs,
       timestamp: new Date().toISOString(),
     };
-    console.log(`[StopwatchesScreen] Lap recorded: id=${id}, lapNumber=${lap.lapNumber}, lapTime=${lapTime}ms`);
+    console.log(`[TodayScreen] Lap recorded: id=${id}, lapNumber=${lap.lapNumber}, lapTime=${lapTime}ms`);
     addLap(id, lap);
   }, [stopwatches, addLap]);
 
+  // ── Timer handlers ──
+  const handleTimerStart = useCallback((id: string) => {
+    console.log(`[TodayScreen] Timer start: id=${id}`);
+    setTimerRuntimes(prev => {
+      const rt = prev[id];
+      if (!rt) return prev;
+      return { ...prev, [id]: { ...rt, isRunning: true, startedAt: Date.now(), accumulatedMs: 0 } };
+    });
+  }, []);
+
+  const handleTimerPause = useCallback((id: string) => {
+    console.log(`[TodayScreen] Timer pause: id=${id}`);
+    setTimerRuntimes(prev => {
+      const rt = prev[id];
+      if (!rt || !rt.isRunning || rt.startedAt === null) return prev;
+      const cfg = timerConfigs.find(c => c.id === id);
+      if (!cfg) return prev;
+      const remaining = getRemainingMs(rt, cfg);
+      const phaseDuration = rt.phase === 'countdown'
+        ? (cfg.countdownMs ?? 0)
+        : rt.phase === 'work'
+        ? (cfg.workMs ?? 0)
+        : (cfg.restMs ?? 0);
+      const elapsed = phaseDuration - remaining;
+      return { ...prev, [id]: { ...rt, isRunning: false, remainingMs: remaining, accumulatedMs: elapsed, startedAt: null } };
+    });
+  }, [timerConfigs]);
+
+  const handleTimerReset = useCallback((id: string) => {
+    console.log(`[TodayScreen] Timer reset: id=${id}`);
+    const cfg = timerConfigs.find(c => c.id === id);
+    if (!cfg) return;
+    const rt = timerRuntimes[id];
+    if (rt && !rt.isComplete && (rt.accumulatedMs > 0 || rt.startedAt !== null)) {
+      console.log(`[TodayScreen] Marking goal missed on reset: id=${id}`);
+      markGoalMissed(id).then(() => {
+        getGoals().then(goals => {
+          const map: Record<string, ItemGoal> = {};
+          for (const g of goals) { map[g.itemId] = g; }
+          setTimerGoalsMap(map);
+        });
+      });
+    }
+    setTimerRuntimes(prev => ({ ...prev, [id]: makeInitialRuntime(cfg) }));
+  }, [timerConfigs, timerRuntimes]);
+
+  const handleTimerDelete = useCallback(async (id: string) => {
+    console.log(`[TodayScreen] Timer delete: id=${id}`);
+    await deleteTimerConfig(id);
+    setTimerConfigs(prev => prev.filter(c => c.id !== id));
+    setTimerRuntimes(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  // ── Derived ──
   const filteredStopwatches = selectedCategory === 'all'
     ? stopwatches
     : stopwatches.filter(sw => sw.category === selectedCategory);
 
+  const filteredTimerConfigs = selectedTimerCategory === 'all'
+    ? timerConfigs
+    : timerConfigs.filter(c => c.category === selectedTimerCategory);
+
   const listBottomPad = insets.bottom + 100;
 
-  const prevCountRef = useRef(filteredStopwatches.length);
+  const prevSwCountRef = useRef(filteredStopwatches.length);
   useEffect(() => {
-    if (filteredStopwatches.length > prevCountRef.current) {
+    if (filteredStopwatches.length > prevSwCountRef.current) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     }
-    prevCountRef.current = filteredStopwatches.length;
+    prevSwCountRef.current = filteredStopwatches.length;
   }, [filteredStopwatches.length]);
 
-  const showEmpty = isLoaded && filteredStopwatches.length === 0;
+  const showSwEmpty = isLoaded && filteredStopwatches.length === 0;
+  const showTimerEmpty = timerConfigs.length === 0;
+  const showTimerCategoryChips = timerCategories.length > 0;
+
+  const handleAddPress = () => {
+    if (segment === 'stopwatches') {
+      console.log('[TodayScreen] Header + pressed for stopwatches');
+      openAddStopwatch();
+    } else {
+      console.log('[TodayScreen] Header + pressed for timers');
+      router.push('/timer-modal');
+    }
+  };
+
+  const segStopwatches = 'stopwatches' as const;
+  const segTimers = 'timers' as const;
+  const segStopwatchesLabel = 'Stopwatches';
+  const segTimersLabel = 'Timers';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      {/* Header */}
       <View style={{ paddingTop: insets.top, backgroundColor: C.background }}>
         <View
           style={{
@@ -1378,11 +2015,10 @@ export default function StopwatchesScreen() {
               color: C.text,
             }}
           >
-            Stopwatches
+            Today
           </Text>
-
           <Pressable
-            onPress={openAddModal}
+            onPress={handleAddPress}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -1397,74 +2033,164 @@ export default function StopwatchesScreen() {
           </Pressable>
         </View>
 
-        <CategoryChips />
+        {/* Segmented control */}
+        <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, backgroundColor: C.surfaceSecondary, borderRadius: 10, padding: 2 }}>
+          {([segStopwatches, segTimers] as const).map(seg => {
+            const isActive = segment === seg;
+            const label = seg === 'stopwatches' ? segStopwatchesLabel : segTimersLabel;
+            const bgColor = isActive ? C.card : 'transparent';
+            const textColor = isActive ? C.text : C.textSecondary;
+            return (
+              <Pressable
+                key={seg}
+                onPress={() => {
+                  console.log(`[TodayScreen] Segment pressed: ${seg}`);
+                  setSegment(seg);
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 7,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  backgroundColor: bgColor,
+                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : undefined,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: textColor }}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        {/* Presets toggle row */}
-        <Pressable
-          onPress={() => {
-            console.log('[StopwatchesScreen] Presets toggle pressed');
-            setPresetsExpanded(v => !v);
-          }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-          }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: '500', color: C.textSecondary, flex: 1 }}>
-            Quick Presets
-          </Text>
-          <ChevronDown
-            size={16}
-            color={C.textSecondary}
-            style={{ transform: [{ rotate: presetsExpanded ? '180deg' : '0deg' }] }}
+        {/* Stopwatch sub-header */}
+        {segment === 'stopwatches' && (
+          <>
+            <CategoryChips />
+            <Pressable
+              onPress={() => {
+                console.log('[TodayScreen] Presets toggle pressed');
+                setPresetsExpanded(v => !v);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '500', color: C.textSecondary, flex: 1 }}>
+                Quick Presets
+              </Text>
+              <ChevronDown
+                size={16}
+                color={C.textSecondary}
+                style={{ transform: [{ rotate: presetsExpanded ? '180deg' : '0deg' }] }}
+              />
+            </Pressable>
+            {presetsExpanded && (
+              <PresetChips onPresetTap={(preset) => {
+                handlePresetTap(preset);
+                setPresetsExpanded(false);
+              }} />
+            )}
+          </>
+        )}
+
+        {/* Timer sub-header */}
+        {segment === 'timers' && showTimerCategoryChips && (
+          <TimerCategoryChips
+            categories={timerCategories}
+            selected={selectedTimerCategory}
+            onSelect={setSelectedTimerCategory}
           />
-        </Pressable>
-
-        {presetsExpanded && (
-          <PresetChips onPresetTap={(preset) => {
-            handlePresetTap(preset);
-            setPresetsExpanded(false);
-          }} />
         )}
 
         <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
-      <View style={{ flex: 1, display: showEmpty ? 'flex' : 'none' }}>
-        <EmptyState onAdd={openAddModal} />
-      </View>
+      {/* Stopwatches content */}
+      {segment === 'stopwatches' && (
+        <>
+          <View style={{ flex: 1, display: showSwEmpty ? 'flex' : 'none' }}>
+            <StopwatchEmptyState onAdd={openAddStopwatch} />
+          </View>
+          <FlatList
+            style={{ flex: 1, display: showSwEmpty ? 'none' : 'flex' }}
+            data={filteredStopwatches}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
+            renderItem={({ item, index }) => {
+              const swGoal = goalsMap[item.id] ?? null;
+              return (
+                <StopwatchCard
+                  sw={item}
+                  index={index}
+                  total={filteredStopwatches.length}
+                  goal={swGoal}
+                  onStart={() => startStopwatch(item.id)}
+                  onPause={() => pauseStopwatch(item.id)}
+                  onReset={() => handleReset(item.id)}
+                  onDelete={() => handleDelete(item.id)}
+                  onMoveUp={() => handleMoveUp(item.id)}
+                  onMoveDown={() => handleMoveDown(item.id)}
+                  onLongPress={() => openEditStopwatch(item.id)}
+                  onLap={() => handleLap(item.id)}
+                  onOpenDetails={() => {
+                    console.log(`[TodayScreen] Open details for id=${item.id}`);
+                    setDetailsSwId(item.id);
+                  }}
+                />
+              );
+            }}
+          />
+        </>
+      )}
 
-      <FlatList
-        style={{ flex: 1, display: showEmpty ? 'none' : 'flex' }}
-        data={filteredStopwatches}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-        renderItem={({ item, index }) => {
-          const swGoal = goalsMap[item.id] ?? null;
-          return (
-            <StopwatchCard
-              sw={item}
-              index={index}
-              total={filteredStopwatches.length}
-              goal={swGoal}
-              onStart={() => handleStart(item.id)}
-              onPause={() => handlePause(item.id)}
-              onReset={() => handleReset(item.id)}
-              onDelete={() => handleDelete(item.id)}
-              onMoveUp={() => handleMoveUp(item.id)}
-              onMoveDown={() => handleMoveDown(item.id)}
-              onLongPress={() => openEditModal(item.id)}
-              onLap={() => handleLap(item.id)}
-              onOpenDetails={() => {
-                console.log(`[StopwatchesScreen] Open details for id=${item.id}`);
-                setDetailsSwId(item.id);
-              }}
-            />
-          );
-        }}
-      />
+      {/* Timers content */}
+      {segment === 'timers' && (
+        showTimerEmpty ? (
+          <TimerEmptyState onAdd={() => router.push('/timer-modal')} />
+        ) : (
+          <FlatList
+            style={{ flex: 1 }}
+            data={filteredTimerConfigs}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
+            ListEmptyComponent={
+              <View style={{ alignItems: 'center', paddingTop: 60 }}>
+                <Text style={{ fontSize: 15, color: C.textSecondary }}>
+                  No timers in this category.
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const rt = timerRuntimes[item.id] ?? makeInitialRuntime(item);
+              const goal = timerGoalsMap[item.id] ?? null;
+              const catName = item.category
+                ? (timerCategories.find(c => c.id === item.category)?.name ?? null)
+                : null;
+              return (
+                <TimerCard
+                  config={item}
+                  runtime={rt}
+                  goal={goal}
+                  categoryName={catName}
+                  onStart={() => handleTimerStart(item.id)}
+                  onPause={() => handleTimerPause(item.id)}
+                  onReset={() => handleTimerReset(item.id)}
+                  onDelete={() => handleTimerDelete(item.id)}
+                  onEdit={() => {
+                    console.log(`[TodayScreen] Edit timer: id=${item.id}`);
+                    router.push(`/timer-modal?edit=${item.id}`);
+                  }}
+                />
+              );
+            }}
+          />
+        )
+      )}
 
       {/* Details bottom sheet */}
       {detailsSw && (

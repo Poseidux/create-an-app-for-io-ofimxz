@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
-export default function TimersLayout() {
+
+export default function SessionsLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

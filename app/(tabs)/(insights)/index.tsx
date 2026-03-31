@@ -1,60 +1,24 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Pressable,
-  Alert,
-  ScrollView,
-  Platform,
-  Share,
-} from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { View, Text, ScrollView, Platform, Pressable, Share } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Clock,
-  Trash2,
   BarChart2,
   Flag,
   Zap,
   TrendingDown,
   TrendingUp,
   Timer,
+  Target,
   Share2,
   Tag,
 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { Session, Lap, formatTime } from '@/types/stopwatch';
-import { getSessions, deleteSession } from '@/utils/session-storage';
-import { getGoals, ItemGoal } from '@/utils/goal-storage';
+import { getSessions } from '@/utils/session-storage';
+import { getGoals, ItemGoal, GoalStatus } from '@/utils/goal-storage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }) + ' · ' + d.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatShortDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
-}
 
 function getLast7Days(): { label: string; dateKey: string }[] {
   const days = [];
@@ -86,10 +50,6 @@ function formatAvgSession(ms: number): string {
   return `${secs}s`;
 }
 
-function getDateKey(iso: string): string {
-  return iso.slice(0, 10);
-}
-
 function getMostActiveDayOfWeek(sessions: Session[]): string {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const counts: number[] = [0, 0, 0, 0, 0, 0, 0];
@@ -105,6 +65,17 @@ function getLongestSession(sessions: Session[]): number {
   if (sessions.length === 0) return 0;
   return Math.max(...sessions.map(s => s.totalTime));
 }
+
+function formatShortDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+// ─── Stats computation ────────────────────────────────────────────────────────
 
 interface StatsData {
   totalTime: number;
@@ -165,185 +136,7 @@ function computeStats(sessions: Session[]): StatsData {
     .map(([id, v]) => ({ id, ...v }))
     .sort((a, b) => b.totalTime - a.totalTime);
 
-  return {
-    totalTime,
-    totalSessions: sessions.length,
-    totalLaps,
-    fastestLap,
-    slowestLap,
-    avgLapTime,
-    mostUsedCategory,
-    perStopwatch,
-  };
-}
-
-// ─── Filter Chips ─────────────────────────────────────────────────────────────
-
-interface FilterChipsProps {
-  tags: string[];
-  selected: string;
-  onSelect: (tag: string) => void;
-}
-
-function FilterChips({ tags, selected, onSelect }: FilterChipsProps) {
-  const C = useColors();
-  const allTags = ['All', ...tags];
-
-  return (
-    <View style={{ height: 44, overflow: 'hidden' }}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          gap: 8,
-          height: 44,
-        }}
-      >
-        {allTags.map(tag => {
-          const isSelected = selected === tag;
-          return (
-            <Pressable
-              key={tag}
-              onPress={() => {
-                console.log(`[InsightsScreen] Filter chip pressed: ${tag}`);
-                onSelect(tag);
-              }}
-              style={({ pressed }) => ({
-                flexShrink: 0,
-                paddingHorizontal: 14,
-                paddingVertical: 6,
-                borderRadius: 20,
-                backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '500',
-                  color: isSelected ? C.chipSelectedText : C.chipText,
-                }}
-              >
-                {tag}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-// ─── Session Row ──────────────────────────────────────────────────────────────
-
-interface SessionRowProps {
-  session: Session;
-  onPress: () => void;
-  onDelete: () => void;
-}
-
-function SessionRow({ session, onPress, onDelete }: SessionRowProps) {
-  const C = useColors();
-  const swColor = session.color || '#22c55e';
-  const lapCount = (session.laps ?? []).length;
-  const lapLabel = lapCount > 0 ? `${lapCount} lap${lapCount !== 1 ? 's' : ''}` : null;
-  const totalTimeDisplay = formatTime(session.totalTime);
-  const dateDisplay = formatDate(session.startedAt);
-
-  const handleDelete = () => {
-    console.log(`[InsightsScreen] Delete session pressed: id=${session.id}`);
-    Alert.alert(
-      'Delete Session?',
-      'This session will be permanently removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            console.log(`[InsightsScreen] Delete session confirmed: id=${session.id}`);
-            onDelete();
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <Pressable
-      onPress={() => {
-        console.log(`[InsightsScreen] Session row pressed: id=${session.id}`);
-        onPress();
-      }}
-      onLongPress={handleDelete}
-      delayLongPress={500}
-      style={({ pressed }) => ({
-        marginHorizontal: 16,
-        marginBottom: 10,
-        opacity: pressed ? 0.85 : 1,
-      })}
-    >
-      <View
-        style={{
-          backgroundColor: C.card,
-          borderRadius: 14,
-          borderCurve: 'continuous',
-          borderWidth: 1,
-          borderColor: C.border,
-          borderLeftWidth: 4,
-          borderLeftColor: swColor,
-          padding: 14,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 3 }}>
-              {session.stopwatchName}
-            </Text>
-            {session.category ? (
-              <Text style={{ fontSize: 12, color: C.subtext, marginBottom: 6 }}>
-                {session.category}
-              </Text>
-            ) : null}
-            <Text style={{ fontSize: 12, color: C.textSecondary }}>
-              {dateDisplay}
-            </Text>
-          </View>
-          <View style={{ alignItems: 'flex-end', gap: 6 }}>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '700',
-                fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-                color: C.text,
-                fontVariant: ['tabular-nums'],
-                letterSpacing: -0.5,
-              }}
-            >
-              {totalTimeDisplay}
-            </Text>
-            {lapLabel !== null && (
-              <View
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 20,
-                  backgroundColor: C.surfaceSecondary,
-                }}
-              >
-                <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
-                  {lapLabel}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-    </Pressable>
-  );
+  return { totalTime, totalSessions: sessions.length, totalLaps, fastestLap, slowestLap, avgLapTime, mostUsedCategory, perStopwatch };
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -453,14 +246,7 @@ function MiniStatChip({ label, value }: { label: string; value: string }) {
 
 // ─── Per-Stopwatch Row ────────────────────────────────────────────────────────
 
-interface SwStatRowProps {
-  name: string;
-  color: string;
-  sessionCount: number;
-  totalTime: number;
-}
-
-function SwStatRow({ name, color, sessionCount, totalTime }: SwStatRowProps) {
+function SwStatRow({ name, color, sessionCount, totalTime }: { name: string; color: string; sessionCount: number; totalTime: number }) {
   const C = useColors();
   const totalTimeDisplay = formatTime(totalTime);
   const sessionLabel = `${sessionCount} session${sessionCount !== 1 ? 's' : ''}`;
@@ -476,22 +262,10 @@ function SwStatRow({ name, color, sessionCount, totalTime }: SwStatRowProps) {
         borderBottomColor: C.divider,
       }}
     >
-      <View
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: color,
-          marginRight: 10,
-        }}
-      />
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginRight: 10 }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }}>
-          {name}
-        </Text>
-        <Text style={{ fontSize: 12, color: C.subtext }}>
-          {sessionLabel}
-        </Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }}>{name}</Text>
+        <Text style={{ fontSize: 12, color: C.subtext }}>{sessionLabel}</Text>
       </View>
       <Text
         style={{
@@ -533,7 +307,6 @@ function BarChart({ data, maxBarHeight = 80, barColor, formatValue }: BarChartPr
                 {valueLabel}
               </Text>
             )}
-            {/* Bar with subtle highlight layer */}
             <View
               style={{
                 width: '100%',
@@ -573,159 +346,218 @@ function BarChart({ data, maxBarHeight = 80, barColor, formatValue }: BarChartPr
   );
 }
 
+// ─── Goal Progress Bar ────────────────────────────────────────────────────────
+
+function GoalProgressBar({ status, color }: { status: GoalStatus; color: string }) {
+  const C = useColors();
+  const fillPercent = status === 'achieved' ? 1 : status === 'missed' ? 0 : 0.4;
+  const fillColor = status === 'achieved' ? '#34C759' : status === 'missed' ? '#FF6B6B' : color;
+  const fillWidth = `${fillPercent * 100}%` as `${number}%`;
+  return (
+    <View style={{ height: 4, backgroundColor: C.surfaceSecondary, borderRadius: 2, marginTop: 8, overflow: 'hidden' }}>
+      <View style={{ height: 4, width: fillWidth, backgroundColor: fillColor, borderRadius: 2 }} />
+    </View>
+  );
+}
+
 // ─── Goal Row ─────────────────────────────────────────────────────────────────
 
-function goalTypeLabel(type: ItemGoal['goalType']): string {
-  switch (type) {
-    case 'target_duration': return 'Target Duration';
-    case 'target_laps': return 'Target Laps';
-    case 'beat_personal_best': return 'Beat PB';
-    case 'complete_countdown': return 'Complete Countdown';
-    case 'complete_all_rounds': return 'Complete All Rounds';
-    default: return type;
-  }
-}
-
-interface GoalRowProps {
-  goal: ItemGoal;
-}
-
-function GoalRow({ goal }: GoalRowProps) {
+function GoalRow({ goal }: { goal: ItemGoal }) {
   const C = useColors();
 
-  const displayName = goal.goalName || goal.itemName || goal.itemId;
-  const typeLabel = goalTypeLabel(goal.goalType);
+  const goalTypeText = (() => {
+    switch (goal.goalType) {
+      case 'target_duration':
+        return goal.targetMs != null ? `Target: ${formatTime(goal.targetMs)}` : 'Target Duration';
+      case 'target_laps':
+        return goal.targetLaps != null ? `Target: ${goal.targetLaps} laps` : 'Target Laps';
+      case 'beat_personal_best':
+        return goal.personalBestMs != null ? `Beat: ${formatTime(goal.personalBestMs)}` : 'Beat Personal Best';
+      case 'complete_countdown':
+        return 'Complete countdown';
+      case 'complete_all_rounds':
+        return 'Complete all rounds';
+      default:
+        return 'Goal';
+    }
+  })();
 
-  let detailText = '';
-  if (goal.goalType === 'target_duration' && goal.targetMs != null) {
-    detailText = formatTime(goal.targetMs);
-  } else if (goal.goalType === 'beat_personal_best' && goal.personalBestMs != null) {
-    detailText = formatTime(goal.personalBestMs);
-  } else if (goal.goalType === 'target_laps' && goal.targetLaps != null) {
-    detailText = `${goal.targetLaps} laps`;
-  }
+  const primaryLabel = goal.goalName ? goal.goalName : goal.itemName;
+  const statusColor = goal.status === 'achieved' ? '#34C759' : goal.status === 'missed' ? '#FF6B6B' : C.primary;
+  const statusLabel = goal.status === 'achieved' ? 'Achieved' : goal.status === 'missed' ? 'Missed' : 'Active';
+  const statusBg = goal.status === 'achieved' ? 'rgba(52,199,89,0.12)' : goal.status === 'missed' ? 'rgba(255,107,107,0.12)' : `${C.primary}14`;
 
-  const isAchieved = goal.status === 'achieved';
-  const isMissed = goal.status === 'missed';
-
-  const badgeColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : '#0A84FF';
-  const badgeBg = isAchieved ? 'rgba(52,199,89,0.12)' : isMissed ? C.surfaceSecondary : 'rgba(10,132,255,0.12)';
-  const badgeText = isAchieved ? '✓ Achieved' : isMissed ? '✗ Missed' : 'Active';
-
-  const progressFill = isAchieved ? 1 : isMissed ? 0.5 : 0;
-  const progressColor = isAchieved ? '#34C759' : isMissed ? C.textSecondary : C.primary;
-
-  let dateOrStatus = '';
-  if (isAchieved && goal.achievedAt) {
-    dateOrStatus = formatShortDate(goal.achievedAt);
-  } else if (!isAchieved && !isMissed) {
-    dateOrStatus = 'In progress';
+  let achievedDateLabel = '';
+  if (goal.achievedAt) {
+    try {
+      const d = new Date(goal.achievedAt);
+      achievedDateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      achievedDateLabel = '';
+    }
   }
 
   return (
     <View
       style={{
-        backgroundColor: C.card,
-        borderRadius: 12,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: C.border,
-        padding: 12,
-        marginBottom: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: C.divider,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: C.text, marginBottom: 2 }}>
-            {displayName}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: C.text }} numberOfLines={1}>
+            {primaryLabel}
           </Text>
-          <Text style={{ fontSize: 12, color: C.textSecondary }}>
-            {typeLabel}
-            {detailText !== '' ? ` · ${detailText}` : ''}
+          <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+            {goalTypeText}
           </Text>
-          {dateOrStatus !== '' && (
-            <Text style={{ fontSize: 11, color: isAchieved ? '#34C759' : C.subtext, marginTop: 3 }}>
-              {dateOrStatus}
+          {achievedDateLabel !== '' && (
+            <Text style={{ fontSize: 11, color: '#34C759', marginTop: 2 }}>
+              {achievedDateLabel}
             </Text>
           )}
         </View>
-        <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: badgeBg }}>
-          <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>
-            {badgeText}
+        <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: statusBg }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: statusColor }}>
+            {statusLabel}
           </Text>
         </View>
       </View>
-      {/* Progress bar */}
-      <View style={{ height: 4, backgroundColor: C.surfaceSecondary, borderRadius: 2, overflow: 'hidden' }}>
-        <View
-          style={{
-            height: 4,
-            width: `${Math.round(progressFill * 100)}%`,
-            backgroundColor: progressColor,
-            borderRadius: 2,
-          }}
-        />
-      </View>
+      <GoalProgressBar status={goal.status} color={C.primary} />
     </View>
   );
 }
 
 // ─── Goals Section ────────────────────────────────────────────────────────────
 
-function GoalsSection({ goals }: { goals: ItemGoal[] }) {
+function GoalsSection({
+  goals,
+  sectionLabel,
+  activeGoals,
+  achievedGoals,
+  missedGoals,
+  completionRate,
+}: {
+  goals: ItemGoal[];
+  sectionLabel: object;
+  activeGoals: number;
+  achievedGoals: number;
+  missedGoals: number;
+  completionRate: string;
+}) {
   const C = useColors();
-
-  // Sort: achieved first, then active, then missed
-  const sorted = [...goals].sort((a, b) => {
-    const order: Record<string, number> = { achieved: 0, active: 1, missed: 2 };
-    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
-  });
-
-  const countLabel = String(goals.length);
 
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
-          Goal History
+          Goals
         </Text>
-        {goals.length > 0 && (
-          <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: C.surfaceSecondary }}>
-            <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
-              {countLabel}
-            </Text>
-          </View>
-        )}
+        <Target size={14} color={C.textSecondary} />
       </View>
-      <View style={{ paddingHorizontal: 16 }}>
-        {sorted.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-              No goals yet — set a goal on any stopwatch or timer.
-            </Text>
-          </View>
-        ) : (
-          sorted.map(goal => <GoalRow key={goal.id} goal={goal} />)
-        )}
+
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 10 }}>
+        <StatCard label="Active" value={String(activeGoals)} accent={C.primary} />
+        <StatCard label="Achieved" value={String(achievedGoals)} accent="#34C759" />
       </View>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 16 }}>
+        <StatCard label="Missed" value={String(missedGoals)} accent="#FF6B6B" />
+        <StatCard label="Completion" value={completionRate} />
+      </View>
+
+      {goals.length > 0 ? (
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: C.card,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: C.border,
+            overflow: 'hidden',
+          }}
+        >
+          {goals.map((goal, idx) => (
+            <View key={goal.id} style={idx === goals.length - 1 ? { borderBottomWidth: 0 } : {}}>
+              <GoalRow goal={goal} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: C.card,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 24,
+            alignItems: 'center',
+          }}
+        >
+          <Target size={28} color={C.textSecondary} style={{ marginBottom: 8 }} />
+          <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center' }}>
+            No goals set yet
+          </Text>
+          <Text style={{ fontSize: 12, color: C.subtext, marginTop: 4, textAlign: 'center' }}>
+            Add goals in the stopwatch or timer edit screen
+          </Text>
+        </View>
+      )}
     </>
   );
 }
 
-// ─── Stats Content ────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
-function StatsContent({
-  sessions,
-  isLoaded,
-  goals,
-  listBottomPad,
-}: {
-  sessions: Session[];
-  isLoaded: boolean;
-  goals: ItemGoal[];
-  listBottomPad: number;
-}) {
+export default function InsightsScreen() {
   const C = useColors();
+  const insets = useSafeAreaInsets();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [goals, setGoals] = useState<ItemGoal[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[InsightsScreen] Focus: loading sessions and goals');
+      Promise.all([getSessions(), getGoals()]).then(([sessionData, goalData]) => {
+        setSessions(sessionData);
+        setGoals(goalData);
+        setIsLoaded(true);
+        console.log(`[InsightsScreen] Loaded ${sessionData.length} session(s) and ${goalData.length} goal(s)`);
+      });
+    }, [])
+  );
+
+  const activeGoals = goals.filter(g => g.status === 'active').length;
+  const achievedGoals = goals.filter(g => g.status === 'achieved').length;
+  const missedGoals = goals.filter(g => g.status === 'missed').length;
+  const totalGoalsChecked = achievedGoals + missedGoals;
+  const completionRateNum = totalGoalsChecked > 0 ? Math.round((achievedGoals / totalGoalsChecked) * 100) : 0;
+  const completionRate = totalGoalsChecked > 0 ? `${completionRateNum}%` : '—';
+
+  const stats = sessions.length > 0 ? computeStats(sessions) : null;
+  const totalTimeDisplay = stats ? formatTime(stats.totalTime) : '0:00';
+
+  const handleShare = async () => {
+    console.log('[InsightsScreen] Share button pressed');
+    const goalLine = goals.length > 0
+      ? `Goals: ${achievedGoals} achieved, ${activeGoals} active`
+      : null;
+    const lines = [
+      'Chroniqo Stats',
+      `Total Time: ${totalTimeDisplay}`,
+      stats ? `Sessions: ${stats.totalSessions}` : null,
+      stats ? `Total Laps: ${stats.totalLaps}` : null,
+      goalLine,
+    ].filter(Boolean) as string[];
+    const summary = lines.join('\n');
+    console.log('[InsightsScreen] Sharing stats summary');
+    await Share.share({ message: summary });
+  };
 
   const sectionLabel = {
     fontSize: 13,
@@ -740,39 +572,6 @@ function StatsContent({
 
   if (!isLoaded) {
     return <View style={{ flex: 1, backgroundColor: C.background }} />;
-  }
-
-  if (sessions.length === 0) {
-    return (
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-      >
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 60 }}>
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 22,
-              borderCurve: 'continuous',
-              backgroundColor: C.surfaceSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 18,
-            }}
-          >
-            <BarChart2 size={36} color={C.textSecondary} />
-          </View>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, marginBottom: 8, textAlign: 'center' }}>
-            No data yet
-          </Text>
-          <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-            Complete some sessions to see stats.
-          </Text>
-        </View>
-        <GoalsSection goals={goals} />
-      </ScrollView>
-    );
   }
 
   const last7Days = getLast7Days();
@@ -791,360 +590,68 @@ function StatsContent({
 
   const timeChartData = last7Days.map(d => {
     const ms = timeByDay[d.dateKey] ?? 0;
-    return {
-      label: d.label,
-      value: ms,
-      subLabel: ms > 0 ? formatTimeShort(ms) : '',
-    };
+    return { label: d.label, value: ms, subLabel: ms > 0 ? formatTimeShort(ms) : '' };
   });
 
   const hasChartData = sessionChartData.some(d => d.value > 0);
-  const stats = computeStats(sessions);
-  const totalTimeDisplay = formatTime(stats.totalTime);
-  const fastestDisplay = stats.fastestLap ? formatTime(stats.fastestLap.lapTime) : '—';
-  const slowestDisplay = stats.slowestLap ? formatTime(stats.slowestLap.lapTime) : '—';
-  const avgDisplay = stats.avgLapTime > 0 ? formatTime(Math.round(stats.avgLapTime)) : '—';
-
-  const mostActiveDay = getMostActiveDayOfWeek(sessions);
-  const avgSessionMs = sessions.length > 0 ? stats.totalTime / sessions.length : 0;
+  const mostActiveDay = sessions.length > 0 ? getMostActiveDayOfWeek(sessions) : '—';
+  const avgSessionMs = sessions.length > 0 && stats ? stats.totalTime / sessions.length : 0;
   const avgSessionDisplay = avgSessionMs > 0 ? formatAvgSession(avgSessionMs) : '—';
   const longestSessionMs = getLongestSession(sessions);
   const longestSessionDisplay = longestSessionMs > 0 ? formatTime(longestSessionMs) : '—';
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
-      contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-    >
-      {/* Overview */}
-      <Text style={sectionLabel}>Overview</Text>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
-        <StatCard
-          label="Total Time"
-          value={totalTimeDisplay}
-          iconNode={<Timer size={15} color="#34C759" />}
-          iconBgColor="rgba(52,199,89,0.15)"
-        />
-        <StatCard
-          label="Sessions"
-          value={String(stats.totalSessions)}
-          iconNode={<BarChart2 size={15} color="#0A84FF" />}
-          iconBgColor="rgba(10,132,255,0.15)"
-        />
-      </View>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
-        <StatCard
-          label="Total Laps"
-          value={String(stats.totalLaps)}
-          iconNode={<Flag size={15} color="#FF9500" />}
-          iconBgColor="rgba(255,149,0,0.15)"
-        />
-        {stats.mostUsedCategory ? (
-          <StatCard
-            label="Top Category"
-            value={stats.mostUsedCategory}
-            iconNode={<Tag size={15} color="#BF5AF2" />}
-            iconBgColor="rgba(191,90,242,0.15)"
-          />
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
-      </View>
-
-      {/* Lap stats */}
-      {stats.totalLaps > 0 && (
-        <>
-          <Text style={sectionLabel}>Lap Records</Text>
-          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
-            <StatCard
-              label="Fastest"
-              value={fastestDisplay}
-              accent="#34C759"
-              iconNode={<Zap size={15} color="#34C759" />}
-              iconBgColor="rgba(52,199,89,0.15)"
-            />
-            <StatCard
-              label="Slowest"
-              value={slowestDisplay}
-              accent="#FF453A"
-              iconNode={<TrendingDown size={15} color="#FF453A" />}
-              iconBgColor="rgba(255,69,58,0.15)"
-            />
-            <StatCard
-              label="Average"
-              value={avgDisplay}
-              iconNode={<TrendingUp size={15} color={C.textSecondary} />}
-              iconBgColor={C.surfaceSecondary}
-            />
-          </View>
-        </>
-      )}
-
-      {/* Sessions Over Time chart */}
-      {hasChartData && (
-        <>
-          <Text style={sectionLabel}>Sessions (Last 7 Days)</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              padding: 16,
-            }}
-          >
-            <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
-          </View>
-        </>
-      )}
-
-      {/* Time Per Day chart */}
-      {hasChartData && (
-        <>
-          <Text style={sectionLabel}>Time Tracked (Last 7 Days)</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              padding: 16,
-            }}
-          >
-            <BarChart
-              data={timeChartData}
-              barColor="#34C759"
-              maxBarHeight={80}
-              formatValue={formatTimeShort}
-            />
-          </View>
-        </>
-      )}
-
-      {/* Top Activity summary */}
-      {sessions.length > 0 && (
-        <>
-          <Text style={sectionLabel}>Top Activity</Text>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
-            <MiniStatChip label="Best Day" value={mostActiveDay} />
-            <MiniStatChip label="Avg Session" value={avgSessionDisplay} />
-            <MiniStatChip label="Longest" value={longestSessionDisplay} />
-          </View>
-        </>
-      )}
-
-      {/* Per-stopwatch breakdown */}
-      {stats.perStopwatch.length > 0 && (
-        <>
-          <Text style={sectionLabel}>By Stopwatch</Text>
-          <View
-            style={{
-              marginHorizontal: 16,
-              backgroundColor: C.card,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: C.border,
-              overflow: 'hidden',
-            }}
-          >
-            {stats.perStopwatch.map((sw, idx) => (
-              <View
-                key={sw.id}
-                style={idx === stats.perStopwatch.length - 1 ? { borderBottomWidth: 0 } : {}}
-              >
-                <SwStatRow
-                  name={sw.name}
-                  color={sw.color}
-                  sessionCount={sw.sessions}
-                  totalTime={sw.totalTime}
-                />
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Goal History */}
-      <GoalsSection goals={goals} />
-    </ScrollView>
-  );
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-
-export default function InsightsScreen() {
-  const C = useColors();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-
-  const [activeTab, setActiveTab] = useState<'history' | 'stats'>('history');
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [selectedTag, setSelectedTag] = useState('All');
-  const [goals, setGoals] = useState<ItemGoal[]>([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      console.log('[InsightsScreen] Focus: loading sessions and goals');
-      Promise.all([getSessions(), getGoals()]).then(([data, loadedGoals]) => {
-        const sorted = [...data].sort((a, b) =>
-          new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-        );
-        setSessions(sorted);
-        setIsLoaded(true);
-        setGoals(loadedGoals);
-        console.log(`[InsightsScreen] Loaded ${sorted.length} session(s), ${loadedGoals.length} goal(s)`);
-      });
-    }, [])
-  );
-
-  const handleDelete = useCallback(async (id: string) => {
-    console.log(`[InsightsScreen] Delete session: id=${id}`);
-    await deleteSession(id);
-    setSessions(prev => prev.filter(s => s.id !== id));
-  }, []);
-
-  const uniqueTags = Array.from(
-    new Set(sessions.map(s => s.category).filter(Boolean))
-  ) as string[];
-
-  const filteredSessions = selectedTag === 'All'
-    ? sessions
-    : sessions.filter(s => s.category === selectedTag);
-
-  const listBottomPad = insets.bottom + 100;
-
-  return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* Header */}
-      <View style={{ paddingTop: insets.top, backgroundColor: C.background }}>
-        <View
+      <View
+        style={{
+          paddingTop: insets.top,
+          paddingHorizontal: 16,
+          paddingBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: C.background,
+          borderBottomWidth: 1,
+          borderBottomColor: C.separator,
+        }}
+      >
+        <View style={{ flex: 1 }} />
+        <Text
           style={{
-            height: 44,
-            paddingHorizontal: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
+            flex: 1,
+            textAlign: 'center',
+            fontSize: 17,
+            fontWeight: '600',
+            color: C.text,
           }}
         >
-          <View style={{ width: 36 }} />
-          <Text
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              fontSize: 17,
-              fontWeight: '600',
-              color: C.text,
-            }}
-          >
-            Insights
-          </Text>
+          Insights
+        </Text>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <Pressable
-            onPress={() => {
-              console.log('[InsightsScreen] Share button pressed');
-              const stats = computeStats(sessions);
-              const totalTimeDisplay = formatTime(stats.totalTime);
-              const achievedCount = goals.filter(g => g.status === 'achieved').length;
-              const shareText = `Chroniqo Stats\n• ${stats.totalSessions} sessions\n• ${totalTimeDisplay} tracked\n• ${stats.totalLaps} laps\n• ${achievedCount}/${goals.length} goals achieved`;
-              Share.share({ message: shareText });
-            }}
+            onPress={handleShare}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
+              borderRadius: 18,
+              backgroundColor: C.surfaceSecondary,
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Share2 size={20} color={C.primary} />
+            <Share2 size={18} color={C.textSecondary} />
           </Pressable>
         </View>
-
-        {/* Segmented control */}
-        <View
-          style={{
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              backgroundColor: C.surfaceSecondary,
-              borderRadius: 10,
-              padding: 2,
-            }}
-          >
-            <Pressable
-              onPress={() => {
-                console.log('[InsightsScreen] Segment pressed: history');
-                setActiveTab('history');
-              }}
-              style={({ pressed }) => ({
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: 8,
-                alignItems: 'center',
-                backgroundColor: activeTab === 'history' ? C.primary : 'transparent',
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: activeTab === 'history' ? '#fff' : C.textSecondary,
-                }}
-              >
-                History
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                console.log('[InsightsScreen] Segment pressed: stats');
-                setActiveTab('stats');
-              }}
-              style={({ pressed }) => ({
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: 8,
-                alignItems: 'center',
-                backgroundColor: activeTab === 'stats' ? C.primary : 'transparent',
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: activeTab === 'stats' ? '#fff' : C.textSecondary,
-                }}
-              >
-                Stats
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={{ height: 1, backgroundColor: C.separator }} />
       </View>
 
-      {/* History tab */}
-      {activeTab === 'history' && (
-        <View style={{ flex: 1 }}>
-          {uniqueTags.length > 0 && (
-            <FilterChips
-              tags={uniqueTags}
-              selected={selectedTag}
-              onSelect={setSelectedTag}
-            />
-          )}
-          {isLoaded && sessions.length === 0 ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: insets.bottom + 100 }}
+      >
+        {sessions.length === 0 ? (
+          <>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 60 }}>
               <View
                 style={{
                   width: 72,
@@ -1157,51 +664,178 @@ export default function InsightsScreen() {
                   marginBottom: 18,
                 }}
               >
-                <Clock size={36} color={C.textSecondary} />
+                <BarChart2 size={36} color={C.textSecondary} />
               </View>
               <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, marginBottom: 8, textAlign: 'center' }}>
-                No sessions yet
+                No data yet
               </Text>
               <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-                Stop a stopwatch to save a session.
+                Complete some sessions to see stats.
               </Text>
             </View>
-          ) : (
-            <FlatList
-              data={filteredSessions}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingTop: 12, paddingBottom: listBottomPad }}
-              renderItem={({ item }) => (
-                <SessionRow
-                  session={item}
-                  onPress={() => {
-                    console.log(`[InsightsScreen] Navigate to session detail: id=${item.id}`);
-                    router.push(`/(tabs)/(history)/${item.id}`);
-                  }}
-                  onDelete={() => handleDelete(item.id)}
-                />
-              )}
-              ListEmptyComponent={
-                <View style={{ alignItems: 'center', paddingTop: 60 }}>
-                  <Text style={{ fontSize: 15, color: C.textSecondary }}>
-                    No sessions in this category.
-                  </Text>
-                </View>
-              }
+            <GoalsSection
+              goals={goals}
+              sectionLabel={sectionLabel}
+              activeGoals={activeGoals}
+              achievedGoals={achievedGoals}
+              missedGoals={missedGoals}
+              completionRate={completionRate}
             />
-          )}
-        </View>
-      )}
+          </>
+        ) : (
+          <>
+            {/* Overview */}
+            <Text style={sectionLabel}>Overview</Text>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 4 }}>
+              <StatCard
+                label="Total Time"
+                value={totalTimeDisplay}
+                iconNode={<Timer size={15} color="#34C759" />}
+                iconBgColor="rgba(52,199,89,0.15)"
+              />
+              <StatCard
+                label="Sessions"
+                value={String(stats!.totalSessions)}
+                iconNode={<BarChart2 size={15} color="#0A84FF" />}
+                iconBgColor="rgba(10,132,255,0.15)"
+              />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
+              <StatCard
+                label="Total Laps"
+                value={String(stats!.totalLaps)}
+                iconNode={<Flag size={15} color="#FF9500" />}
+                iconBgColor="rgba(255,149,0,0.15)"
+              />
+              {stats!.mostUsedCategory ? (
+                <StatCard
+                  label="Top Category"
+                  value={stats!.mostUsedCategory}
+                  iconNode={<Tag size={15} color="#BF5AF2" />}
+                  iconBgColor="rgba(191,90,242,0.15)"
+                />
+              ) : (
+                <View style={{ flex: 1 }} />
+              )}
+            </View>
 
-      {/* Stats tab */}
-      {activeTab === 'stats' && (
-        <StatsContent
-          sessions={sessions}
-          isLoaded={isLoaded}
-          goals={goals}
-          listBottomPad={listBottomPad}
-        />
-      )}
+            {/* Lap stats */}
+            {stats!.totalLaps > 0 && (
+              <>
+                <Text style={sectionLabel}>Lap Records</Text>
+                <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
+                  <StatCard
+                    label="Fastest"
+                    value={stats!.fastestLap ? formatTime(stats!.fastestLap.lapTime) : '—'}
+                    accent="#34C759"
+                    iconNode={<Zap size={15} color="#34C759" />}
+                    iconBgColor="rgba(52,199,89,0.15)"
+                  />
+                  <StatCard
+                    label="Slowest"
+                    value={stats!.slowestLap ? formatTime(stats!.slowestLap.lapTime) : '—'}
+                    accent="#FF453A"
+                    iconNode={<TrendingDown size={15} color="#FF453A" />}
+                    iconBgColor="rgba(255,69,58,0.15)"
+                  />
+                  <StatCard
+                    label="Average"
+                    value={stats!.avgLapTime > 0 ? formatTime(Math.round(stats!.avgLapTime)) : '—'}
+                    iconNode={<TrendingUp size={15} color={C.textSecondary} />}
+                    iconBgColor={C.surfaceSecondary}
+                  />
+                </View>
+              </>
+            )}
+
+            {/* Sessions Over Time chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Sessions (Last 7 Days)</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
+                </View>
+              </>
+            )}
+
+            {/* Time Per Day chart */}
+            {hasChartData && (
+              <>
+                <Text style={sectionLabel}>Time Tracked (Last 7 Days)</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 16,
+                  }}
+                >
+                  <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} formatValue={formatTimeShort} />
+                </View>
+              </>
+            )}
+
+            {/* Top Activity summary */}
+            {sessions.length > 0 && (
+              <>
+                <Text style={sectionLabel}>Top Activity</Text>
+                <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+                  <MiniStatChip label="Best Day" value={mostActiveDay} />
+                  <MiniStatChip label="Avg Session" value={avgSessionDisplay} />
+                  <MiniStatChip label="Longest" value={longestSessionDisplay} />
+                </View>
+              </>
+            )}
+
+            {/* Per-stopwatch breakdown */}
+            {stats!.perStopwatch.length > 0 && (
+              <>
+                <Text style={sectionLabel}>By Stopwatch</Text>
+                <View
+                  style={{
+                    marginHorizontal: 16,
+                    backgroundColor: C.card,
+                    borderRadius: 14,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {stats!.perStopwatch.map((sw, idx) => (
+                    <View key={sw.id} style={idx === stats!.perStopwatch.length - 1 ? { borderBottomWidth: 0 } : {}}>
+                      <SwStatRow name={sw.name} color={sw.color} sessionCount={sw.sessions} totalTime={sw.totalTime} />
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Goals */}
+            <GoalsSection
+              goals={goals}
+              sectionLabel={sectionLabel}
+              activeGoals={activeGoals}
+              achievedGoals={achievedGoals}
+              missedGoals={missedGoals}
+              completionRate={completionRate}
+            />
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
