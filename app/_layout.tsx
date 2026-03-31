@@ -90,6 +90,21 @@ function AppContent() {
                       name="settings"
                       options={{ headerShown: false }}
                     />
+                    <Stack.Screen
+                      name="routine-modal"
+                      options={{
+                        presentation: 'formSheet',
+                        headerShown: false,
+                        sheetGrabberVisible: true,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="session-complete"
+                      options={{
+                        presentation: 'modal',
+                        headerShown: false,
+                      }}
+                    />
                   </Stack>
                   <SystemBars style={"auto"} />
                 </GestureHandlerRootView>

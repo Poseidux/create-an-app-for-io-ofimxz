@@ -24,6 +24,7 @@ import { getElapsedMs, formatTime, Stopwatch } from '@/types/stopwatch';
 import { loadStopwatches } from '@/utils/stopwatch-storage';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
+import { getRoutines, markRoutineUsed, Routine } from '@/utils/routine-storage';
 import type { Session } from '@/types/stopwatch';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -167,6 +168,7 @@ export default function TodayScreen() {
   const [stopwatches, setStopwatches] = useState<Stopwatch[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [goals, setGoals] = useState<ItemGoal[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]);
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -179,12 +181,14 @@ export default function TodayScreen() {
         loadStopwatches(),
         getSessions(),
         getGoals(),
-      ]).then(([name, sws, sess, gs]) => {
-        console.log(`[TodayScreen] Loaded: name="${name}", ${sws.length} stopwatches, ${sess.length} sessions, ${gs.length} goals`);
+        getRoutines(),
+      ]).then(([name, sws, sess, gs, rts]) => {
+        console.log(`[TodayScreen] Loaded: name="${name}", ${sws.length} stopwatches, ${sess.length} sessions, ${gs.length} goals, ${rts.length} routines`);
         setProfileName(name ?? undefined);
         setStopwatches(sws);
         setSessions(sess);
         setGoals(gs);
+        setRoutines(rts);
       });
     }, [])
   );
@@ -236,6 +240,17 @@ export default function TodayScreen() {
   const handleCreateTimer = () => {
     console.log('[TodayScreen] Welcome card: create timer tapped');
     router.push('/timer-modal');
+  };
+
+  const handleStartRoutine = async (routine: Routine) => {
+    console.log(`[TodayScreen] Start routine: ${routine.name}`);
+    await markRoutineUsed(routine.id);
+    router.push(`/stopwatch-modal?name=${encodeURIComponent(routine.name)}&color=${encodeURIComponent(routine.color)}`);
+  };
+
+  const handleCreateRoutine = () => {
+    console.log('[TodayScreen] Create routine pressed');
+    router.push('/routine-modal');
   };
 
   return (
@@ -632,8 +647,122 @@ export default function TodayScreen() {
           </View>
         </AnimatedItem>
 
-        {/* ── Active Goals ── */}
+        {/* ── Routines ── */}
         <AnimatedItem index={4}>
+          <View style={{ marginBottom: 28 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginHorizontal: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
+                Routines
+              </Text>
+              <Pressable
+                onPress={handleCreateRoutine}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                  backgroundColor: C.primaryMuted, opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Plus size={13} color={C.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>New</Text>
+              </Pressable>
+            </View>
+
+            {routines.length === 0 ? (
+              <View style={{ marginHorizontal: 16 }}>
+                <Pressable
+                  onPress={handleCreateRoutine}
+                  style={({ pressed }) => ({
+                    backgroundColor: C.card, borderRadius: 16, borderWidth: 1,
+                    borderColor: C.border, padding: 20, alignItems: 'center',
+                    opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 24, marginBottom: 8 }}>🎯</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 }}>
+                    No routines yet
+                  </Text>
+                  <Text style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 18 }}>
+                    Create a routine to quickly start a focus block, study session, or workout
+                  </Text>
+                  <View style={{ marginTop: 14, paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: C.primaryMuted }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: C.primary }}>Create your first routine</Text>
+                  </View>
+                </Pressable>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+              >
+                {routines.slice(0, 6).map(routine => {
+                  const startBgColor = routine.color + '22';
+                  return (
+                    <Pressable
+                      key={routine.id}
+                      onPress={() => handleStartRoutine(routine)}
+                      onLongPress={() => {
+                        console.log(`[TodayScreen] Long press routine: ${routine.name}`);
+                        router.push(`/routine-modal?id=${routine.id}`);
+                      }}
+                      delayLongPress={500}
+                      style={({ pressed }) => ({
+                        width: 140,
+                        backgroundColor: C.card,
+                        borderRadius: 16,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        padding: 14,
+                        opacity: pressed ? 0.8 : 1,
+                        borderTopWidth: 3,
+                        borderTopColor: routine.color,
+                      })}
+                    >
+                      <Text style={{ fontSize: 24, marginBottom: 8 }}>{routine.emoji}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
+                        {routine.name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: C.textSecondary }}>
+                        {routine.durationMinutes}
+                        m
+                      </Text>
+                      {routine.useCount > 0 && (
+                        <Text style={{ fontSize: 11, color: C.subtext, marginTop: 4 }}>
+                          {routine.useCount}
+                          × used
+                        </Text>
+                      )}
+                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 6, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: routine.color }}>Start</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  onPress={handleCreateRoutine}
+                  style={({ pressed }) => ({
+                    width: 100,
+                    backgroundColor: C.card,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    borderStyle: 'dashed',
+                    padding: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Plus size={20} color={C.subtext} />
+                  <Text style={{ fontSize: 12, color: C.subtext, marginTop: 6, textAlign: 'center' }}>New Routine</Text>
+                </Pressable>
+              </ScrollView>
+            )}
+          </View>
+        </AnimatedItem>
+
+        {/* ── Active Goals ── */}
+        <AnimatedItem index={5}>
           <View style={{ marginBottom: 28 }}>
             <SectionHeader title="Active Goals" />
             {activeGoals.length === 0 ? (
@@ -747,7 +876,7 @@ export default function TodayScreen() {
         </AnimatedItem>
 
         {/* ── Recent Activity ── */}
-        <AnimatedItem index={5}>
+        <AnimatedItem index={6}>
           <View style={{ marginBottom: 8 }}>
             <SectionHeader title="Recent Activity" />
             {mostRecentSession === null ? (
