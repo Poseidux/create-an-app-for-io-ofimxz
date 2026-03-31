@@ -18,7 +18,7 @@ import { useCategory } from '@/contexts/CategoryContext';
 import { useColors } from '@/constants/Colors';
 import { DEFAULT_STOPWATCH_COLOR, Lap, formatTime, getElapsedMs } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
-import { Flag, Edit3 } from 'lucide-react-native';
+import { Flag } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import {
   ItemGoal,
@@ -285,7 +285,12 @@ const GOAL_TYPES: { value: StopwatchGoalType; label: string; description: string
 export default function StopwatchModal() {
   const C = useColors();
   const router = useRouter();
-  const { edit, preset } = useLocalSearchParams<{ edit?: string; preset?: string }>();
+  const { edit, preset, name: nameParam, color: colorParam } = useLocalSearchParams<{
+    edit?: string;
+    preset?: string;
+    name?: string;
+    color?: string;
+  }>();
   const { stopwatches, addStopwatch, renameStopwatch, addLap, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
   const { categories, addCategory } = useCategory();
 
@@ -294,9 +299,11 @@ export default function StopwatchModal() {
 
   const presetDefaults = preset ? (PRESET_DEFAULTS[preset] ?? null) : null;
 
-  const [name, setName] = useState(existing?.name ?? presetDefaults?.name ?? '');
+  const [name, setName] = useState(
+    existing?.name ?? presetDefaults?.name ?? (nameParam ? decodeURIComponent(nameParam) : '')
+  );
   const [selectedColor, setSelectedColor] = useState(
-    existing?.color ?? presetDefaults?.color ?? DEFAULT_STOPWATCH_COLOR
+    existing?.color ?? presetDefaults?.color ?? colorParam ?? DEFAULT_STOPWATCH_COLOR
   );
   const [selectedCategoryId, setSelectedCategoryId] = useState(
     existing?.category ?? 'all'
@@ -312,6 +319,13 @@ export default function StopwatchModal() {
   const [goalLaps, setGoalLaps] = useState(10);
   const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
+
+  // ─── Note state (cross-platform inline editing) ───────────────────────────
+  const [noteText, setNoteText] = useState(existing?.note ?? '');
+
+  useEffect(() => {
+    setNoteText(existing?.note ?? '');
+  }, [existing?.note]);
 
   // ─── Lap / Timer state (only in edit mode) ────────────────────────────────
   const [, setTick] = useState(0);
@@ -511,50 +525,22 @@ export default function StopwatchModal() {
     resetStopwatch(edit);
   }, [existing, edit, resetStopwatch]);
 
-  const handleEditNote = useCallback(() => {
-    if (!edit) return;
-    const currentNote = existing?.note ?? '';
-    console.log(`[StopwatchModal] Edit note pressed: id=${edit}`);
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Stopwatch Note',
-        'Add a note for this stopwatch',
-        (text) => {
-          if (text !== null) {
-            console.log(`[StopwatchModal] Note saved: "${text}"`);
-            updateNote(edit, text);
-          }
-        },
-        'plain-text',
-        currentNote
-      );
-    } else {
-      Alert.alert(
-        'Note',
-        'Use the note field below to add a note.',
-      );
-    }
-  }, [edit, existing, updateNote]);
-
   const handleLapLongPress = useCallback((lap: Lap) => {
     if (!edit) return;
+    if (Platform.OS !== 'ios') return;
     console.log(`[StopwatchModal] Lap long press for note: lapNumber=${lap.lapNumber}`);
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        `Lap ${lap.lapNumber} Note`,
-        'Add a note for this lap',
-        (text) => {
-          if (text !== null) {
-            console.log(`[StopwatchModal] Lap note saved: lapId=${lap.id}, note="${text}"`);
-            updateLapNote(edit, lap.id, text);
-          }
-        },
-        'plain-text',
-        lap.note ?? ''
-      );
-    } else {
-      Alert.alert('Lap Note', 'Long-press lap notes are only available on iOS.');
-    }
+    Alert.prompt(
+      `Lap ${lap.lapNumber} Note`,
+      'Add a note for this lap',
+      (text) => {
+        if (text !== null) {
+          console.log(`[StopwatchModal] Lap note saved: lapId=${lap.id}, note="${text}"`);
+          updateLapNote(edit, lap.id, text);
+        }
+      },
+      'plain-text',
+      lap.note ?? ''
+    );
   }, [edit, updateLapNote]);
 
   const title = isEditing ? 'Edit Stopwatch' : 'New Stopwatch';
@@ -671,21 +657,31 @@ export default function StopwatchModal() {
                 {timerDisplay}
               </Text>
 
-              <Pressable
-                onPress={handleEditNote}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
+              <TextInput
+                value={noteText}
+                onChangeText={setNoteText}
+                onBlur={() => {
+                  if (edit) {
+                    console.log(`[StopwatchModal] Note saved via blur: "${noteText}"`);
+                    updateNote(edit, noteText);
+                  }
+                }}
+                placeholder="Add note…"
+                placeholderTextColor={C.placeholder}
+                multiline
+                style={{
+                  fontSize: 13,
+                  color: C.text,
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
                   marginBottom: 14,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Edit3 size={12} color={C.textSecondary} />
-                <Text style={{ fontSize: 13, color: existing.note ? C.text : C.textSecondary }}>
-                  {existing.note ? existing.note : 'Add note...'}
-                </Text>
-              </Pressable>
+                  minHeight: 36,
+                  maxHeight: 72,
+                  width: '100%',
+                }}
+              />
 
               <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
                 <Pressable
@@ -944,6 +940,15 @@ export default function StopwatchModal() {
               />
             ))}
           </View>
+
+          {/* Goal hint — create mode only */}
+          {!isEditing && (
+            <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
+              <Text style={{ fontSize: 12, color: C.subtext, textAlign: 'center' }}>
+                Goals can be set after creating the stopwatch by long-pressing it
+              </Text>
+            </View>
+          )}
 
           {/* Goal section (edit mode only — we need the stopwatch id) */}
           {isEditing && (

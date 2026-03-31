@@ -132,6 +132,7 @@ interface StopwatchCardProps {
 
 function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: StopwatchCardProps) {
   const C = useColors();
+  const router = useRouter();
   const {
     startStopwatch,
     pauseStopwatch,
@@ -240,6 +241,10 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
                   await markGoalMissed(sw.id);
                 }
               }
+              console.log(`[SessionsScreen] Navigating to session-complete: duration=${totalTime}, name=${sw.name}`);
+              router.push(
+                `/session-complete?duration=${totalTime}&name=${encodeURIComponent(sw.name)}&color=${encodeURIComponent(swColor)}`
+              );
             }
             resetStopwatch(sw.id);
           },
@@ -1194,14 +1199,50 @@ export default function SessionsScreen() {
     });
   }, []);
 
-  const handleTimerReset = useCallback((configId: string) => {
+  const handleTimerReset = useCallback(async (configId: string) => {
     const cfg = timerConfigs.find(c => c.id === configId);
     if (!cfg) return;
+    const runtime = timerRuntimes[configId];
+
+    let totalTime = runtime?.accumulatedMs ?? 0;
+    if (runtime?.isRunning && runtime?.startedAt != null) {
+      totalTime += Date.now() - runtime.startedAt;
+    }
+
+    if (totalTime > 1000) {
+      const session = {
+        id: Math.random().toString(36).slice(2),
+        stopwatchId: cfg.id,
+        stopwatchName: cfg.name,
+        category: cfg.category ?? '',
+        color: cfg.color ?? '#fb923c',
+        totalTime,
+        laps: [],
+        note: undefined,
+        startedAt: new Date(Date.now() - totalTime).toISOString(),
+        endedAt: new Date().toISOString(),
+      };
+      console.log(`[SessionsScreen] Timer reset — saving session: id=${session.id}, totalTime=${totalTime}ms`);
+      await saveSession(session);
+
+      const goal = goalsMap[configId];
+      if (goal && goal.status === 'active') {
+        const achieved =
+          (goal.goalType === 'complete_countdown' && runtime?.isComplete) ||
+          (goal.goalType === 'complete_all_rounds' && runtime?.isComplete);
+        if (achieved) {
+          await markGoalAchieved(configId);
+        } else {
+          await markGoalMissed(configId);
+        }
+      }
+    }
+
     setTimerRuntimes(prev => ({
       ...prev,
       [configId]: makeInitialRuntime(cfg),
     }));
-  }, [timerConfigs]);
+  }, [timerConfigs, timerRuntimes, goalsMap]);
 
   const handleTimerDelete = useCallback(async (configId: string) => {
     await deleteTimerConfig(configId);
