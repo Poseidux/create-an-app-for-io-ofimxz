@@ -47,6 +47,7 @@ import {
 } from '@/utils/goal-storage';
 import { deleteTimerConfig, getTimerConfigs, TimerConfig } from '@/utils/timer-storage';
 import { loadTimerCategories } from '@/utils/timer-category-storage';
+import { notifyTimerComplete } from '@/utils/completion-notifications';
 
 // ─── Presets ──────────────────────────────────────────────────────────────────
 
@@ -1087,6 +1088,7 @@ export default function SessionsScreen() {
             if (cfg.mode === 'countdown') {
               next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
               markGoalAchieved(configId).catch(() => {});
+              notifyTimerComplete(cfg.name).catch(() => {});
             } else {
               // interval / hiit
               const totalRounds = cfg.rounds ?? 1;
@@ -1099,6 +1101,7 @@ export default function SessionsScreen() {
                   if (nextRound > totalRounds) {
                     next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
                     markGoalAchieved(configId).catch(() => {});
+                    notifyTimerComplete(cfg.name).catch(() => {});
                   } else {
                     next[configId] = { ...next[configId], phase: 'work', currentRound: nextRound, remainingMs: cfg.workMs ?? 60000, startedAt: now };
                   }
@@ -1109,6 +1112,7 @@ export default function SessionsScreen() {
                 if (nextRound > totalRounds) {
                   next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
                   markGoalAchieved(configId).catch(() => {});
+                  notifyTimerComplete(cfg.name).catch(() => {});
                 } else {
                   next[configId] = { ...next[configId], phase: 'work', currentRound: nextRound, remainingMs: cfg.workMs ?? 60000, startedAt: now };
                 }

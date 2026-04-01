@@ -27,6 +27,8 @@ import { loadStopwatches } from '@/utils/stopwatch-storage';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
 import { getRoutines, markRoutineUsed, Routine } from '@/utils/routine-storage';
+import { notifyRoutineComplete } from '@/utils/completion-notifications';
+import { useWidget } from '@/contexts/WidgetContext';
 import {
   getPlannedSessionsForDate,
   savePlannedSession,
@@ -492,6 +494,7 @@ export default function TodayScreen() {
   const C = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { pushWidgetData } = useWidget();
 
   const [profileName, setProfileName] = useState<string | undefined>(undefined);
   const [stopwatches, setStopwatches] = useState<Stopwatch[]>([]);
@@ -560,8 +563,33 @@ export default function TodayScreen() {
         setGoals(gs);
         setRoutines(rts);
         setPlannedSessions(updatedPlanned);
+
+        // Push widget data with fresh loaded values
+        const todayStr = todayDateString();
+        const todaySessionsCount = sess.filter((s: any) => s.startedAt.slice(0, 10) === todayStr).length;
+        const todayTimeMs = sess.filter((s: any) => s.startedAt.slice(0, 10) === todayStr).reduce((sum: number, s: any) => sum + (s.totalTime ?? 0), 0);
+        const activeGoal = gs.find((g: any) => g.status === 'active');
+
+        const daySet = new Set<string>();
+        for (const s of sess) { daySet.add(s.startedAt.slice(0, 10)); }
+        let streak = 0;
+        const todayDate = new Date();
+        for (let i = 0; i < 365; i++) {
+          const d = new Date(todayDate);
+          d.setDate(todayDate.getDate() - i);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (daySet.has(key)) { streak++; } else { break; }
+        }
+
+        pushWidgetData({
+          todaySessions: todaySessionsCount,
+          todayTimeMs,
+          activeGoalName: activeGoal?.goalName ?? activeGoal?.itemName,
+          streak,
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {});
       });
-    }, [])
+    }, [pushWidgetData])
   );
 
   // ── Tick for running stopwatches ──
@@ -603,6 +631,7 @@ export default function TodayScreen() {
             updates[id] = { ...entry, isComplete: true, accumulatedMs: totalMs };
             hasUpdate = true;
             markRoutineUsed(id).catch(() => {});
+            notifyRoutineComplete(routine.name).catch(() => {});
           }
         }
       }
