@@ -110,14 +110,12 @@ function formatDateTime(iso: string): string {
   }
 }
 
-/** Returns Monday of the current week as a Date at midnight */
+/** Returns Monday of the current week as a local-time Date at midnight */
 function getWeekStart(): Date {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun
-  const diff = (day === 0 ? -6 : 1 - day);
-  const mon = new Date(now);
-  mon.setDate(now.getDate() + diff);
-  mon.setHours(0, 0, 0, 0);
+  const day = now.getDay(); // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? -6 : 1 - day; // Monday
+  const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
   return mon;
 }
 
@@ -634,8 +632,9 @@ function WeeklyReviewCard({
 }) {
   const C = useColors();
   const weekStart = getWeekStart();
+  const weekStartDateStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
 
-  const weekSessions = sessions.filter(s => new Date(s.startedAt) >= weekStart);
+  const weekSessions = sessions.filter(s => s.startedAt.slice(0, 10) >= weekStartDateStr);
   const weekTimeMs = weekSessions.reduce((sum, s) => sum + s.totalTime, 0);
   const weekTimeDisplay = weekTimeMs > 0 ? formatTimeShort(weekTimeMs) : '0m';
   const weekSessionCount = weekSessions.length;
@@ -643,7 +642,7 @@ function WeeklyReviewCard({
   const streakDisplay = `${streak}d`;
 
   // Routine usage this week
-  const weekCompletions = completions.filter(c => new Date(c.completedAt) >= weekStart);
+  const weekCompletions = completions.filter(c => c.completedAt.slice(0, 10) >= weekStartDateStr);
   const routineUsageMap: Record<string, number> = {};
   for (const c of weekCompletions) {
     if (c.routineId) {
@@ -883,7 +882,8 @@ export default function InsightsScreen() {
 
   // Weekly stats for share
   const weekStart = getWeekStart();
-  const weekSessions = allSessions.filter(s => new Date(s.startedAt) >= weekStart);
+  const weekStartDateStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+  const weekSessions = allSessions.filter(s => s.startedAt.slice(0, 10) >= weekStartDateStr);
   const weekTimeMs = weekSessions.reduce((sum, s) => sum + s.totalTime, 0);
   const weekTimeDisplay = weekTimeMs > 0 ? formatTimeShort(weekTimeMs) : '0m';
   const streak = computeStreak(allSessions);

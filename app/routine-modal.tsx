@@ -297,10 +297,30 @@ export default function RoutineModal() {
           </ScrollView>
         </View>
 
-        {/* ── Emoji ── */}
+        {/* ── Icon ── */}
         <View style={{ marginBottom: 24 }}>
-          <SectionLabel title="Emoji" C={C} />
+          <SectionLabel title="Icon" C={C} />
           <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+            {/* No icon option */}
+            <Pressable
+              onPress={() => {
+                console.log('[RoutineModal] No icon selected');
+                setEmoji('');
+              }}
+              style={({ pressed }) => ({
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                backgroundColor: C.card,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: emoji === '' ? 2 : 1,
+                borderColor: emoji === '' ? C.primary : C.border,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>None</Text>
+            </Pressable>
             {EMOJI_OPTIONS.map(e => {
               const isSelected = emoji === e;
               return (

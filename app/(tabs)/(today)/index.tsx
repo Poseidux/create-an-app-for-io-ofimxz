@@ -294,7 +294,7 @@ function RoutineCard({
           borderTopColor: routine.color,
         })}
       >
-        <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text>
+        {routine.emoji ? <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text> : null}
         <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
           {routine.name}
         </Text>
@@ -331,7 +331,7 @@ function RoutineCard({
           borderTopColor: routine.color,
         }}
       >
-        <Text style={{ fontSize: 22, marginBottom: 6 }}>{routine.emoji}</Text>
+        {routine.emoji ? <Text style={{ fontSize: 22, marginBottom: 6 }}>{routine.emoji}</Text> : null}
         <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 }} numberOfLines={1}>
           {routine.name}
         </Text>
@@ -380,7 +380,7 @@ function RoutineCard({
     >
       {/* Header row: emoji + name + pulsing dot */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 5 }}>
-        <Text style={{ fontSize: 16 }}>{routine.emoji}</Text>
+        {routine.emoji ? <Text style={{ fontSize: 16 }}>{routine.emoji}</Text> : null}
         <Text style={{ fontSize: 12, fontWeight: '700', color: C.text, flex: 1 }} numberOfLines={1}>
           {routine.name}
         </Text>
@@ -726,8 +726,27 @@ export default function TodayScreen() {
   };
 
   const handleStartPlanned = async (planned: PlannedSession) => {
-    console.log(`[TodayScreen] Start planned item: id=${planned.id}, name="${planned.itemName}", type=${planned.itemType}`);
-    // Mark as in_progress immediately
+    console.log(`[TodayScreen] Start planned item: id=${planned.id}, name="${planned.itemName}", type=${planned.itemType}, status=${planned.status}`);
+
+    // If already in_progress, navigate directly to the running session
+    if (planned.status === 'in_progress') {
+      if (planned.itemType === 'stopwatch' || planned.itemType === 'routine') {
+        const runningMatch = stopwatches.find(sw => sw.name === planned.itemName && sw.isRunning);
+        if (runningMatch) {
+          console.log(`[TodayScreen] Navigating to running stopwatch: id=${runningMatch.id}`);
+          router.push(`/stopwatch-modal?id=${runningMatch.id}`);
+        } else {
+          console.log(`[TodayScreen] No running match found, opening by name`);
+          router.push(`/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`);
+        }
+      } else {
+        console.log(`[TodayScreen] Navigating to in-progress timer: id=${planned.itemId}`);
+        router.push(`/timer-modal?id=${planned.itemId}`);
+      }
+      return;
+    }
+
+    // Mark as in_progress and navigate
     const updated = { ...planned, status: 'in_progress' as const };
     await savePlannedSession(updated);
     setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
@@ -1181,9 +1200,12 @@ export default function TodayScreen() {
                   // Missed check
                   const missedCheck = planned.status === 'pending' && isMissed(planned.scheduledTime);
 
+                  const isNavigable = planned.status === 'pending' || planned.status === 'in_progress';
+
                   return (
                     <Pressable
                       key={planned.id}
+                      onPress={isNavigable ? () => handleStartPlanned(planned) : undefined}
                       onLongPress={() => handlePlannedLongPress(planned)}
                       delayLongPress={400}
                       style={({ pressed }) => ({
@@ -1192,7 +1214,7 @@ export default function TodayScreen() {
                         borderWidth: 1,
                         borderColor: C.border,
                         overflow: 'hidden',
-                        opacity: pressed ? 0.8 : 1,
+                        opacity: pressed && isNavigable ? 0.8 : 1,
                         flexDirection: 'row',
                         alignItems: 'center',
                       })}
