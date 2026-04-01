@@ -18,6 +18,7 @@ import { StopwatchProvider } from "@/contexts/StopwatchContext";
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { CategoryProvider } from "@/contexts/CategoryContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -56,7 +57,8 @@ function AppContent() {
   const statusStyle = colorScheme === "dark" ? "light" : "dark";
 
   return (
-    <SubscriptionProvider>
+    <NotificationProvider>
+  <SubscriptionProvider>
       <StatusBar style={statusStyle} animated />
       <NavThemeProvider value={navTheme}>
         <SafeAreaProvider>
@@ -120,6 +122,7 @@ function AppContent() {
         </SafeAreaProvider>
       </NavThemeProvider>
     </SubscriptionProvider>
+    </NotificationProvider>
   );
 }
 

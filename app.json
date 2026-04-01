@@ -15,12 +15,21 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.poseiduxfitness.chroniqo",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "splash": {
         "image": "./assets/images/9217b728-5aad-427c-8a0f-459f53b19344.png",
         "resizeMode": "contain",
         "backgroundColor": "#000000"
+      },
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.security.application-groups": [
+          "group.com.poseiduxfitness.chroniqo.onesignal"
+        ]
       }
     },
     "android": {
@@ -40,6 +49,12 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
+      ],
       "expo-font",
       "expo-router",
       "expo-web-browser",
@@ -55,7 +70,8 @@
       "revenueCatApiKeyIos": "appl_gNiQDfaHdjTIdGdstIjyLnXwPYC",
       "revenueCatApiKeyAndroid": "goog_SdDKpXLoJrgMoRfTRJGxoXqqfaj",
       "revenueCatEntitlementId": "unlimited_stopwatches",
-      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e"
+      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e",
+      "oneSignalAppId": "c0f14673-bcc1-4b4a-bfa2-7a6470df7663"
     }
   }
 }
