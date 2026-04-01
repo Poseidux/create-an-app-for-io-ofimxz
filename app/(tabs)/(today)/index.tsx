@@ -589,7 +589,7 @@ export default function TodayScreen() {
           updatedAt: new Date().toISOString(),
         }).catch(() => {});
       });
-    }, [pushWidgetData])
+    }, [])
   );
 
   // ── Tick for running stopwatches ──

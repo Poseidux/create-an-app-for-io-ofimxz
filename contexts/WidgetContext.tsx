@@ -71,6 +71,12 @@ export function WidgetProvider({ children }: { children: React.ReactNode }) {
 
 export const useWidget = () => {
   const context = useContext(WidgetContext);
-  if (!context) throw new Error('useWidget must be used within a WidgetProvider');
+  if (!context) {
+    // Return no-op fallback to prevent crashes
+    return {
+      refreshWidget: () => {},
+      pushWidgetData: async () => {},
+    };
+  }
   return context;
 };
