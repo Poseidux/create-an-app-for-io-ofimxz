@@ -908,14 +908,14 @@ export default function InsightsScreen() {
   };
 
   const sectionLabel = {
-    fontSize: 13,
-    fontWeight: '600' as const,
+    fontSize: 11,
+    fontWeight: '700' as const,
     color: C.subtext,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    marginTop: 24,
+    letterSpacing: 1.2,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 28,
   };
 
   if (!isLoaded) {
@@ -962,8 +962,9 @@ export default function InsightsScreen() {
       <View
         style={{
           paddingTop: insets.top,
-          paddingHorizontal: 16,
-          paddingBottom: 8,
+          paddingHorizontal: 20,
+          paddingBottom: 14,
+          paddingTop: insets.top + 12,
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: C.background,
@@ -971,34 +972,31 @@ export default function InsightsScreen() {
           borderBottomColor: C.separator,
         }}
       >
-        <View style={{ flex: 1 }} />
         <Text
           style={{
             flex: 1,
-            textAlign: 'center',
-            fontSize: 17,
-            fontWeight: '600',
+            fontSize: 32,
+            fontWeight: '800',
             color: C.text,
+            letterSpacing: -0.8,
           }}
         >
           Insights
         </Text>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <Pressable
-            onPress={handleShare}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: C.surfaceSecondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Share2 size={18} color={C.textSecondary} />
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            backgroundColor: C.surfaceSecondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Share2 size={18} color={C.textSecondary} />
+        </Pressable>
       </View>
 
       {/* Filter Bar */}

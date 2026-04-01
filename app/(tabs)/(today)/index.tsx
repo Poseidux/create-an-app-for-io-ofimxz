@@ -368,7 +368,7 @@ export default function TodayScreen() {
           <View
             style={{
               paddingTop: insets.top + 16,
-              paddingHorizontal: 16,
+              paddingHorizontal: 20,
               paddingBottom: 20,
               flexDirection: 'row',
               alignItems: 'flex-start',
@@ -378,17 +378,17 @@ export default function TodayScreen() {
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text
                 style={{
-                  fontSize: 28,
-                  fontWeight: '700',
+                  fontSize: 32,
+                  fontWeight: '800',
                   color: C.text,
-                  letterSpacing: -0.4,
-                  lineHeight: 34,
+                  letterSpacing: -0.8,
+                  lineHeight: 38,
                 }}
                 numberOfLines={1}
               >
                 {greetingText}
               </Text>
-              <Text style={{ fontSize: 14, color: C.subtext, marginTop: 3 }}>
+              <Text style={{ fontSize: 13, color: C.subtext, marginTop: 4 }}>
                 {todayDateText}
               </Text>
             </View>
@@ -398,7 +398,7 @@ export default function TodayScreen() {
               style={({ pressed }) => ({
                 width: 40,
                 height: 40,
-                borderRadius: 20,
+                borderRadius: 12,
                 backgroundColor: C.surfaceSecondary,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -408,7 +408,7 @@ export default function TodayScreen() {
               })}
               accessibilityLabel="Plan a session"
             >
-              <CalendarDays size={18} color={C.primary} />
+              <CalendarDays size={18} color={C.icon} />
             </Pressable>
             {/* Add stopwatch button */}
             <Pressable
@@ -416,7 +416,7 @@ export default function TodayScreen() {
               style={({ pressed }) => ({
                 width: 40,
                 height: 40,
-                borderRadius: 20,
+                borderRadius: 12,
                 backgroundColor: C.primary,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -563,19 +563,19 @@ export default function TodayScreen() {
             <View style={{ marginBottom: 28 }}>
               <Text
                 style={{
-                  fontSize: 13,
-                  fontWeight: '600',
+                  fontSize: 11,
+                  fontWeight: '700',
                   color: C.subtext,
                   textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  marginBottom: 10,
+                  letterSpacing: 1.2,
+                  marginBottom: 12,
                   marginTop: 4,
-                  marginHorizontal: 16,
+                  marginHorizontal: 20,
                 }}
               >
                 Active Now
               </Text>
-              <View style={{ marginHorizontal: 16, gap: 8 }}>
+              <View style={{ marginHorizontal: 20, gap: 8 }}>
                 {runningStopwatches.map(sw => {
                   const swColor = sw.color ?? '#22c55e';
                   const elapsedMs = getElapsedMs(sw);
@@ -584,28 +584,19 @@ export default function TodayScreen() {
                     <View
                       key={sw.id}
                       style={{
-                        backgroundColor: `${swColor}12`,
-                        borderRadius: 16,
-                        borderCurve: 'continuous',
+                        backgroundColor: C.card,
+                        borderRadius: 14,
                         borderWidth: 1,
-                        borderColor: `${swColor}40`,
-                        padding: 18,
+                        borderColor: C.border,
+                        borderLeftWidth: 4,
+                        borderLeftColor: swColor,
+                        padding: 16,
                         flexDirection: 'row',
                         alignItems: 'center',
                         overflow: 'hidden',
                       }}
                     >
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 3,
-                          backgroundColor: swColor,
-                        }}
-                      />
-                      <View style={{ marginLeft: 4, marginRight: 12 }}>
+                      <View style={{ marginRight: 12 }}>
                         <PulsingDot color={swColor} />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -621,12 +612,12 @@ export default function TodayScreen() {
                       </View>
                       <Text
                         style={{
-                          fontSize: 22,
+                          fontSize: 24,
                           fontWeight: '700',
                           fontFamily: timerFont,
                           color: swColor,
                           fontVariant: ['tabular-nums'],
-                          letterSpacing: -0.5,
+                          letterSpacing: -1,
                         }}
                       >
                         {timeDisplay}
@@ -641,23 +632,23 @@ export default function TodayScreen() {
 
         {/* ── Today's Plan ── */}
         <AnimatedItem index={2}>
-          <View style={{ marginBottom: 24 }}>
+          <View style={{ marginBottom: 28 }}>
             {/* Section header with + Plan button */}
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                marginBottom: 10,
-                marginHorizontal: 16,
+                marginBottom: 12,
+                marginHorizontal: 20,
               }}
             >
               <Text
                 style={{
-                  fontSize: 13,
-                  fontWeight: '600',
+                  fontSize: 11,
+                  fontWeight: '700',
                   color: C.subtext,
                   textTransform: 'uppercase',
-                  letterSpacing: 0.5,
+                  letterSpacing: 1.2,
                   flex: 1,
                 }}
               >
@@ -686,7 +677,7 @@ export default function TodayScreen() {
 
             {plannedSessions.length === 0 ? (
               /* Empty state */
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={{ marginHorizontal: 20 }}>
                 <Pressable
                   onPress={() => {
                     console.log('[TodayScreen] Plan something button pressed (empty state)');
@@ -694,26 +685,37 @@ export default function TodayScreen() {
                   }}
                   style={({ pressed }) => ({
                     backgroundColor: C.card,
-                    borderRadius: 16,
-                    borderCurve: 'continuous',
+                    borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
-                    padding: 20,
+                    padding: 28,
                     alignItems: 'center',
                     opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <CalendarDays size={28} color={C.subtext} style={{ marginBottom: 8 }} />
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 }}>
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 20,
+                      backgroundColor: C.surfaceSecondary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <CalendarDays size={28} color={C.subtext} />
+                  </View>
+                  <Text style={{ fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 6 }}>
                     Nothing planned for today
                   </Text>
                   <Text
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: C.textSecondary,
                       textAlign: 'center',
-                      lineHeight: 18,
-                      marginBottom: 14,
+                      lineHeight: 20,
+                      marginBottom: 18,
                     }}
                   >
                     Plan a stopwatch, timer, or routine for today
@@ -734,19 +736,8 @@ export default function TodayScreen() {
               </View>
             ) : (
               /* Planned items list */
-              <View
-                style={{
-                  marginHorizontal: 16,
-                  backgroundColor: C.card,
-                  borderRadius: 16,
-                  borderCurve: 'continuous',
-                  borderWidth: 1,
-                  borderColor: C.border,
-                  overflow: 'hidden',
-                }}
-              >
+              <View style={{ marginHorizontal: 20, gap: 8 }}>
                 {plannedSessions.map((planned, idx) => {
-                  const isLast = idx === plannedSessions.length - 1;
                   const linkedSession =
                     planned.completedSessionId
                       ? todaySessions.find(s => s.id === planned.completedSessionId)
@@ -754,37 +745,47 @@ export default function TodayScreen() {
                   const doneText = linkedSession ? formatDuration(linkedSession.totalTime) : null;
 
                   return (
-                    <View key={planned.id}>
-                      <Pressable
-                        onLongPress={() => handlePlannedLongPress(planned)}
-                        delayLongPress={400}
-                        style={({ pressed }) => ({
+                    <Pressable
+                      key={planned.id}
+                      onLongPress={() => handlePlannedLongPress(planned)}
+                      delayLongPress={400}
+                      style={({ pressed }) => ({
+                        backgroundColor: C.card,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        overflow: 'hidden',
+                        opacity: pressed ? 0.8 : 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      })}
+                    >
+                      {/* Left accent bar */}
+                      <View
+                        style={{
+                          width: 3,
+                          alignSelf: 'stretch',
+                          backgroundColor: planned.itemColor,
+                        }}
+                      />
+                      <View
+                        style={{
+                          flex: 1,
                           flexDirection: 'row',
                           alignItems: 'center',
                           paddingHorizontal: 14,
-                          paddingVertical: 13,
-                          opacity: pressed ? 0.7 : 1,
-                        })}
+                          paddingVertical: 14,
+                        }}
                       >
-                        {/* Color dot */}
-                        <View
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: planned.itemColor,
-                            marginRight: 10,
-                          }}
-                        />
                         {/* Emoji for routines */}
                         {planned.itemEmoji != null && (
-                          <Text style={{ fontSize: 14, marginRight: 6 }}>{planned.itemEmoji}</Text>
+                          <Text style={{ fontSize: 14, marginRight: 8 }}>{planned.itemEmoji}</Text>
                         )}
                         {/* Name + time */}
                         <View style={{ flex: 1 }}>
                           <Text
                             style={{
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: '600',
                               color: planned.status === 'skipped' ? C.subtext : C.text,
                               textDecorationLine: planned.status === 'skipped' ? 'line-through' : 'none',
@@ -794,12 +795,12 @@ export default function TodayScreen() {
                             {planned.itemName}
                           </Text>
                           {planned.scheduledTime != null && (
-                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
+                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 2 }}>
                               {planned.scheduledTime}
                             </Text>
                           )}
                           {doneText !== null && (
-                            <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 1 }}>
+                            <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 2 }}>
                               {doneText}
                             </Text>
                           )}
@@ -823,11 +824,8 @@ export default function TodayScreen() {
                         ) : (
                           <StatusBadge status={planned.status} />
                         )}
-                      </Pressable>
-                      {!isLast && (
-                        <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 32 }} />
-                      )}
-                    </View>
+                      </View>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -837,9 +835,9 @@ export default function TodayScreen() {
 
         {/* ── Routines ── */}
         <AnimatedItem index={3}>
-          <View style={{ marginBottom: 24 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginHorizontal: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
+          <View style={{ marginBottom: 28 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginHorizontal: 20 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 1.2, flex: 1 }}>
                 Routines
               </Text>
               <Pressable
@@ -856,23 +854,23 @@ export default function TodayScreen() {
             </View>
 
             {routines.length === 0 ? (
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={{ marginHorizontal: 20 }}>
                 <Pressable
                   onPress={handleCreateRoutine}
                   style={({ pressed }) => ({
-                    backgroundColor: C.card, borderRadius: 16, borderWidth: 1,
-                    borderColor: C.border, padding: 20, alignItems: 'center',
+                    backgroundColor: C.card, borderRadius: 14, borderWidth: 1,
+                    borderColor: C.border, padding: 24, alignItems: 'center',
                     opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ fontSize: 24, marginBottom: 8 }}>🎯</Text>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 24, marginBottom: 10 }}>🎯</Text>
+                  <Text style={{ fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 6 }}>
                     No routines yet
                   </Text>
-                  <Text style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 18 }}>
+                  <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
                     Create a routine to quickly start a focus block, study session, or workout
                   </Text>
-                  <View style={{ marginTop: 14, paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: C.primaryMuted }}>
+                  <View style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: C.primaryMuted }}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: C.primary }}>Create your first routine</Text>
                   </View>
                 </Pressable>
@@ -881,10 +879,10 @@ export default function TodayScreen() {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
               >
                 {routines.slice(0, 6).map(routine => {
-                  const startBgColor = routine.color + '22';
+                  const startBgColor = routine.color + '18';
                   return (
                     <Pressable
                       key={routine.id}
@@ -897,31 +895,31 @@ export default function TodayScreen() {
                       style={({ pressed }) => ({
                         width: 148,
                         backgroundColor: C.card,
-                        borderRadius: 16,
+                        borderRadius: 14,
                         borderWidth: 1,
                         borderColor: C.border,
-                        padding: 16,
+                        padding: 14,
                         opacity: pressed ? 0.8 : 1,
                         borderTopWidth: 3,
                         borderTopColor: routine.color,
                       })}
                     >
-                      <Text style={{ fontSize: 24, marginBottom: 8 }}>{routine.emoji}</Text>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
+                      <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
                         {routine.name}
                       </Text>
-                      <Text style={{ fontSize: 12, color: C.textSecondary }}>
+                      <Text style={{ fontSize: 11, color: C.textSecondary }}>
                         {routine.durationMinutes}
                         m
                       </Text>
                       {routine.useCount > 0 && (
-                        <Text style={{ fontSize: 11, color: C.subtext, marginTop: 4 }}>
+                        <Text style={{ fontSize: 11, color: C.subtext, marginTop: 3 }}>
                           {routine.useCount}
                           × used
                         </Text>
                       )}
-                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 10, paddingVertical: 8, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: routine.color }}>Start</Text>
+                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 7, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Start</Text>
                       </View>
                     </Pressable>
                   );
@@ -929,9 +927,9 @@ export default function TodayScreen() {
                 <Pressable
                   onPress={handleCreateRoutine}
                   style={({ pressed }) => ({
-                    width: 100,
+                    width: 96,
                     backgroundColor: C.card,
-                    borderRadius: 16,
+                    borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
                     borderStyle: 'dashed',
@@ -951,31 +949,30 @@ export default function TodayScreen() {
 
         {/* ── Active Goals ── */}
         <AnimatedItem index={4}>
-          <View style={{ marginBottom: 24 }}>
+          <View style={{ marginBottom: 28 }}>
             <Text
               style={{
-                fontSize: 13,
-                fontWeight: '600',
+                fontSize: 11,
+                fontWeight: '700',
                 color: C.subtext,
                 textTransform: 'uppercase',
-                letterSpacing: 0.5,
-                marginBottom: 10,
+                letterSpacing: 1.2,
+                marginBottom: 12,
                 marginTop: 4,
-                marginHorizontal: 16,
+                marginHorizontal: 20,
               }}
             >
               Active Goals
             </Text>
             {activeGoals.length === 0 ? (
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
                     backgroundColor: C.card,
-                    borderRadius: 16,
-                    borderCurve: 'continuous',
+                    borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
-                    padding: 20,
+                    padding: 24,
                     alignItems: 'center',
                   }}
                 >
@@ -998,10 +995,9 @@ export default function TodayScreen() {
             ) : (
               <View
                 style={{
-                  marginHorizontal: 16,
+                  marginHorizontal: 20,
                   backgroundColor: C.card,
-                  borderRadius: 16,
-                  borderCurve: 'continuous',
+                  borderRadius: 14,
                   borderWidth: 1,
                   borderColor: C.border,
                   overflow: 'hidden',
@@ -1020,50 +1016,54 @@ export default function TodayScreen() {
                     <View key={goal.id}>
                       <View
                         style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
                           paddingHorizontal: 14,
-                          paddingVertical: 12,
+                          paddingVertical: 13,
                         }}
                       >
-                        <View
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 9,
-                            backgroundColor: C.primaryMuted,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 12,
-                          }}
-                        >
-                          <Flag size={15} color={C.primary} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{ fontSize: 14, fontWeight: '600', color: C.text }}
-                            numberOfLines={1}
-                          >
-                            {goalName}
-                          </Text>
-                          <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
-                            {goalLabel}
-                          </Text>
-                        </View>
-                        {targetText !== null && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                           <View
                             style={{
-                              paddingHorizontal: 8,
-                              paddingVertical: 3,
+                              width: 32,
+                              height: 32,
                               borderRadius: 8,
                               backgroundColor: C.primaryMuted,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: 12,
                             }}
                           >
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
-                              {targetText}
+                            <Flag size={14} color={C.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{ fontSize: 14, fontWeight: '600', color: C.text }}
+                              numberOfLines={1}
+                            >
+                              {goalName}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
+                              {goalLabel}
                             </Text>
                           </View>
-                        )}
+                          {targetText !== null && (
+                            <View
+                              style={{
+                                paddingHorizontal: 8,
+                                paddingVertical: 3,
+                                borderRadius: 8,
+                                backgroundColor: C.primaryMuted,
+                              }}
+                            >
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
+                                {targetText}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        {/* Progress bar */}
+                        <View style={{ height: 3, backgroundColor: C.surfaceSecondary, borderRadius: 2, overflow: 'hidden' }}>
+                          <View style={{ height: 3, width: '40%', backgroundColor: C.primary, borderRadius: 2 }} />
+                        </View>
                       </View>
                       {!isLast && (
                         <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 58 }} />
@@ -1081,28 +1081,27 @@ export default function TodayScreen() {
           <View style={{ marginBottom: 8 }}>
             <Text
               style={{
-                fontSize: 13,
-                fontWeight: '600',
+                fontSize: 11,
+                fontWeight: '700',
                 color: C.subtext,
                 textTransform: 'uppercase',
-                letterSpacing: 0.5,
-                marginBottom: 10,
+                letterSpacing: 1.2,
+                marginBottom: 12,
                 marginTop: 4,
-                marginHorizontal: 16,
+                marginHorizontal: 20,
               }}
             >
               Recent Activity
             </Text>
             {mostRecentSession === null ? (
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
                     backgroundColor: C.card,
-                    borderRadius: 16,
-                    borderCurve: 'continuous',
+                    borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
-                    padding: 20,
+                    padding: 24,
                     alignItems: 'center',
                   }}
                 >
@@ -1123,28 +1122,19 @@ export default function TodayScreen() {
                 </View>
               </View>
             ) : (
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
                     backgroundColor: C.card,
-                    borderRadius: 16,
-                    borderCurve: 'continuous',
+                    borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
+                    borderLeftWidth: 4,
+                    borderLeftColor: mostRecentSession.color,
                     overflow: 'hidden',
                   }}
                 >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 3,
-                      backgroundColor: mostRecentSession.color,
-                    }}
-                  />
-                  <View style={{ padding: 16, paddingLeft: 20 }}>
+                  <View style={{ padding: 16 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                       <View style={{ flex: 1, marginRight: 12 }}>
                         <Text
@@ -1172,7 +1162,7 @@ export default function TodayScreen() {
                           fontFamily: timerFont,
                           color: mostRecentSession.color,
                           fontVariant: ['tabular-nums'],
-                          letterSpacing: -0.5,
+                          letterSpacing: -1,
                         }}
                       >
                         {formatDuration(mostRecentSession.totalTime)}

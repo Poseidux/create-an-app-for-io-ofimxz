@@ -281,7 +281,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
       style={{
         opacity: fadeAnim,
         transform: [{ translateY: translateAnim }],
-        marginHorizontal: 16,
+        marginHorizontal: 20,
         marginBottom: 12,
       }}
     >
@@ -298,16 +298,15 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
           style={{
             backgroundColor: C.card,
             borderRadius: 16,
-            borderCurve: 'continuous',
             borderWidth: 1,
-            borderColor: sw.isRunning ? swColor + '60' : C.border,
-            borderLeftWidth: 4,
-            borderLeftColor: sw.isRunning ? swColor : C.border,
-            padding: 16,
+            borderColor: C.border,
+            borderLeftWidth: 3,
+            borderLeftColor: swColor,
+            padding: 18,
           }}
         >
           {/* Top row: name + status */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
             {sw.isRunning && <PulsingDot color={swColor} />}
             <Text
               style={{ flex: 1, fontSize: 15, fontWeight: '600', color: C.text }}
@@ -317,9 +316,9 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
             </Text>
             <View
               style={{
-                paddingHorizontal: 9,
-                paddingVertical: 4,
-                borderRadius: 10,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 6,
                 backgroundColor: sw.isRunning
                   ? 'rgba(34,197,94,0.12)'
                   : hasTime
@@ -327,7 +326,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
                   : C.surfaceSecondary,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: '600', color: statusColor }}>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: statusColor, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 {statusText}
               </Text>
             </View>
@@ -336,34 +335,24 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
           {/* Time display */}
           <Text
             style={{
-              fontSize: 32,
-              fontWeight: '700',
+              fontSize: 36,
+              fontWeight: '800',
               fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
               color: sw.isRunning ? swColor : C.text,
               fontVariant: ['tabular-nums'],
-              letterSpacing: -1.5,
-              marginBottom: 4,
+              letterSpacing: -2,
+              marginBottom: 6,
             }}
           >
             {elapsedDisplay}
           </Text>
 
           {/* Meta row: laps + goal */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             {lapCountLabel !== null && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 10,
-                  backgroundColor: C.surfaceSecondary,
-                }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Flag size={10} color={C.textSecondary} />
-                <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '500' }}>
+                <Text style={{ fontSize: 11, color: C.textSecondary }}>
                   {lapCountLabel}
                 </Text>
               </View>
@@ -375,14 +364,13 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
             )}
           </View>
 
-          {/* Action buttons — primary row */}
+          {/* Action buttons */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* Start / Pause — primary wide button */}
             <Pressable
               onPress={handleStartPause}
               style={({ pressed }) => ({
                 flex: 1,
-                height: 38,
+                height: 40,
                 borderRadius: 10,
                 backgroundColor: sw.isRunning ? 'rgba(251,146,60,0.15)' : C.primaryMuted,
                 alignItems: 'center',
@@ -390,24 +378,17 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '600',
-                  color: sw.isRunning ? '#fb923c' : C.primary,
-                }}
-              >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: sw.isRunning ? '#fb923c' : C.primary }}>
                 {sw.isRunning ? 'Pause' : 'Start'}
               </Text>
             </Pressable>
 
-            {/* Lap — only when running or has time */}
             {(sw.isRunning || hasTime) && (
               <Pressable
                 onPress={handleLap}
                 style={({ pressed }) => ({
-                  height: 38,
-                  width: 38,
+                  height: 40,
+                  width: 40,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -419,13 +400,12 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
               </Pressable>
             )}
 
-            {/* Reset — only when has time */}
             {hasTime && (
               <Pressable
                 onPress={handleReset}
                 style={({ pressed }) => ({
-                  height: 38,
-                  width: 38,
+                  height: 40,
+                  width: 40,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -437,56 +417,14 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
               </Pressable>
             )}
 
-            {/* Move up/down — only when multiple stopwatches */}
-            {total > 1 && index > 0 && (
-              <Pressable
-                onPress={() => {
-                  console.log(`[SessionsScreen] Move stopwatch up: id=${sw.id}`);
-                  moveUp(sw.id);
-                }}
-                style={({ pressed }) => ({
-                  height: 38,
-                  width: 38,
-                  borderRadius: 10,
-                  backgroundColor: C.surfaceSecondary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <ChevronUp size={15} color={C.textSecondary} />
-              </Pressable>
-            )}
-
-            {total > 1 && index < total - 1 && (
-              <Pressable
-                onPress={() => {
-                  console.log(`[SessionsScreen] Move stopwatch down: id=${sw.id}`);
-                  moveDown(sw.id);
-                }}
-                style={({ pressed }) => ({
-                  height: 38,
-                  width: 38,
-                  borderRadius: 10,
-                  backgroundColor: C.surfaceSecondary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <ChevronDown size={15} color={C.textSecondary} />
-              </Pressable>
-            )}
-
-            {/* Plan */}
             <Pressable
               onPress={() => {
                 console.log(`[SessionsScreen] Plan stopwatch pressed: id=${sw.id}`);
                 onPlan();
               }}
               style={({ pressed }) => ({
-                height: 38,
-                width: 38,
+                height: 40,
+                width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
                 alignItems: 'center',
@@ -497,12 +435,11 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
               <CalendarDays size={15} color={C.textSecondary} />
             </Pressable>
 
-            {/* Delete */}
             <Pressable
               onPress={handleDelete}
               style={({ pressed }) => ({
-                height: 38,
-                width: 38,
+                height: 40,
+                width: 40,
                 borderRadius: 10,
                 backgroundColor: C.dangerMuted,
                 alignItems: 'center',
@@ -870,7 +807,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
   };
 
   return (
-    <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+    <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
       <Pressable
         onLongPress={handleLongPress}
         delayLongPress={400}
@@ -880,16 +817,15 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
           style={{
             backgroundColor: C.card,
             borderRadius: 16,
-            borderCurve: 'continuous',
             borderWidth: 1,
-            borderColor: runtime.isRunning ? timerColor + '60' : C.border,
-            borderLeftWidth: 4,
-            borderLeftColor: runtime.isRunning ? timerColor : C.border,
-            padding: 16,
+            borderColor: C.border,
+            borderLeftWidth: 3,
+            borderLeftColor: timerColor,
+            padding: 18,
           }}
         >
           {/* Top row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
             {runtime.isRunning && <PulsingDot color={timerColor} />}
             <Text
               style={{ flex: 1, fontSize: 15, fontWeight: '600', color: C.text }}
@@ -899,14 +835,14 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
             </Text>
             <View
               style={{
-                paddingHorizontal: 8,
+                paddingHorizontal: 7,
                 paddingVertical: 3,
-                borderRadius: 10,
+                borderRadius: 6,
                 backgroundColor: C.surfaceSecondary,
                 marginLeft: 8,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary }}>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 {modeLabel}
               </Text>
             </View>
@@ -914,15 +850,15 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
 
           {/* Time display */}
           {runtime.isComplete ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Text
                 style={{
-                  fontSize: 30,
-                  fontWeight: '700',
+                  fontSize: 36,
+                  fontWeight: '800',
                   fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                   color: '#22c55e',
                   fontVariant: ['tabular-nums'],
-                  letterSpacing: -1,
+                  letterSpacing: -2,
                 }}
               >
                 00:00:00.00
@@ -931,25 +867,25 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                 style={{
                   paddingHorizontal: 10,
                   paddingVertical: 4,
-                  borderRadius: 10,
+                  borderRadius: 8,
                   backgroundColor: 'rgba(34,197,94,0.12)',
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#22c55e' }}>
-                  ✓ Done
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#22c55e' }}>
+                  Done
                 </Text>
               </View>
             </View>
           ) : (
             <Text
               style={{
-                fontSize: 32,
-                fontWeight: '700',
+                fontSize: 36,
+                fontWeight: '800',
                 fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                 color: runtime.isRunning ? timerColor : C.text,
                 fontVariant: ['tabular-nums'],
-                letterSpacing: -1.5,
-                marginBottom: 4,
+                letterSpacing: -2,
+                marginBottom: 6,
               }}
             >
               {remainingDisplay}
@@ -957,24 +893,25 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
           )}
 
           {/* Meta row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             {phaseLabel !== null && (
               <View
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 3,
                   borderRadius: 6,
-                  backgroundColor:
-                    runtime.phase === 'work'
-                      ? 'rgba(34,197,94,0.12)'
-                      : 'rgba(251,146,60,0.12)',
+                  backgroundColor: runtime.phase === 'work'
+                    ? `${timerColor}26`
+                    : 'rgba(251,146,60,0.15)',
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: '700',
-                    color: runtime.phase === 'work' ? '#22c55e' : '#fb923c',
+                    color: runtime.phase === 'work' ? timerColor : '#fb923c',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.4,
                   }}
                 >
                   {phaseLabel}
@@ -982,7 +919,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
               </View>
             )}
             {roundsLabel !== null && (
-              <Text style={{ fontSize: 12, color: C.textSecondary }}>{roundsLabel}</Text>
+              <Text style={{ fontSize: 11, color: C.textSecondary }}>{roundsLabel}</Text>
             )}
             {goalText !== null && (
               <Text style={{ fontSize: 11, color: C.textSecondary, flex: 1 }} numberOfLines={1}>
@@ -998,7 +935,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                 onPress={handleStartPause}
                 style={({ pressed }) => ({
                   flex: 1,
-                  height: 36,
+                  height: 40,
                   borderRadius: 10,
                   backgroundColor: runtime.isRunning
                     ? 'rgba(251,146,60,0.15)'
@@ -1023,8 +960,8 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
             <Pressable
               onPress={handleReset}
               style={({ pressed }) => ({
-                height: 38,
-                paddingHorizontal: 14,
+                height: 40,
+                width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
                 alignItems: 'center',
@@ -1035,15 +972,14 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
               <RotateCcw size={15} color={C.textSecondary} />
             </Pressable>
 
-            {/* Plan */}
             <Pressable
               onPress={() => {
                 console.log(`[SessionsScreen] Plan timer pressed: id=${config.id}`);
                 onPlan();
               }}
               style={({ pressed }) => ({
-                height: 38,
-                paddingHorizontal: 12,
+                height: 40,
+                width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
                 alignItems: 'center',
@@ -1057,8 +993,8 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
             <Pressable
               onPress={handleDelete}
               style={({ pressed }) => ({
-                height: 38,
-                paddingHorizontal: 12,
+                height: 40,
+                width: 40,
                 borderRadius: 10,
                 backgroundColor: C.dangerMuted,
                 alignItems: 'center',
@@ -1313,40 +1249,64 @@ export default function SessionsScreen() {
       >
         <View
           style={{
-            height: 52,
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: 14,
             flexDirection: 'row',
             alignItems: 'center',
+            gap: 10,
           }}
         >
           <Text
             style={{
               flex: 1,
-              fontSize: 28,
-              fontWeight: '700',
+              fontSize: 32,
+              fontWeight: '800',
               color: C.text,
-              letterSpacing: -0.5,
+              letterSpacing: -0.8,
             }}
           >
             Sessions
           </Text>
+          {/* Stopwatch add button */}
           <Pressable
             onPress={() => {
-              console.log('[SessionsScreen] Add button pressed — opening action sheet');
-              setShowAddSheet(true);
+              console.log('[SessionsScreen] New Stopwatch header button pressed');
+              router.push('/stopwatch-modal');
             }}
             style={({ pressed }) => ({
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: C.primary,
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 6,
+              backgroundColor: C.surfaceSecondary,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
               opacity: pressed ? 0.75 : 1,
             })}
-            accessibilityLabel="Add stopwatch or timer"
           >
-            <Plus size={20} color="#fff" />
+            <AlarmClock size={15} color={C.text} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: C.text }}>Stopwatch</Text>
+          </Pressable>
+          {/* Timer add button */}
+          <Pressable
+            onPress={() => {
+              console.log('[SessionsScreen] New Timer header button pressed');
+              router.push('/timer-modal');
+            }}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: C.surfaceSecondary,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              opacity: pressed ? 0.75 : 1,
+            })}
+          >
+            <Zap size={15} color={C.text} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: C.text }}>Timer</Text>
           </Pressable>
         </View>
       </View>
@@ -1361,18 +1321,18 @@ export default function SessionsScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
             marginTop: 24,
-            marginBottom: 8,
+            marginBottom: 12,
           }}
         >
           <Text
             style={{
-              fontSize: 12,
-              fontWeight: '600',
+              fontSize: 11,
+              fontWeight: '700',
               color: C.subtext,
               textTransform: 'uppercase',
-              letterSpacing: 0.8,
+              letterSpacing: 1.2,
               flex: 1,
             }}
           >
@@ -1561,18 +1521,18 @@ export default function SessionsScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
             marginTop: 28,
-            marginBottom: 8,
+            marginBottom: 12,
           }}
         >
           <Text
             style={{
-              fontSize: 12,
-              fontWeight: '600',
+              fontSize: 11,
+              fontWeight: '700',
               color: C.subtext,
               textTransform: 'uppercase',
-              letterSpacing: 0.8,
+              letterSpacing: 1.2,
               flex: 1,
             }}
           >

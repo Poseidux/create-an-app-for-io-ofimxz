@@ -117,12 +117,12 @@ export default function ProfileScreen() {
   const sectionTitle = (label: string) => (
     <Text
       style={{
-        fontSize: 13,
-        fontWeight: '600',
-        color: C.textSecondary,
+        fontSize: 11,
+        fontWeight: '700',
+        color: C.subtext,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        paddingHorizontal: 16,
+        letterSpacing: 1.2,
+        paddingHorizontal: 20,
         marginBottom: 10,
         marginTop: 28,
       }}
@@ -136,45 +136,41 @@ export default function ProfileScreen() {
       {/* Header */}
       <View
         style={{
-          paddingTop: insets.top,
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 20,
+          paddingBottom: 14,
           backgroundColor: C.background,
           borderBottomWidth: 1,
           borderBottomColor: C.border,
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
-        <View
+        <Text
           style={{
-            height: 52,
-            paddingHorizontal: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
+            flex: 1,
+            fontSize: 32,
+            fontWeight: '800',
+            color: C.text,
+            letterSpacing: -0.8,
           }}
         >
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 28,
-              fontWeight: '700',
-              color: C.text,
-              letterSpacing: -0.5,
-            }}
-          >
-            Profile
-          </Text>
-          <Pressable
-            onPress={handleSettingsPress}
-            style={({ pressed }) => ({
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 22,
-              backgroundColor: pressed ? C.border : 'transparent',
-            })}
-          >
-            <Settings size={22} color={C.textSecondary} />
-          </Pressable>
-        </View>
+          Profile
+        </Text>
+        <Pressable
+          onPress={handleSettingsPress}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 12,
+            backgroundColor: C.surfaceSecondary,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Settings size={20} color={C.textSecondary} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -188,7 +184,7 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <View
           style={{
-            marginHorizontal: 16,
+            marginHorizontal: 20,
             backgroundColor: C.card,
             borderRadius: 16,
             borderWidth: 1,
@@ -261,7 +257,7 @@ export default function ProfileScreen() {
         {!hasData && (
           <View
             style={{
-              marginHorizontal: 16,
+              marginHorizontal: 20,
               marginTop: 24,
               backgroundColor: C.card,
               borderRadius: 16,
@@ -342,9 +338,9 @@ export default function ProfileScreen() {
             {sectionTitle('Most Used')}
             <View
               style={{
-                marginHorizontal: 16,
+                marginHorizontal: 20,
                 backgroundColor: C.card,
-                borderRadius: 16,
+                borderRadius: 14,
                 borderWidth: 1,
                 borderColor: C.border,
                 overflow: 'hidden',

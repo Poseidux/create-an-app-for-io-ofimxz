@@ -97,14 +97,14 @@ export default function SettingsScreen() {
   };
 
   const sectionLabelStyle = {
-    fontSize: 13,
-    fontWeight: '600' as const,
+    fontSize: 11,
+    fontWeight: '700' as const,
     color: C.subtext,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
     paddingHorizontal: 16,
     marginBottom: 8,
-    marginTop: 28,
+    marginTop: 24,
   };
 
   const cardStyle = {
