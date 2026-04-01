@@ -104,6 +104,13 @@ function AppContent() {
                         headerShown: false,
                       }}
                     />
+                    <Stack.Screen
+                      name="plan-session-modal"
+                      options={{
+                        presentation: 'modal',
+                        headerShown: false,
+                      }}
+                    />
                   </Stack>
                   <SystemBars style={"auto"} />
                 </GestureHandlerRootView>

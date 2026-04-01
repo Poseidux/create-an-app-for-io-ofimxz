@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Platform,
   Pressable,
@@ -11,6 +12,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  CalendarDays,
   ChevronRight,
   Clock,
   Flag,
@@ -25,6 +27,13 @@ import { loadStopwatches } from '@/utils/stopwatch-storage';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
 import { getRoutines, markRoutineUsed, Routine } from '@/utils/routine-storage';
+import {
+  getPlannedSessionsForDate,
+  savePlannedSession,
+  deletePlannedSession,
+  todayDateString,
+  PlannedSession,
+} from '@/utils/planned-sessions-storage';
 import type { Session } from '@/types/stopwatch';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -132,25 +141,44 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
   );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
+// ─── Planned Item Status Badge ────────────────────────────────────────────────
 
-function SectionHeader({ title }: { title: string }) {
+function StatusBadge({ status }: { status: PlannedSession['status'] }) {
   const C = useColors();
+  const badgeColor =
+    status === 'done'
+      ? '#22c55e'
+      : status === 'in_progress'
+      ? '#fb923c'
+      : status === 'skipped'
+      ? C.subtext
+      : C.subtext;
+  const badgeBg =
+    status === 'done'
+      ? 'rgba(34,197,94,0.12)'
+      : status === 'in_progress'
+      ? 'rgba(251,146,60,0.12)'
+      : C.surfaceSecondary;
+  const label =
+    status === 'done'
+      ? '✓ Done'
+      : status === 'in_progress'
+      ? 'In Progress'
+      : status === 'skipped'
+      ? 'Skipped'
+      : 'Pending';
+
   return (
-    <Text
+    <View
       style={{
-        fontSize: 13,
-        fontWeight: '600',
-        color: C.subtext,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 10,
-        marginTop: 4,
-        marginHorizontal: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+        backgroundColor: badgeBg,
       }}
     >
-      {title}
-    </Text>
+      <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>{label}</Text>
+    </View>
   );
 }
 
@@ -166,6 +194,7 @@ export default function TodayScreen() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [goals, setGoals] = useState<ItemGoal[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [plannedSessions, setPlannedSessions] = useState<PlannedSession[]>([]);
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -173,19 +202,51 @@ export default function TodayScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('[TodayScreen] Focus: loading dashboard data');
+      const today = todayDateString();
+
       Promise.all([
         AsyncStorage.getItem(PROFILE_NAME_KEY),
         loadStopwatches(),
         getSessions(),
         getGoals(),
         getRoutines(),
-      ]).then(([name, sws, sess, gs, rts]) => {
-        console.log(`[TodayScreen] Loaded: name="${name}", ${sws.length} stopwatches, ${sess.length} sessions, ${gs.length} goals, ${rts.length} routines`);
+        getPlannedSessionsForDate(today),
+      ]).then(async ([name, sws, sess, gs, rts, planned]) => {
+        console.log(
+          `[TodayScreen] Loaded: name="${name}", ${sws.length} stopwatches, ${sess.length} sessions, ${gs.length} goals, ${rts.length} routines, ${planned.length} planned`
+        );
+
+        const todaySessions = sess.filter(s => isToday(s.startedAt));
+        const completedPlannedSessionIds = new Set(
+          planned.filter(p => p.completedSessionId).map(p => p.completedSessionId as string)
+        );
+
+        // Auto-reconcile in_progress planned items
+        const updatedPlanned = [...planned];
+        for (let i = 0; i < updatedPlanned.length; i++) {
+          const p = updatedPlanned[i];
+          if (p.status === 'in_progress') {
+            const matchingSession = todaySessions.find(
+              s => s.stopwatchName === p.itemName && !completedPlannedSessionIds.has(s.id)
+            );
+            if (matchingSession) {
+              console.log(
+                `[TodayScreen] Auto-reconcile: planned "${p.itemName}" → done (session ${matchingSession.id})`
+              );
+              const updated = { ...p, status: 'done' as const, completedSessionId: matchingSession.id };
+              await savePlannedSession(updated);
+              updatedPlanned[i] = updated;
+              completedPlannedSessionIds.add(matchingSession.id);
+            }
+          }
+        }
+
         setProfileName(name ?? undefined);
         setStopwatches(sws);
         setSessions(sess);
         setGoals(gs);
         setRoutines(rts);
+        setPlannedSessions(updatedPlanned);
       });
     }, [])
   );
@@ -220,6 +281,11 @@ export default function TodayScreen() {
     router.push('/stopwatch-modal');
   };
 
+  const handlePlanPress = () => {
+    console.log('[TodayScreen] Header plan button pressed');
+    router.push('/plan-session-modal');
+  };
+
   const handleCreateStopwatch = () => {
     console.log('[TodayScreen] Welcome card: create stopwatch tapped');
     router.push('/stopwatch-modal');
@@ -239,6 +305,56 @@ export default function TodayScreen() {
   const handleCreateRoutine = () => {
     console.log('[TodayScreen] Create routine pressed');
     router.push('/routine-modal');
+  };
+
+  const handleStartPlanned = async (planned: PlannedSession) => {
+    console.log(`[TodayScreen] Start planned item: id=${planned.id}, name="${planned.itemName}", type=${planned.itemType}`);
+    // Mark as in_progress immediately
+    const updated = { ...planned, status: 'in_progress' as const };
+    await savePlannedSession(updated);
+    setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
+
+    if (planned.itemType === 'stopwatch' || planned.itemType === 'routine') {
+      router.push(
+        `/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`
+      );
+    } else {
+      router.push(`/timer-modal?id=${planned.itemId}`);
+    }
+  };
+
+  const handlePlannedLongPress = (planned: PlannedSession) => {
+    console.log(`[TodayScreen] Long press planned item: id=${planned.id}, name="${planned.itemName}"`);
+    Alert.alert(planned.itemName, 'What would you like to do?', [
+      {
+        text: 'Mark as Done',
+        onPress: async () => {
+          console.log(`[TodayScreen] Mark planned as done: id=${planned.id}`);
+          const updated = { ...planned, status: 'done' as const };
+          await savePlannedSession(updated);
+          setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
+        },
+      },
+      {
+        text: 'Skip',
+        onPress: async () => {
+          console.log(`[TodayScreen] Skip planned item: id=${planned.id}`);
+          const updated = { ...planned, status: 'skipped' as const };
+          await savePlannedSession(updated);
+          setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
+        },
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          console.log(`[TodayScreen] Delete planned item: id=${planned.id}`);
+          await deletePlannedSession(planned.id);
+          setPlannedSessions(prev => prev.filter(p => p.id !== planned.id));
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   return (
@@ -276,6 +392,25 @@ export default function TodayScreen() {
                 {todayDateText}
               </Text>
             </View>
+            {/* Plan button */}
+            <Pressable
+              onPress={handlePlanPress}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: C.surfaceSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.75 : 1,
+                marginTop: 2,
+                marginRight: 8,
+              })}
+              accessibilityLabel="Plan a session"
+            >
+              <CalendarDays size={18} color={C.primary} />
+            </Pressable>
+            {/* Add stopwatch button */}
             <Pressable
               onPress={handleAddPress}
               style={({ pressed }) => ({
@@ -426,7 +561,20 @@ export default function TodayScreen() {
         {runningStopwatches.length > 0 && (
           <AnimatedItem index={1}>
             <View style={{ marginBottom: 28 }}>
-              <SectionHeader title="Active Now" />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: C.subtext,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 10,
+                  marginTop: 4,
+                  marginHorizontal: 16,
+                }}
+              >
+                Active Now
+              </Text>
               <View style={{ marginHorizontal: 16, gap: 8 }}>
                 {runningStopwatches.map(sw => {
                   const swColor = sw.color ?? '#22c55e';
@@ -491,14 +639,60 @@ export default function TodayScreen() {
           </AnimatedItem>
         )}
 
-        {/* ── Today's Sessions ── */}
+        {/* ── Today's Plan ── */}
         <AnimatedItem index={2}>
           <View style={{ marginBottom: 24 }}>
-            <SectionHeader title="Today's Sessions" />
-            {todaySessions.length === 0 ? (
+            {/* Section header with + Plan button */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 10,
+                marginHorizontal: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: C.subtext,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  flex: 1,
+                }}
+              >
+                Today's Plan
+              </Text>
+              <Pressable
+                onPress={() => {
+                  console.log("[TodayScreen] + Plan button pressed in section header");
+                  router.push('/plan-session-modal');
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  backgroundColor: C.primaryMuted,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Plus size={13} color={C.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>Plan</Text>
+              </Pressable>
+            </View>
+
+            {plannedSessions.length === 0 ? (
+              /* Empty state */
               <View style={{ marginHorizontal: 16 }}>
-                <View
-                  style={{
+                <Pressable
+                  onPress={() => {
+                    console.log('[TodayScreen] Plan something button pressed (empty state)');
+                    router.push('/plan-session-modal');
+                  }}
+                  style={({ pressed }) => ({
                     backgroundColor: C.card,
                     borderRadius: 16,
                     borderCurve: 'continuous',
@@ -506,11 +700,12 @@ export default function TodayScreen() {
                     borderColor: C.border,
                     padding: 20,
                     alignItems: 'center',
-                  }}
+                    opacity: pressed ? 0.8 : 1,
+                  })}
                 >
-                  <Clock size={28} color={C.subtext} style={{ marginBottom: 8 }} />
+                  <CalendarDays size={28} color={C.subtext} style={{ marginBottom: 8 }} />
                   <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 }}>
-                    No sessions yet today
+                    Nothing planned for today
                   </Text>
                   <Text
                     style={{
@@ -518,13 +713,27 @@ export default function TodayScreen() {
                       color: C.textSecondary,
                       textAlign: 'center',
                       lineHeight: 18,
+                      marginBottom: 14,
                     }}
                   >
-                    Start a stopwatch or timer to begin tracking
+                    Plan a stopwatch, timer, or routine for today
                   </Text>
-                </View>
+                  <View
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingVertical: 9,
+                      borderRadius: 20,
+                      backgroundColor: C.primaryMuted,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: C.primary }}>
+                      Plan something
+                    </Text>
+                  </View>
+                </Pressable>
               </View>
             ) : (
+              /* Planned items list */
               <View
                 style={{
                   marginHorizontal: 16,
@@ -536,62 +745,87 @@ export default function TodayScreen() {
                   overflow: 'hidden',
                 }}
               >
-                {todaySessions.map((session, idx) => {
-                  const durationText = formatDuration(session.totalTime);
-                  const timeText = formatTimeOfDay(session.startedAt);
-                  const lapText = session.laps.length > 0 ? `${session.laps.length} lap${session.laps.length !== 1 ? 's' : ''}` : null;
-                  const isLast = idx === todaySessions.length - 1;
+                {plannedSessions.map((planned, idx) => {
+                  const isLast = idx === plannedSessions.length - 1;
+                  const linkedSession =
+                    planned.completedSessionId
+                      ? todaySessions.find(s => s.id === planned.completedSessionId)
+                      : undefined;
+                  const doneText = linkedSession ? formatDuration(linkedSession.totalTime) : null;
+
                   return (
-                    <View key={session.id}>
-                      <View
-                        style={{
+                    <View key={planned.id}>
+                      <Pressable
+                        onLongPress={() => handlePlannedLongPress(planned)}
+                        delayLongPress={400}
+                        style={({ pressed }) => ({
                           flexDirection: 'row',
                           alignItems: 'center',
                           paddingHorizontal: 14,
                           paddingVertical: 13,
-                        }}
+                          opacity: pressed ? 0.7 : 1,
+                        })}
                       >
+                        {/* Color dot */}
                         <View
                           style={{
                             width: 8,
                             height: 8,
                             borderRadius: 4,
-                            backgroundColor: session.color,
-                            marginRight: 12,
+                            backgroundColor: planned.itemColor,
+                            marginRight: 10,
                           }}
                         />
+                        {/* Emoji for routines */}
+                        {planned.itemEmoji != null && (
+                          <Text style={{ fontSize: 14, marginRight: 6 }}>{planned.itemEmoji}</Text>
+                        )}
+                        {/* Name + time */}
                         <View style={{ flex: 1 }}>
-                          <Text
-                            style={{ fontSize: 14, fontWeight: '600', color: C.text }}
-                            numberOfLines={1}
-                          >
-                            {session.stopwatchName}
-                          </Text>
-                          {lapText !== null && (
-                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
-                              {lapText}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
                           <Text
                             style={{
                               fontSize: 14,
                               fontWeight: '600',
-                              fontFamily: timerFont,
-                              color: C.text,
-                              fontVariant: ['tabular-nums'],
+                              color: planned.status === 'skipped' ? C.subtext : C.text,
+                              textDecorationLine: planned.status === 'skipped' ? 'line-through' : 'none',
                             }}
+                            numberOfLines={1}
                           >
-                            {durationText}
+                            {planned.itemName}
                           </Text>
-                          <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
-                            {timeText}
-                          </Text>
+                          {planned.scheduledTime != null && (
+                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 1 }}>
+                              {planned.scheduledTime}
+                            </Text>
+                          )}
+                          {doneText !== null && (
+                            <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 1 }}>
+                              {doneText}
+                            </Text>
+                          )}
                         </View>
-                      </View>
+                        {/* Status badge or Start button */}
+                        {planned.status === 'pending' ? (
+                          <Pressable
+                            onPress={() => handleStartPlanned(planned)}
+                            style={({ pressed }) => ({
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 10,
+                              backgroundColor: C.primaryMuted,
+                              opacity: pressed ? 0.7 : 1,
+                            })}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
+                              Start
+                            </Text>
+                          </Pressable>
+                        ) : (
+                          <StatusBadge status={planned.status} />
+                        )}
+                      </Pressable>
                       {!isLast && (
-                        <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 36 }} />
+                        <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 32 }} />
                       )}
                     </View>
                   );
@@ -718,7 +952,20 @@ export default function TodayScreen() {
         {/* ── Active Goals ── */}
         <AnimatedItem index={4}>
           <View style={{ marginBottom: 24 }}>
-            <SectionHeader title="Active Goals" />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: C.subtext,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                marginBottom: 10,
+                marginTop: 4,
+                marginHorizontal: 16,
+              }}
+            >
+              Active Goals
+            </Text>
             {activeGoals.length === 0 ? (
               <View style={{ marginHorizontal: 16 }}>
                 <View
@@ -832,7 +1079,20 @@ export default function TodayScreen() {
         {/* ── Recent Activity ── */}
         <AnimatedItem index={5}>
           <View style={{ marginBottom: 8 }}>
-            <SectionHeader title="Recent Activity" />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: C.subtext,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                marginBottom: 10,
+                marginTop: 4,
+                marginHorizontal: 16,
+              }}
+            >
+              Recent Activity
+            </Text>
             {mostRecentSession === null ? (
               <View style={{ marginHorizontal: 16 }}>
                 <View

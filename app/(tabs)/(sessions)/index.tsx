@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   AlarmClock,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
   Flag,
@@ -128,9 +129,10 @@ interface StopwatchCardProps {
   goal: ItemGoal | undefined;
   onLongPress: () => void;
   tick: number;
+  onPlan: () => void;
 }
 
-function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: StopwatchCardProps) {
+function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPlan }: StopwatchCardProps) {
   const C = useColors();
   const router = useRouter();
   const {
@@ -476,6 +478,25 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               </Pressable>
             )}
 
+            {/* Plan */}
+            <Pressable
+              onPress={() => {
+                console.log(`[SessionsScreen] Plan stopwatch pressed: id=${sw.id}`);
+                onPlan();
+              }}
+              style={({ pressed }) => ({
+                height: 38,
+                width: 38,
+                borderRadius: 10,
+                backgroundColor: C.surfaceSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <CalendarDays size={15} color={C.textSecondary} />
+            </Pressable>
+
             {/* Delete */}
             <Pressable
               onPress={handleDelete}
@@ -764,9 +785,10 @@ interface TimerCardProps {
   onPause: () => void;
   onReset: () => void;
   onDelete: () => void;
+  onPlan: () => void;
 }
 
-function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete }: TimerCardProps) {
+function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete, onPlan }: TimerCardProps) {
   const C = useColors();
   const timerColor = config.color ?? '#fb923c';
 
@@ -1011,6 +1033,25 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete 
               })}
             >
               <RotateCcw size={15} color={C.textSecondary} />
+            </Pressable>
+
+            {/* Plan */}
+            <Pressable
+              onPress={() => {
+                console.log(`[SessionsScreen] Plan timer pressed: id=${config.id}`);
+                onPlan();
+              }}
+              style={({ pressed }) => ({
+                height: 38,
+                paddingHorizontal: 12,
+                borderRadius: 10,
+                backgroundColor: C.surfaceSecondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <CalendarDays size={15} color={C.textSecondary} />
             </Pressable>
 
             <Pressable
@@ -1470,6 +1511,10 @@ export default function SessionsScreen() {
             goal={goalsMap[sw.id]}
             onLongPress={() => setDetailsSheet({ sw })}
             tick={tick}
+            onPlan={() => {
+              console.log(`[SessionsScreen] Plan stopwatch: id=${sw.id}, name="${sw.name}"`);
+              router.push(`/plan-session-modal?itemType=stopwatch&itemId=${sw.id}`);
+            }}
           />
         ))}
 
@@ -1562,6 +1607,10 @@ export default function SessionsScreen() {
               onPause={() => handleTimerPause(config.id)}
               onReset={() => handleTimerReset(config.id)}
               onDelete={() => handleTimerDelete(config.id)}
+              onPlan={() => {
+                console.log(`[SessionsScreen] Plan timer: id=${config.id}, name="${config.name}"`);
+                router.push(`/plan-session-modal?itemType=timer&itemId=${config.id}`);
+              }}
             />
           );
         })}
