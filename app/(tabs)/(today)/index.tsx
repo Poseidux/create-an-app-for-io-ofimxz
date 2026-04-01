@@ -31,15 +31,6 @@ import type { Session } from '@/types/stopwatch';
 
 const PROFILE_NAME_KEY = '@chroniqo_profile_name';
 
-const PRESETS = [
-  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
-  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
-  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
-  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
-  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
-  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
-];
-
 const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,8 +42,13 @@ function getGreeting(name?: string): string {
 }
 
 function isToday(isoString: string): boolean {
-  const today = new Date().toISOString().slice(0, 10);
-  return isoString.slice(0, 10) === today;
+  const d = new Date(isoString);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
 }
 
 function formatDuration(ms: number): string {
@@ -206,7 +202,7 @@ export default function TodayScreen() {
   }, [anyRunning]);
 
   // ── Derived data ──
-  const runningStopwatch = stopwatches.find(sw => sw.isRunning) ?? null;
+  const runningStopwatches = stopwatches.filter(sw => sw.isRunning);
   const todaySessions = sessions.filter(s => isToday(s.startedAt));
   const activeGoals = goals.filter(g => g.status === 'active').slice(0, 3);
   const mostRecentSession = sessions.length > 0 ? sessions[0] : null;
@@ -216,21 +212,12 @@ export default function TodayScreen() {
   const greetingText = getGreeting(profileName);
   const todayDateText = formatTodayDate();
 
-  const runningElapsedMs = runningStopwatch ? getElapsedMs(runningStopwatch) : 0;
-  const runningTimeDisplay = runningStopwatch ? formatTime(runningElapsedMs) : '';
-  const runningColor = runningStopwatch?.color ?? '#22c55e';
-
   const bottomPad = insets.bottom + 100;
 
   // ── Handlers ──
   const handleAddPress = () => {
     console.log('[TodayScreen] Header + button pressed');
     router.push('/stopwatch-modal');
-  };
-
-  const handlePresetTap = (preset: typeof PRESETS[0]) => {
-    console.log(`[TodayScreen] Quick start preset tapped: ${preset.key}`);
-    router.push(`/stopwatch-modal?preset=${preset.key}`);
   };
 
   const handleCreateStopwatch = () => {
@@ -436,61 +423,69 @@ export default function TodayScreen() {
         )}
 
         {/* ── Active Now ── */}
-        {runningStopwatch !== null && (
+        {runningStopwatches.length > 0 && (
           <AnimatedItem index={1}>
             <View style={{ marginBottom: 28 }}>
               <SectionHeader title="Active Now" />
-              <View style={{ marginHorizontal: 16 }}>
-                <View
-                  style={{
-                    backgroundColor: `${runningColor}12`,
-                    borderRadius: 16,
-                    borderCurve: 'continuous',
-                    borderWidth: 1,
-                    borderColor: `${runningColor}40`,
-                    padding: 18,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 3,
-                      backgroundColor: runningColor,
-                    }}
-                  />
-                  <View style={{ marginLeft: 4, marginRight: 12 }}>
-                    <PulsingDot color={runningColor} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ fontSize: 15, fontWeight: '600', color: C.text }}
-                      numberOfLines={1}
+              <View style={{ marginHorizontal: 16, gap: 8 }}>
+                {runningStopwatches.map(sw => {
+                  const swColor = sw.color ?? '#22c55e';
+                  const elapsedMs = getElapsedMs(sw);
+                  const timeDisplay = formatTime(elapsedMs);
+                  return (
+                    <View
+                      key={sw.id}
+                      style={{
+                        backgroundColor: `${swColor}12`,
+                        borderRadius: 16,
+                        borderCurve: 'continuous',
+                        borderWidth: 1,
+                        borderColor: `${swColor}40`,
+                        padding: 18,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                      }}
                     >
-                      {runningStopwatch.name}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
-                      Running
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 22,
-                      fontWeight: '700',
-                      fontFamily: timerFont,
-                      color: runningColor,
-                      fontVariant: ['tabular-nums'],
-                      letterSpacing: -0.5,
-                    }}
-                  >
-                    {runningTimeDisplay}
-                  </Text>
-                </View>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: 3,
+                          backgroundColor: swColor,
+                        }}
+                      />
+                      <View style={{ marginLeft: 4, marginRight: 12 }}>
+                        <PulsingDot color={swColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{ fontSize: 15, fontWeight: '600', color: C.text }}
+                          numberOfLines={1}
+                        >
+                          {sw.name}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                          Running
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 22,
+                          fontWeight: '700',
+                          fontFamily: timerFont,
+                          color: swColor,
+                          fontVariant: ['tabular-nums'],
+                          letterSpacing: -0.5,
+                        }}
+                      >
+                        {timeDisplay}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           </AnimatedItem>
@@ -606,50 +601,8 @@ export default function TodayScreen() {
           </View>
         </AnimatedItem>
 
-        {/* ── Quick Start ── */}
-        <AnimatedItem index={3}>
-          <View style={{ marginBottom: 24 }}>
-            <SectionHeader title="Quick Start" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                gap: 8,
-                alignItems: 'center',
-                height: 44,
-              }}
-              style={{ height: 44 }}
-            >
-              {PRESETS.map(preset => (
-                <Pressable
-                  key={preset.key}
-                  onPress={() => handlePresetTap(preset)}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingHorizontal: 14,
-                    paddingVertical: 9,
-                    borderRadius: 24,
-                    backgroundColor: `${preset.color}18`,
-                    borderWidth: 1,
-                    borderColor: `${preset.color}40`,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14 }}>{preset.emoji}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: preset.color }}>
-                    {preset.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </AnimatedItem>
-
         {/* ── Routines ── */}
-        <AnimatedItem index={4}>
+        <AnimatedItem index={3}>
           <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginHorizontal: 16 }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
@@ -763,7 +716,7 @@ export default function TodayScreen() {
         </AnimatedItem>
 
         {/* ── Active Goals ── */}
-        <AnimatedItem index={5}>
+        <AnimatedItem index={4}>
           <View style={{ marginBottom: 24 }}>
             <SectionHeader title="Active Goals" />
             {activeGoals.length === 0 ? (
@@ -877,7 +830,7 @@ export default function TodayScreen() {
         </AnimatedItem>
 
         {/* ── Recent Activity ── */}
-        <AnimatedItem index={6}>
+        <AnimatedItem index={5}>
           <View style={{ marginBottom: 8 }}>
             <SectionHeader title="Recent Activity" />
             {mostRecentSession === null ? (

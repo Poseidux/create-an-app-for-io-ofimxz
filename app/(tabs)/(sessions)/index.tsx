@@ -373,9 +373,9 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
             )}
           </View>
 
-          {/* Action buttons */}
+          {/* Action buttons — primary row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* Start / Pause */}
+            {/* Start / Pause — primary wide button */}
             <Pressable
               onPress={handleStartPause}
               style={({ pressed }) => ({
@@ -399,13 +399,13 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               </Text>
             </Pressable>
 
-            {/* Lap */}
+            {/* Lap — only when running or has time */}
             {(sw.isRunning || hasTime) && (
               <Pressable
                 onPress={handleLap}
                 style={({ pressed }) => ({
                   height: 38,
-                  paddingHorizontal: 14,
+                  width: 38,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -417,13 +417,13 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               </Pressable>
             )}
 
-            {/* Reset */}
+            {/* Reset — only when has time */}
             {hasTime && (
               <Pressable
                 onPress={handleReset}
                 style={({ pressed }) => ({
                   height: 38,
-                  paddingHorizontal: 14,
+                  width: 38,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -435,8 +435,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               </Pressable>
             )}
 
-            {/* Move up */}
-            {index > 0 && (
+            {/* Move up/down — only when multiple stopwatches */}
+            {total > 1 && index > 0 && (
               <Pressable
                 onPress={() => {
                   console.log(`[SessionsScreen] Move stopwatch up: id=${sw.id}`);
@@ -444,7 +444,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
                 }}
                 style={({ pressed }) => ({
                   height: 38,
-                  paddingHorizontal: 10,
+                  width: 38,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -456,8 +456,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               </Pressable>
             )}
 
-            {/* Move down */}
-            {index < total - 1 && (
+            {total > 1 && index < total - 1 && (
               <Pressable
                 onPress={() => {
                   console.log(`[SessionsScreen] Move stopwatch down: id=${sw.id}`);
@@ -465,7 +464,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
                 }}
                 style={({ pressed }) => ({
                   height: 38,
-                  paddingHorizontal: 10,
+                  width: 38,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -482,7 +481,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick }: Sto
               onPress={handleDelete}
               style={({ pressed }) => ({
                 height: 38,
-                paddingHorizontal: 12,
+                width: 38,
                 borderRadius: 10,
                 backgroundColor: C.dangerMuted,
                 alignItems: 'center',
