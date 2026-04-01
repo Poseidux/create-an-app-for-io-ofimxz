@@ -42,6 +42,18 @@ const PROFILE_NAME_KEY = '@chroniqo_profile_name';
 
 const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type RoutineTimerEntry = {
+  startedAt: number;
+  pausedAt: number | null;
+  accumulatedMs: number;
+  isPaused: boolean;
+  isComplete: boolean;
+};
+
+type RoutineTimers = Record<string, RoutineTimerEntry>;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getGreeting(name?: string): string {
@@ -89,6 +101,36 @@ function getGoalTypeLabel(goalType: string): string {
     case 'complete_countdown': return 'Countdown';
     case 'complete_all_rounds': return 'All rounds';
     default: return 'Goal';
+  }
+}
+
+function formatMMSS(totalMs: number): string {
+  const totalSec = Math.max(0, Math.floor(totalMs / 1000));
+  const mm = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const ss = (totalSec % 60).toString().padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function getRoutineElapsedMs(entry: RoutineTimerEntry): number {
+  if (entry.isPaused || entry.isComplete) {
+    return entry.accumulatedMs;
+  }
+  return entry.accumulatedMs + (Date.now() - entry.startedAt);
+}
+
+/** Returns true if scheduledTime (HH:MM) was more than 30 min ago today */
+function isMissed(scheduledTime: string | null | undefined): boolean {
+  if (!scheduledTime) return false;
+  try {
+    const [hStr, mStr] = scheduledTime.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (isNaN(h) || isNaN(m)) return false;
+    const now = new Date();
+    const scheduled = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+    return Date.now() - scheduled.getTime() > 30 * 60 * 1000;
+  } catch {
+    return false;
   }
 }
 
@@ -143,7 +185,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
 
 // ─── Planned Item Status Badge ────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: PlannedSession['status'] }) {
+function StatusBadge({ status, withDot, dotColor }: { status: PlannedSession['status'] | 'missed'; withDot?: boolean; dotColor?: string }) {
   const C = useColors();
   const badgeColor =
     status === 'done'
@@ -152,12 +194,16 @@ function StatusBadge({ status }: { status: PlannedSession['status'] }) {
       ? '#fb923c'
       : status === 'skipped'
       ? C.subtext
+      : status === 'missed'
+      ? '#fb923c'
       : C.subtext;
   const badgeBg =
     status === 'done'
       ? 'rgba(34,197,94,0.12)'
       : status === 'in_progress'
       ? 'rgba(251,146,60,0.12)'
+      : status === 'missed'
+      ? 'rgba(251,146,60,0.10)'
       : C.surfaceSecondary;
   const label =
     status === 'done'
@@ -166,18 +212,276 @@ function StatusBadge({ status }: { status: PlannedSession['status'] }) {
       ? 'In Progress'
       : status === 'skipped'
       ? 'Skipped'
+      : status === 'missed'
+      ? 'Missed?'
       : 'Pending';
 
   return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      {withDot && dotColor != null && <PulsingDot color={dotColor} />}
+      <View
+        style={{
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 8,
+          backgroundColor: badgeBg,
+        }}
+      >
+        <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Routine Card ─────────────────────────────────────────────────────────────
+
+type RoutineCardProps = {
+  routine: Routine;
+  timerEntry: RoutineTimerEntry | undefined;
+  onStart: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
+  onOpen: () => void;
+  onRestart: () => void;
+  onLongPress: () => void;
+};
+
+function RoutineCard({
+  routine,
+  timerEntry,
+  onStart,
+  onPause,
+  onResume,
+  onStop,
+  onOpen,
+  onRestart,
+  onLongPress,
+}: RoutineCardProps) {
+  const C = useColors();
+  const totalMs = routine.durationMinutes * 60 * 1000;
+
+  const isIdle = timerEntry == null;
+  const isActive = timerEntry != null && !timerEntry.isPaused && !timerEntry.isComplete;
+  const isPaused = timerEntry != null && timerEntry.isPaused && !timerEntry.isComplete;
+  const isComplete = timerEntry != null && timerEntry.isComplete;
+
+  const elapsedMs = timerEntry != null ? getRoutineElapsedMs(timerEntry) : 0;
+  const remainingMs = Math.max(0, totalMs - elapsedMs);
+  const rawProgress = totalMs > 0 ? (elapsedMs / totalMs) * 100 : 0;
+  const progressPercent = Math.min(100, Math.max(0, rawProgress));
+
+  const countdownDisplay = formatMMSS(remainingMs);
+  const durationLabel = `${routine.durationMinutes}m`;
+  const startBgColor = routine.color + '18';
+
+  if (isIdle) {
+    return (
+      <Pressable
+        onPress={onStart}
+        onLongPress={onLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => ({
+          width: 148,
+          minHeight: 130,
+          backgroundColor: C.card,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: C.border,
+          padding: 14,
+          opacity: pressed ? 0.8 : 1,
+          borderTopWidth: 3,
+          borderTopColor: routine.color,
+        })}
+      >
+        <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
+          {routine.name}
+        </Text>
+        <Text style={{ fontSize: 11, color: C.textSecondary }}>
+          {durationLabel}
+        </Text>
+        {routine.useCount > 0 && (
+          <Text style={{ fontSize: 11, color: C.subtext, marginTop: 3 }}>
+            {routine.useCount}
+            × used
+          </Text>
+        )}
+        <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 7, alignItems: 'center' }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Start</Text>
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (isComplete) {
+    return (
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={500}
+        style={{
+          width: 148,
+          minHeight: 130,
+          backgroundColor: C.card,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: C.border,
+          padding: 14,
+          borderTopWidth: 3,
+          borderTopColor: routine.color,
+        }}
+      >
+        <Text style={{ fontSize: 22, marginBottom: 6 }}>{routine.emoji}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 }} numberOfLines={1}>
+          {routine.name}
+        </Text>
+        <View
+          style={{
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 8,
+            backgroundColor: 'rgba(34,197,94,0.12)',
+            alignSelf: 'flex-start',
+            marginBottom: 10,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#22c55e' }}>✓ Done</Text>
+        </View>
+        <Pressable
+          onPress={onRestart}
+          style={({ pressed }) => ({
+            backgroundColor: startBgColor,
+            borderRadius: 8,
+            paddingVertical: 7,
+            alignItems: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Restart</Text>
+        </Pressable>
+      </Pressable>
+    );
+  }
+
+  // Active or Paused
+  return (
     <View
       style={{
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 8,
-        backgroundColor: badgeBg,
+        width: 148,
+        minHeight: 148,
+        backgroundColor: C.card,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: C.border,
+        padding: 14,
+        borderTopWidth: 3,
+        borderTopColor: routine.color,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColor }}>{label}</Text>
+      {/* Header row: emoji + name + pulsing dot */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 5 }}>
+        <Text style={{ fontSize: 16 }}>{routine.emoji}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: C.text, flex: 1 }} numberOfLines={1}>
+          {routine.name}
+        </Text>
+        {isActive && <PulsingDot color={routine.color} />}
+      </View>
+
+      {/* Countdown */}
+      <Text
+        style={{
+          fontSize: 26,
+          fontWeight: '700',
+          fontFamily: timerFont,
+          color: routine.color,
+          fontVariant: ['tabular-nums'],
+          letterSpacing: -1,
+          marginBottom: 6,
+        }}
+      >
+        {countdownDisplay}
+      </Text>
+
+      {/* Progress bar */}
+      <View
+        style={{
+          height: 3,
+          borderRadius: 2,
+          backgroundColor: routine.color + '28',
+          marginBottom: 10,
+          overflow: 'hidden',
+        }}
+      >
+        <View
+          style={{
+            height: 3,
+            borderRadius: 2,
+            backgroundColor: routine.color,
+            width: `${progressPercent}%`,
+          }}
+        />
+      </View>
+
+      {/* Buttons */}
+      {isActive ? (
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <Pressable
+            onPress={onPause}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: 'rgba(251,146,60,0.14)',
+              borderRadius: 8,
+              paddingVertical: 7,
+              alignItems: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fb923c' }}>Pause</Text>
+          </Pressable>
+          <Pressable
+            onPress={onOpen}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: startBgColor,
+              borderRadius: 8,
+              paddingVertical: 7,
+              alignItems: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Open</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <Pressable
+            onPress={onResume}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: startBgColor,
+              borderRadius: 8,
+              paddingVertical: 7,
+              alignItems: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Resume</Text>
+          </Pressable>
+          <Pressable
+            onPress={onStop}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: 'rgba(239,68,68,0.12)',
+              borderRadius: 8,
+              paddingVertical: 7,
+              alignItems: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>Stop</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -197,6 +501,15 @@ export default function TodayScreen() {
   const [plannedSessions, setPlannedSessions] = useState<PlannedSession[]>([]);
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [routineTimers, setRoutineTimers] = useState<RoutineTimers>({});
+  const routineTimersRef = useRef<RoutineTimers>({});
+  const routineTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Keep ref in sync for use inside interval
+  useEffect(() => {
+    routineTimersRef.current = routineTimers;
+  }, [routineTimers]);
 
   // ── Load data on focus ──
   useFocusEffect(
@@ -262,6 +575,44 @@ export default function TodayScreen() {
     return () => { if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; } };
   }, [anyRunning]);
 
+  // ── Tick for routine timers ──
+  const anyRoutineActive = Object.values(routineTimers).some(e => !e.isPaused && !e.isComplete);
+  useEffect(() => {
+    if (anyRoutineActive) {
+      routineTickRef.current = setInterval(() => setTick(t => t + 1), 100);
+    } else {
+      if (routineTickRef.current) { clearInterval(routineTickRef.current); routineTickRef.current = null; }
+    }
+    return () => { if (routineTickRef.current) { clearInterval(routineTickRef.current); routineTickRef.current = null; } };
+  }, [anyRoutineActive]);
+
+  // ── Check routine completion ──
+  useEffect(() => {
+    const timers = routineTimers;
+    const updates: RoutineTimers = {};
+    let hasUpdate = false;
+
+    for (const [id, entry] of Object.entries(timers)) {
+      if (!entry.isComplete && !entry.isPaused) {
+        const routine = routines.find(r => r.id === id);
+        if (routine) {
+          const totalMs = routine.durationMinutes * 60 * 1000;
+          const elapsed = getRoutineElapsedMs(entry);
+          if (elapsed >= totalMs) {
+            console.log(`[TodayScreen] Routine timer complete: ${routine.name}`);
+            updates[id] = { ...entry, isComplete: true, accumulatedMs: totalMs };
+            hasUpdate = true;
+            markRoutineUsed(id).catch(() => {});
+          }
+        }
+      }
+    }
+
+    if (hasUpdate) {
+      setRoutineTimers(prev => ({ ...prev, ...updates }));
+    }
+  }, [routineTimers, routines]);
+
   // ── Derived data ──
   const runningStopwatches = stopwatches.filter(sw => sw.isRunning);
   const todaySessions = sessions.filter(s => isToday(s.startedAt));
@@ -296,10 +647,77 @@ export default function TodayScreen() {
     router.push('/timer-modal');
   };
 
-  const handleStartRoutine = async (routine: Routine) => {
-    console.log(`[TodayScreen] Start routine: ${routine.name}`);
+  const handleOpenRoutineModal = async (routine: Routine) => {
+    console.log(`[TodayScreen] Open routine in stopwatch modal: ${routine.name}`);
     await markRoutineUsed(routine.id);
     router.push(`/stopwatch-modal?name=${encodeURIComponent(routine.name)}&color=${encodeURIComponent(routine.color)}`);
+  };
+
+  const handleStartRoutineCard = (routine: Routine) => {
+    console.log(`[TodayScreen] Start routine card countdown: ${routine.name}`);
+    setRoutineTimers(prev => ({
+      ...prev,
+      [routine.id]: {
+        startedAt: Date.now(),
+        pausedAt: null,
+        accumulatedMs: 0,
+        isPaused: false,
+        isComplete: false,
+      },
+    }));
+  };
+
+  const handlePauseRoutine = (routineId: string) => {
+    console.log(`[TodayScreen] Pause routine timer: ${routineId}`);
+    setRoutineTimers(prev => {
+      const entry = prev[routineId];
+      if (!entry || entry.isPaused || entry.isComplete) return prev;
+      const elapsed = getRoutineElapsedMs(entry);
+      return {
+        ...prev,
+        [routineId]: {
+          ...entry,
+          pausedAt: Date.now(),
+          accumulatedMs: elapsed,
+          isPaused: true,
+        },
+      };
+    });
+  };
+
+  const handleResumeRoutine = (routineId: string) => {
+    console.log(`[TodayScreen] Resume routine timer: ${routineId}`);
+    setRoutineTimers(prev => {
+      const entry = prev[routineId];
+      if (!entry || !entry.isPaused) return prev;
+      return {
+        ...prev,
+        [routineId]: {
+          ...entry,
+          startedAt: Date.now(),
+          pausedAt: null,
+          isPaused: false,
+        },
+      };
+    });
+  };
+
+  const handleStopRoutine = (routineId: string) => {
+    console.log(`[TodayScreen] Stop routine timer: ${routineId}`);
+    setRoutineTimers(prev => {
+      const next = { ...prev };
+      delete next[routineId];
+      return next;
+    });
+  };
+
+  const handleRestartRoutine = (routineId: string) => {
+    console.log(`[TodayScreen] Restart routine timer: ${routineId}`);
+    setRoutineTimers(prev => {
+      const next = { ...prev };
+      delete next[routineId];
+      return next;
+    });
   };
 
   const handleCreateRoutine = () => {
@@ -737,12 +1155,31 @@ export default function TodayScreen() {
             ) : (
               /* Planned items list */
               <View style={{ marginHorizontal: 20, gap: 8 }}>
-                {plannedSessions.map((planned, idx) => {
+                {plannedSessions.map((planned) => {
                   const linkedSession =
                     planned.completedSessionId
                       ? todaySessions.find(s => s.id === planned.completedSessionId)
                       : undefined;
                   const doneText = linkedSession ? formatDuration(linkedSession.totalTime) : null;
+
+                  // Find matching running stopwatch for in_progress items
+                  const matchingRunning = planned.status === 'in_progress'
+                    ? stopwatches.find(sw => sw.name === planned.itemName && sw.isRunning)
+                    : undefined;
+
+                  const runningElapsedMs = matchingRunning != null ? getElapsedMs(matchingRunning) : 0;
+                  const runningTotalSec = Math.floor(runningElapsedMs / 1000);
+                  const runningMM = Math.floor(runningTotalSec / 60).toString().padStart(2, '0');
+                  const runningSS = (runningTotalSec % 60).toString().padStart(2, '0');
+                  const runningDisplay = `${runningMM}:${runningSS}`;
+
+                  // Duration label for pending items
+                  const durationLabel = planned.durationMinutes != null
+                    ? `~${planned.durationMinutes}m`
+                    : null;
+
+                  // Missed check
+                  const missedCheck = planned.status === 'pending' && isMissed(planned.scheduledTime);
 
                   return (
                     <Pressable
@@ -799,6 +1236,12 @@ export default function TodayScreen() {
                               {planned.scheduledTime}
                             </Text>
                           )}
+                          {/* Duration hint for pending */}
+                          {planned.status === 'pending' && durationLabel !== null && (
+                            <Text style={{ fontSize: 12, color: C.subtext, marginTop: 2 }}>
+                              {durationLabel}
+                            </Text>
+                          )}
                           {doneText !== null && (
                             <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 2 }}>
                               {doneText}
@@ -807,20 +1250,57 @@ export default function TodayScreen() {
                         </View>
                         {/* Status badge or Start button */}
                         {planned.status === 'pending' ? (
-                          <Pressable
-                            onPress={() => handleStartPlanned(planned)}
-                            style={({ pressed }) => ({
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderRadius: 10,
-                              backgroundColor: C.primaryMuted,
-                              opacity: pressed ? 0.7 : 1,
-                            })}
-                          >
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
-                              Start
-                            </Text>
-                          </Pressable>
+                          missedCheck ? (
+                            <Pressable
+                              onPress={() => handleStartPlanned(planned)}
+                              style={({ pressed }) => ({
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 10,
+                                backgroundColor: 'rgba(251,146,60,0.10)',
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: '#fb923c' }}>
+                                Missed?
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Pressable
+                              onPress={() => handleStartPlanned(planned)}
+                              style={({ pressed }) => ({
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 10,
+                                backgroundColor: C.primaryMuted,
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
+                                Start
+                              </Text>
+                            </Pressable>
+                          )
+                        ) : planned.status === 'in_progress' ? (
+                          matchingRunning != null ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <PulsingDot color={planned.itemColor} />
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: '700',
+                                  fontFamily: timerFont,
+                                  color: planned.itemColor,
+                                  fontVariant: ['tabular-nums'],
+                                  letterSpacing: -0.5,
+                                }}
+                              >
+                                {runningDisplay}
+                              </Text>
+                            </View>
+                          ) : (
+                            <StatusBadge status="in_progress" withDot dotColor="#fb923c" />
+                          )
                         ) : (
                           <StatusBadge status={planned.status} />
                         )}
@@ -881,49 +1361,23 @@ export default function TodayScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
               >
-                {routines.slice(0, 6).map(routine => {
-                  const startBgColor = routine.color + '18';
-                  return (
-                    <Pressable
-                      key={routine.id}
-                      onPress={() => handleStartRoutine(routine)}
-                      onLongPress={() => {
-                        console.log(`[TodayScreen] Long press routine: ${routine.name}`);
-                        router.push(`/routine-modal?id=${routine.id}`);
-                      }}
-                      delayLongPress={500}
-                      style={({ pressed }) => ({
-                        width: 148,
-                        backgroundColor: C.card,
-                        borderRadius: 14,
-                        borderWidth: 1,
-                        borderColor: C.border,
-                        padding: 14,
-                        opacity: pressed ? 0.8 : 1,
-                        borderTopWidth: 3,
-                        borderTopColor: routine.color,
-                      })}
-                    >
-                      <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 }} numberOfLines={1}>
-                        {routine.name}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: C.textSecondary }}>
-                        {routine.durationMinutes}
-                        m
-                      </Text>
-                      {routine.useCount > 0 && (
-                        <Text style={{ fontSize: 11, color: C.subtext, marginTop: 3 }}>
-                          {routine.useCount}
-                          × used
-                        </Text>
-                      )}
-                      <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 7, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: routine.color }}>Start</Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {routines.slice(0, 6).map(routine => (
+                  <RoutineCard
+                    key={routine.id}
+                    routine={routine}
+                    timerEntry={routineTimers[routine.id]}
+                    onStart={() => handleStartRoutineCard(routine)}
+                    onPause={() => handlePauseRoutine(routine.id)}
+                    onResume={() => handleResumeRoutine(routine.id)}
+                    onStop={() => handleStopRoutine(routine.id)}
+                    onOpen={() => handleOpenRoutineModal(routine)}
+                    onRestart={() => handleRestartRoutine(routine.id)}
+                    onLongPress={() => {
+                      console.log(`[TodayScreen] Long press routine: ${routine.name}`);
+                      router.push(`/routine-modal?id=${routine.id}`);
+                    }}
+                  />
+                ))}
                 <Pressable
                   onPress={handleCreateRoutine}
                   style={({ pressed }) => ({

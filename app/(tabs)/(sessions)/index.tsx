@@ -1034,6 +1034,7 @@ export default function SessionsScreen() {
   const [timerRuntimes, setTimerRuntimes] = useState<Record<string, TimerRuntime>>({});
 
   // UI state
+  const [activeTab, setActiveTab] = useState<'stopwatches' | 'timers'>('stopwatches');
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [presetsExpanded, setPresetsExpanded] = useState(false);
   const [detailsSheet, setDetailsSheet] = useState<{ sw: Stopwatch } | null>(null);
@@ -1268,47 +1269,96 @@ export default function SessionsScreen() {
           >
             Sessions
           </Text>
-          {/* Stopwatch add button */}
+          {/* Add button — context-aware */}
           <Pressable
             onPress={() => {
-              console.log('[SessionsScreen] New Stopwatch header button pressed');
-              router.push('/stopwatch-modal');
+              if (activeTab === 'timers') {
+                console.log('[SessionsScreen] Add button pressed — opening timer-modal');
+                router.push('/timer-modal');
+              } else {
+                console.log('[SessionsScreen] Add button pressed — opening stopwatch-modal');
+                router.push('/stopwatch-modal');
+              }
             }}
             style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               backgroundColor: C.surfaceSecondary,
-              borderRadius: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
               opacity: pressed ? 0.75 : 1,
             })}
           >
-            <AlarmClock size={15} color={C.text} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: C.text }}>Stopwatch</Text>
-          </Pressable>
-          {/* Timer add button */}
-          <Pressable
-            onPress={() => {
-              console.log('[SessionsScreen] New Timer header button pressed');
-              router.push('/timer-modal');
-            }}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              backgroundColor: C.surfaceSecondary,
-              borderRadius: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              opacity: pressed ? 0.75 : 1,
-            })}
-          >
-            <Zap size={15} color={C.text} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: C.text }}>Timer</Text>
+            <Plus size={18} color={C.text} />
           </Pressable>
         </View>
+      </View>
+
+      {/* ── Segmented Control ── */}
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: C.surfaceSecondary,
+          borderRadius: 12,
+          padding: 3,
+          marginHorizontal: 20,
+          marginTop: 14,
+          marginBottom: 4,
+        }}
+      >
+        <Pressable
+          onPress={() => {
+            console.log('[SessionsScreen] Segmented control: Stopwatches tab pressed');
+            setActiveTab('stopwatches');
+          }}
+          style={{
+            flex: 1,
+            paddingVertical: 8,
+            alignItems: 'center',
+            borderRadius: 10,
+            backgroundColor: activeTab === 'stopwatches' ? C.card : 'transparent',
+            ...(activeTab === 'stopwatches' && Platform.OS === 'ios'
+              ? { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
+              : {}),
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: activeTab === 'stopwatches' ? '600' : '500',
+              color: activeTab === 'stopwatches' ? C.text : C.subtext,
+            }}
+          >
+            Stopwatches
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            console.log('[SessionsScreen] Segmented control: Timers tab pressed');
+            setActiveTab('timers');
+          }}
+          style={{
+            flex: 1,
+            paddingVertical: 8,
+            alignItems: 'center',
+            borderRadius: 10,
+            backgroundColor: activeTab === 'timers' ? C.card : 'transparent',
+            ...(activeTab === 'timers' && Platform.OS === 'ios'
+              ? { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
+              : {}),
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: activeTab === 'timers' ? '600' : '500',
+              color: activeTab === 'timers' ? C.text : C.subtext,
+            }}
+          >
+            Timers
+          </Text>
+        </Pressable>
       </View>
 
       {/* ── Scroll content ── */}
@@ -1316,301 +1366,279 @@ export default function SessionsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
-        {/* ════ STOPWATCHES SECTION ════ */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 20,
-            marginTop: 24,
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: '700',
-              color: C.subtext,
-              textTransform: 'uppercase',
-              letterSpacing: 1.2,
-              flex: 1,
-            }}
-          >
-            Stopwatches
-          </Text>
-          {stopwatches.length > 0 && (
+        {activeTab === 'stopwatches' ? (
+          <>
+            {/* ════ STOPWATCHES SECTION ════ */}
             <View
               style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 10,
-                backgroundColor: C.surfaceSecondary,
-                marginRight: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                marginTop: 20,
+                marginBottom: 12,
               }}
             >
-              <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
-                {stopwatches.length}
-              </Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => {
-              console.log(`[SessionsScreen] Presets toggle: ${!presetsExpanded ? 'expand' : 'collapse'}`);
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setPresetsExpanded(p => !p);
-            }}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 12,
-              backgroundColor: presetsExpanded ? C.chipSelected : C.chipBackground,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: presetsExpanded ? C.chipSelectedText : C.chipText,
-              }}
-            >
-              Presets
-            </Text>
-            {presetsExpanded ? (
-              <ChevronUp size={12} color={C.chipSelectedText} />
-            ) : (
-              <ChevronDown size={12} color={C.chipText} />
-            )}
-          </Pressable>
-        </View>
-
-        {/* Preset chips row */}
-        {presetsExpanded && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
-          >
-            {PRESETS.map(preset => (
+              {stopwatches.length > 0 && (
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                    backgroundColor: C.surfaceSecondary,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
+                    {stopwatches.length}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }} />
               <Pressable
-                key={preset.key}
                 onPress={() => {
-                  console.log(`[SessionsScreen] Preset chip pressed: ${preset.key}`);
-                  setShowAddSheet(false);
-                  router.push(`/stopwatch-modal?preset=${preset.key}`);
+                  console.log(`[SessionsScreen] Presets toggle: ${!presetsExpanded ? 'expand' : 'collapse'}`);
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setPresetsExpanded(p => !p);
                 }}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: C.card,
-                  borderWidth: 1,
-                  borderColor: C.border,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ fontSize: 14 }}>{preset.emoji}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: C.text }}>
-                  {preset.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Category filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
-        >
-          {allCategoryChips.map(cat => {
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <Pressable
-                key={cat.id}
-                onPress={() => {
-                  console.log(`[SessionsScreen] Category chip pressed: ${cat.id}`);
-                  setSelectedCategory(cat.id);
-                }}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 14,
-                  paddingVertical: 6,
-                  borderRadius: 20,
-                  backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                  gap: 4,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  backgroundColor: presetsExpanded ? C.chipSelected : C.chipBackground,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontWeight: '500',
-                    color: isSelected ? C.chipSelectedText : C.chipText,
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: presetsExpanded ? C.chipSelectedText : C.chipText,
                   }}
                 >
-                  {cat.name}
+                  Presets
                 </Text>
+                {presetsExpanded ? (
+                  <ChevronUp size={12} color={C.chipSelectedText} />
+                ) : (
+                  <ChevronDown size={12} color={C.chipText} />
+                )}
               </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Stopwatch cards */}
-        {filteredStopwatches.map((sw, index) => (
-          <StopwatchCard
-            key={sw.id}
-            sw={sw}
-            index={index}
-            total={filteredStopwatches.length}
-            goal={goalsMap[sw.id]}
-            onLongPress={() => setDetailsSheet({ sw })}
-            tick={tick}
-            onPlan={() => {
-              console.log(`[SessionsScreen] Plan stopwatch: id=${sw.id}, name="${sw.name}"`);
-              router.push(`/plan-session-modal?itemType=stopwatch&itemId=${sw.id}`);
-            }}
-          />
-        ))}
-
-        {/* Stopwatch empty state */}
-        {filteredStopwatches.length === 0 && (
-          <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-            <View
-              style={{
-                backgroundColor: C.card,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: C.border,
-                padding: 24,
-                alignItems: 'center',
-              }}
-            >
-              <Timer size={32} color={C.subtext} style={{ marginBottom: 10 }} />
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: C.text,
-                  marginBottom: 4,
-                }}
-              >
-                No stopwatches yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: C.textSecondary,
-                  textAlign: 'center',
-                  lineHeight: 18,
-                }}
-              >
-                Tap + to create your first stopwatch
-              </Text>
             </View>
-          </View>
-        )}
 
-        {/* ════ TIMERS SECTION ════ */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 20,
-            marginTop: 28,
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: '700',
-              color: C.subtext,
-              textTransform: 'uppercase',
-              letterSpacing: 1.2,
-              flex: 1,
-            }}
-          >
-            Timers
-          </Text>
-          {timerConfigs.length > 0 && (
-            <View
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 10,
-                backgroundColor: C.surfaceSecondary,
-              }}
-            >
-              <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
-                {timerConfigs.length}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Timer cards */}
-        {timerConfigs.map(config => {
-          const runtime = timerRuntimes[config.id] ?? makeInitialRuntime(config);
-          return (
-            <TimerCard
-              key={config.id}
-              config={config}
-              runtime={runtime}
-              goal={goalsMap[config.id]}
-              onStart={() => handleTimerStart(config.id)}
-              onPause={() => handleTimerPause(config.id)}
-              onReset={() => handleTimerReset(config.id)}
-              onDelete={() => handleTimerDelete(config.id)}
-              onPlan={() => {
-                console.log(`[SessionsScreen] Plan timer: id=${config.id}, name="${config.name}"`);
-                router.push(`/plan-session-modal?itemType=timer&itemId=${config.id}`);
-              }}
-            />
-          );
-        })}
-
-        {/* Timer empty state */}
-        {timerConfigs.length === 0 && (
-          <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-            <View
-              style={{
-                backgroundColor: C.card,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: C.border,
-                padding: 24,
-                alignItems: 'center',
-              }}
-            >
-              <Zap size={32} color={C.subtext} style={{ marginBottom: 10 }} />
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: C.text,
-                  marginBottom: 4,
-                }}
+            {/* Preset chips row */}
+            {presetsExpanded && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
               >
-                No timers yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: C.textSecondary,
-                  textAlign: 'center',
-                  lineHeight: 18,
+                {PRESETS.map(preset => (
+                  <Pressable
+                    key={preset.key}
+                    onPress={() => {
+                      console.log(`[SessionsScreen] Preset chip pressed: ${preset.key}`);
+                      setShowAddSheet(false);
+                      router.push(`/stopwatch-modal?preset=${preset.key}`);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: C.card,
+                      borderWidth: 1,
+                      borderColor: C.border,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 14 }}>{preset.emoji}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '500', color: C.text }}>
+                      {preset.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Category filter chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
+            >
+              {allCategoryChips.map(cat => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => {
+                      console.log(`[SessionsScreen] Category chip pressed: ${cat.id}`);
+                      setSelectedCategory(cat.id);
+                    }}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '500',
+                        color: isSelected ? C.chipSelectedText : C.chipText,
+                      }}
+                    >
+                      {cat.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Stopwatch cards */}
+            {filteredStopwatches.map((sw, index) => (
+              <StopwatchCard
+                key={sw.id}
+                sw={sw}
+                index={index}
+                total={filteredStopwatches.length}
+                goal={goalsMap[sw.id]}
+                onLongPress={() => setDetailsSheet({ sw })}
+                tick={tick}
+                onPlan={() => {
+                  console.log(`[SessionsScreen] Plan stopwatch: id=${sw.id}, name="${sw.name}"`);
+                  router.push(`/plan-session-modal?itemType=stopwatch&itemId=${sw.id}`);
                 }}
-              >
-                Tap + to create your first timer
-              </Text>
-            </View>
-          </View>
+              />
+            ))}
+
+            {/* Stopwatch empty state */}
+            {filteredStopwatches.length === 0 && (
+              <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                <View
+                  style={{
+                    backgroundColor: C.card,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 24,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Timer size={32} color={C.subtext} style={{ marginBottom: 10 }} />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: C.text,
+                      marginBottom: 4,
+                    }}
+                  >
+                    No stopwatches yet
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: C.textSecondary,
+                      textAlign: 'center',
+                      lineHeight: 18,
+                    }}
+                  >
+                    Tap + to create your first stopwatch
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            {/* ════ TIMERS SECTION ════ */}
+            <View style={{ marginTop: 20 }} />
+
+            {/* Timer cards */}
+            {timerConfigs.map(config => {
+              const runtime = timerRuntimes[config.id] ?? makeInitialRuntime(config);
+              return (
+                <TimerCard
+                  key={config.id}
+                  config={config}
+                  runtime={runtime}
+                  goal={goalsMap[config.id]}
+                  onStart={() => handleTimerStart(config.id)}
+                  onPause={() => handleTimerPause(config.id)}
+                  onReset={() => handleTimerReset(config.id)}
+                  onDelete={() => handleTimerDelete(config.id)}
+                  onPlan={() => {
+                    console.log(`[SessionsScreen] Plan timer: id=${config.id}, name="${config.name}"`);
+                    router.push(`/plan-session-modal?itemType=timer&itemId=${config.id}`);
+                  }}
+                />
+              );
+            })}
+
+            {/* Timer empty state */}
+            {timerConfigs.length === 0 && (
+              <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                <View
+                  style={{
+                    backgroundColor: C.card,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    padding: 24,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Timer size={32} color={C.subtext} style={{ marginBottom: 10 }} />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: C.text,
+                      marginBottom: 4,
+                    }}
+                  >
+                    No timers yet
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: C.textSecondary,
+                      textAlign: 'center',
+                      lineHeight: 18,
+                      marginBottom: 16,
+                    }}
+                  >
+                    Create a countdown, interval, or HIIT timer
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      console.log('[SessionsScreen] Timer empty state — Create Timer pressed');
+                      router.push('/timer-modal');
+                    }}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: C.primaryMuted,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary }}>
+                      Create Timer
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
