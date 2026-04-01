@@ -22,6 +22,8 @@ import {
   deleteGoalForItem,
 } from '@/utils/goal-storage';
 import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/timer-category-storage';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { notifyTimerComplete } from '@/utils/completion-notifications';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +137,7 @@ export default function TimerModal() {
   const C = useColors();
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { isSubscribed } = useSubscription();
 
   const [mode, setMode] = useState<TimerMode>('countdown');
   const [name, setName] = useState('');
@@ -253,6 +256,16 @@ export default function TimerModal() {
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+
+    // Paywall guard for new timers
+    if (!edit) {
+      const existingConfigs = await getTimerConfigs();
+      if (!isSubscribed && existingConfigs.length >= 3) {
+        console.log('[TimerModal] Timer limit reached, redirecting to paywall');
+        router.push('/paywall');
+        return;
+      }
+    }
 
     let config: TimerConfig;
     const id = edit ?? Math.random().toString(36).slice(2);

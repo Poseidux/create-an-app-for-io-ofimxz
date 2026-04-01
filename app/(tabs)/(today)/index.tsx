@@ -28,6 +28,7 @@ import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
 import { getRoutines, markRoutineUsed, Routine } from '@/utils/routine-storage';
 import { notifyRoutineComplete } from '@/utils/completion-notifications';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useWidget } from '@/contexts/WidgetContext';
 import {
   getPlannedSessionsForDate,
@@ -495,6 +496,7 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { pushWidgetData } = useWidget();
+  const { isSubscribed } = useSubscription();
 
   const [profileName, setProfileName] = useState<string | undefined>(undefined);
   const [stopwatches, setStopwatches] = useState<Stopwatch[]>([]);
@@ -749,8 +751,14 @@ export default function TodayScreen() {
     });
   };
 
-  const handleCreateRoutine = () => {
+  const handleCreateRoutine = async () => {
     console.log('[TodayScreen] Create routine pressed');
+    const existingRoutines = await getRoutines();
+    if (!isSubscribed && existingRoutines.length >= 3) {
+      console.log('[TodayScreen] Routine limit reached, redirecting to paywall');
+      router.push('/paywall');
+      return;
+    }
     router.push('/routine-modal');
   };
 

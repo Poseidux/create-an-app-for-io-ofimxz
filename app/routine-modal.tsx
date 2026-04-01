@@ -20,6 +20,7 @@ import {
   saveRoutine,
   deleteRoutine,
 } from '@/utils/routine-storage';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export default function RoutineModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const { isSubscribed } = useSubscription();
 
   const isEditing = Boolean(id);
 
@@ -117,6 +119,16 @@ export default function RoutineModal() {
     if (!trimmedName) {
       Alert.alert('Name required', 'Please enter a name for this routine.');
       return;
+    }
+
+    // Paywall guard for new routines
+    if (!isEditing) {
+      const existingRoutines = await getRoutines();
+      if (!isSubscribed && existingRoutines.length >= 3) {
+        console.log('[RoutineModal] Routine limit reached, redirecting to paywall');
+        router.push('/paywall');
+        return;
+      }
     }
     const routine: Routine = {
       id: existing?.id ?? generateId(),

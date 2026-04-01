@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStopwatch } from '@/contexts/StopwatchContext';
 import { useCategory } from '@/contexts/CategoryContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useColors } from '@/constants/Colors';
 import { DEFAULT_STOPWATCH_COLOR, Lap, formatTime, getElapsedMs } from '@/types/stopwatch';
 import { saveSession } from '@/utils/session-storage';
@@ -291,8 +292,9 @@ export default function StopwatchModal() {
     name?: string;
     color?: string;
   }>();
-  const { stopwatches, addStopwatch, renameStopwatch, addLap, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
+  const { stopwatches, addStopwatch, canAddStopwatch, renameStopwatch, addLap, updateNote, updateLapNote, resetStopwatch } = useStopwatch();
   const { categories, addCategory } = useCategory();
+  const { isSubscribed } = useSubscription();
 
   const isEditing = Boolean(edit);
   const existing = isEditing ? stopwatches.find(sw => sw.id === edit) : undefined;
@@ -380,6 +382,11 @@ export default function StopwatchModal() {
       renameStopwatch(edit, trimmed, selectedColor, cat);
       stopwatchId = edit;
     } else {
+      if (!canAddStopwatch) {
+        console.log('[StopwatchModal] Stopwatch limit reached, redirecting to paywall');
+        router.push('/paywall');
+        return;
+      }
       console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       stopwatchId = Math.random().toString(36).slice(2);
       addStopwatch(trimmed, selectedColor, cat);
