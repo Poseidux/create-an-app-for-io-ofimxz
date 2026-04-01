@@ -113,6 +113,13 @@ function AppContent() {
                         headerShown: false,
                       }}
                     />
+                    <Stack.Screen
+                      name="notification-preferences"
+                      options={{
+                        presentation: 'modal',
+                        headerShown: false,
+                      }}
+                    />
                   </Stack>
                   <SystemBars style={"auto"} />
                 </GestureHandlerRootView>

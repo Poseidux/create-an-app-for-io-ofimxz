@@ -23,8 +23,16 @@ import React, {
   ReactNode,
 } from "react";
 import { Platform } from "react-native";
-import { OneSignal, NotificationWillDisplayEvent } from "react-native-onesignal";
 import Constants from "expo-constants";
+
+// Lazy-load OneSignal so a missing native module doesn't crash at parse time
+let _OneSignal: typeof import("react-native-onesignal").OneSignal | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  _OneSignal = require("react-native-onesignal").OneSignal;
+} catch {
+  console.warn("[OneSignal] Native module not available — notifications disabled.");
+}
 
 // Read App ID from app.json (expo.extra)
 const extra = Constants.expoConfig?.extra || {};
@@ -82,23 +90,26 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       return;
     }
 
+    if (!_OneSignal) {
+      setLoading(false);
+      return;
+    }
+
     try {
       // Initialize OneSignal
-      OneSignal.initialize(ONESIGNAL_APP_ID);
+      _OneSignal.initialize(ONESIGNAL_APP_ID);
 
       if (__DEV__) {
         console.log("[OneSignal] Initialized with App ID:", ONESIGNAL_APP_ID.substring(0, 8) + "...");
       }
 
       // Check current permission status
-      const permissionStatus = OneSignal.Notifications.hasPermission();
+      const permissionStatus = _OneSignal.Notifications.hasPermission();
       setHasPermission(permissionStatus);
 
       // Listen for notification events
-      const foregroundHandler = (event: NotificationWillDisplayEvent) => {
-        // Display the notification
+      const foregroundHandler = (event: import("react-native-onesignal").NotificationWillDisplayEvent) => {
         event.getNotification().display();
-
         const notification = event.getNotification();
         setLastNotification({
           title: notification.title,
@@ -106,18 +117,18 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           additionalData: notification.additionalData,
         });
       };
-      OneSignal.Notifications.addEventListener("foregroundWillDisplay", foregroundHandler);
+      _OneSignal.Notifications.addEventListener("foregroundWillDisplay", foregroundHandler);
 
       // Listen for permission changes
       const permissionHandler = (granted: boolean) => {
         setHasPermission(granted);
         setPermissionDenied(!granted);
       };
-      OneSignal.Notifications.addEventListener("permissionChange", permissionHandler);
+      _OneSignal.Notifications.addEventListener("permissionChange", permissionHandler);
 
       return () => {
-        OneSignal.Notifications.removeEventListener("foregroundWillDisplay", foregroundHandler);
-        OneSignal.Notifications.removeEventListener("permissionChange", permissionHandler);
+        _OneSignal!.Notifications.removeEventListener("foregroundWillDisplay", foregroundHandler);
+        _OneSignal!.Notifications.removeEventListener("permissionChange", permissionHandler);
       };
     } catch (error) {
       console.error("[OneSignal] Failed to initialize:", error);
@@ -127,10 +138,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   }, []);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (isWeb) return false;
+    if (isWeb || !_OneSignal) return false;
 
     try {
-      const granted = await OneSignal.Notifications.requestPermission(true);
+      const granted = await _OneSignal.Notifications.requestPermission(true);
       setHasPermission(granted);
       setPermissionDenied(!granted);
       return granted;
@@ -141,18 +152,18 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   }, []);
 
   const sendTag = useCallback((key: string, value: string) => {
-    if (isWeb) return;
+    if (isWeb || !_OneSignal) return;
     try {
-      OneSignal.User.addTag(key, value);
+      _OneSignal.User.addTag(key, value);
     } catch (error) {
       console.error("[OneSignal] Failed to send tag:", error);
     }
   }, []);
 
   const deleteTag = useCallback((key: string) => {
-    if (isWeb) return;
+    if (isWeb || !_OneSignal) return;
     try {
-      OneSignal.User.removeTag(key);
+      _OneSignal.User.removeTag(key);
     } catch (error) {
       console.error("[OneSignal] Failed to delete tag:", error);
     }
