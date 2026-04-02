@@ -55,6 +55,7 @@
           "mode": "production"
         }
       ],
+      "./plugins/withOneSignalNoLocation",
       "expo-font",
       "expo-router",
       "expo-web-browser",
