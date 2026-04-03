@@ -52,13 +52,13 @@ import { notifyTimerComplete } from '@/utils/completion-notifications';
 // ─── Presets ──────────────────────────────────────────────────────────────────
 
 const PRESETS = [
-  { key: 'running', emoji: '🏃', name: 'Running', color: '#22c55e' },
-  { key: 'swimming', emoji: '🏊', name: 'Swimming', color: '#38bdf8' },
-  { key: 'cycling', emoji: '🚴', name: 'Cycling', color: '#fb923c' },
-  { key: 'workout', emoji: '💪', name: 'Workout', color: '#f87171' },
-  { key: 'study', emoji: '📚', name: 'Study', color: '#a78bfa' },
-  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
-  { key: 'sport', emoji: '⚽', name: 'Sport', color: '#fbbf24' },
+  { key: 'running', name: 'Running', color: '#22c55e' },
+  { key: 'swimming', name: 'Swimming', color: '#38bdf8' },
+  { key: 'cycling', name: 'Cycling', color: '#fb923c' },
+  { key: 'workout', name: 'Workout', color: '#f87171' },
+  { key: 'study', name: 'Study', color: '#a78bfa' },
+  { key: 'meditation', name: 'Meditation', color: '#2dd4bf' },
+  { key: 'sport', name: 'Sport', color: '#fbbf24' },
 ];
 
 // ─── Timer Runtime ────────────────────────────────────────────────────────────
@@ -170,9 +170,9 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
 
   const goalText = goal
     ? goal.status === 'achieved'
-      ? '🏆 Goal achieved'
+      ? 'Goal achieved'
       : goal.status === 'missed'
-      ? '❌ Goal missed'
+      ? 'Goal missed'
       : goal.goalName ?? 'Goal set'
     : null;
 
@@ -754,9 +754,9 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
 
   const goalText = goal
     ? goal.status === 'achieved'
-      ? '🏆 Goal achieved'
+      ? 'Goal achieved'
       : goal.status === 'missed'
-      ? '❌ Goal missed'
+      ? 'Goal missed'
       : goal.goalName ?? 'Goal set'
     : null;
 
@@ -1323,7 +1323,7 @@ export default function SessionsScreen() {
             borderRadius: 10,
             backgroundColor: activeTab === 'stopwatches' ? C.card : 'transparent',
             ...(activeTab === 'stopwatches' && Platform.OS === 'ios'
-              ? { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
+              ? { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
               : {}),
           }}
         >
@@ -1349,7 +1349,7 @@ export default function SessionsScreen() {
             borderRadius: 10,
             backgroundColor: activeTab === 'timers' ? C.card : 'transparent',
             ...(activeTab === 'timers' && Platform.OS === 'ios'
-              ? { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
+              ? { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
               : {}),
           }}
         >
@@ -1450,7 +1450,7 @@ export default function SessionsScreen() {
                     style={({ pressed }) => ({
                       flexDirection: 'row',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 8,
                       paddingHorizontal: 14,
                       paddingVertical: 8,
                       borderRadius: 20,
@@ -1460,7 +1460,7 @@ export default function SessionsScreen() {
                       opacity: pressed ? 0.7 : 1,
                     })}
                   >
-                    <Text style={{ fontSize: 14 }}>{preset.emoji}</Text>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: preset.color }} />
                     <Text style={{ fontSize: 13, fontWeight: '500', color: C.text }}>
                       {preset.name}
                     </Text>

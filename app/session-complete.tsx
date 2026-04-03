@@ -15,6 +15,7 @@ import { Check, Star } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { formatTime } from '@/types/stopwatch';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,35 +108,39 @@ export default function SessionComplete() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingTop: insets.top + 32,
+          paddingTop: insets.top + 40,
           paddingHorizontal: 24,
-          paddingBottom: insets.bottom + 32,
+          paddingBottom: insets.bottom + 40,
           flexGrow: 1,
         }}
       >
-        {/* ── Header ── */}
-        <View style={{ alignItems: 'center', marginBottom: 40 }}>
+        {/* ── Hero header ── */}
+        <View style={{ alignItems: 'center', marginBottom: 48 }}>
+          {/* Success icon */}
           <View
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
+              width: 80,
+              height: 80,
+              borderRadius: 40,
               backgroundColor: 'rgba(52,199,89,0.15)',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
+              boxShadow: '0 4px 20px rgba(52,199,89,0.20)',
             }}
           >
-            <Check size={36} color="#34C759" strokeWidth={2.5} />
+            <Check size={38} color="#34C759" strokeWidth={2.5} />
           </View>
 
           <Text
             style={{
-              fontSize: 24,
-              fontWeight: '700',
+              fontSize: 28,
+              fontWeight: '800',
               color: C.text,
               marginBottom: 6,
-              letterSpacing: -0.3,
+              letterSpacing: -0.5,
+              lineHeight: 34,
+              textAlign: 'center',
             }}
           >
             Session Complete
@@ -145,71 +150,120 @@ export default function SessionComplete() {
             style={{
               fontSize: 16,
               color: C.textSecondary,
-              marginBottom: 16,
+              marginBottom: 20,
+              lineHeight: 23,
+              textAlign: 'center',
             }}
           >
             {sessionName}
           </Text>
 
-          <Text
+          {/* Duration — hero metric */}
+          <View
             style={{
-              fontSize: 40,
-              fontWeight: '800',
-              fontFamily: timerFont,
-              color: sessionColor,
-              fontVariant: ['tabular-nums'],
-              letterSpacing: -2,
+              backgroundColor: C.surface,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: C.border,
+              paddingHorizontal: 32,
+              paddingVertical: 16,
+              alignItems: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
             }}
           >
-            {durationDisplay}
-          </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                color: C.textSecondary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                marginBottom: 6,
+              }}
+            >
+              Total Time
+            </Text>
+            <Text
+              style={{
+                fontSize: 52,
+                fontWeight: '800',
+                fontFamily: timerFont,
+                color: sessionColor,
+                fontVariant: ['tabular-nums'],
+                letterSpacing: -2,
+                lineHeight: 60,
+              }}
+            >
+              {durationDisplay}
+            </Text>
+          </View>
         </View>
 
         {/* ── Focus Rating ── */}
-        <View style={{ marginBottom: 28 }}>
+        <View
+          style={{
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 20,
+            marginBottom: 16,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+          }}
+        >
           <Text
             style={{
               fontSize: 13,
               fontWeight: '600',
-              color: C.subtext,
+              color: C.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: 0.5,
-              marginBottom: 14,
+              marginBottom: 16,
             }}
           >
             How was your focus?
           </Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             {[1, 2, 3, 4, 5].map(star => {
               const isFilled = star <= focusRating;
               return (
-                <Pressable
+                <AnimatedPressable
                   key={star}
                   onPress={() => handleStarPress(star)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                  scaleValue={0.85}
                 >
                   <Star
-                    size={34}
+                    size={36}
                     color={isFilled ? '#fbbf24' : C.border}
                     fill={isFilled ? '#fbbf24' : 'transparent'}
                     strokeWidth={1.5}
                   />
-                </Pressable>
+                </AnimatedPressable>
               );
             })}
           </View>
         </View>
 
         {/* ── Note ── */}
-        <View style={{ marginBottom: 36 }}>
+        <View
+          style={{
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 20,
+            marginBottom: 36,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+          }}
+        >
           <Text
             style={{
               fontSize: 13,
               fontWeight: '600',
-              color: C.subtext,
+              color: C.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: 0.5,
-              marginBottom: 10,
+              marginBottom: 12,
             }}
           >
             Add a note (optional)
@@ -222,49 +276,51 @@ export default function SessionComplete() {
             multiline
             style={{
               backgroundColor: C.surfaceSecondary,
-              borderRadius: 14,
+              borderRadius: 12,
               padding: 14,
               fontSize: 15,
               color: C.text,
               maxHeight: 80,
               textAlignVertical: 'top',
+              lineHeight: 22,
             }}
           />
         </View>
 
         {/* ── Actions ── */}
-        <View style={{ gap: 10 }}>
-          <Pressable
+        <View style={{ gap: 12 }}>
+          <AnimatedPressable
             onPress={handleSave}
-            style={({ pressed }) => ({
+            style={{
               backgroundColor: C.primary,
               borderRadius: 16,
-              paddingVertical: 17,
+              height: 56,
               width: '100%',
               alignItems: 'center',
-              opacity: pressed ? 0.8 : 1,
-            })}
+              justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+            }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff', lineHeight: 22 }}>
               Save &amp; Done
             </Text>
-          </Pressable>
+          </AnimatedPressable>
 
-          <Pressable
+          <AnimatedPressable
             onPress={handleSkip}
-            style={({ pressed }) => ({
+            style={{
               backgroundColor: C.surfaceSecondary,
               borderRadius: 16,
-              paddingVertical: 15,
+              height: 52,
               width: '100%',
               alignItems: 'center',
-              opacity: pressed ? 0.7 : 1,
-            })}
+              justifyContent: 'center',
+            }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '600', color: C.textSecondary }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: C.textSecondary, lineHeight: 22 }}>
               Skip
             </Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

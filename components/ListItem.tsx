@@ -1,6 +1,6 @@
 import React from "react";
 import * as Haptics from "expo-haptics";
-import { Pressable, StyleSheet, useColorScheme, View, Text } from "react-native";
+import { StyleSheet, useColorScheme, View, Text } from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, {
   configureReanimatedLogger,
@@ -9,15 +9,16 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import Reanimated from "react-native-reanimated";
-import { appleRed, borderColor } from "@/constants/Colors";
+import { appleRed } from "@/constants/Colors";
+import { useColors } from "@/constants/Colors";
 import { IconCircle } from "./IconCircle";
 import { IconSymbol } from "./IconSymbol";
+import { AnimatedPressable } from "./AnimatedPressable";
 
 configureReanimatedLogger({ strict: false });
 
 export default function ListItem({ listId }: { listId: string }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const C = useColors();
 
   const RightAction = (
     prog: SharedValue<number>,
@@ -28,18 +29,18 @@ export default function ListItem({ listId }: { listId: string }) {
     }));
 
     return (
-      <Pressable
+      <AnimatedPressable
         onPress={() => {
           if (process.env.EXPO_OS === "ios") {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
           }
-          console.log("delete");
+          console.log("[ListItem] Delete action pressed");
         }}
       >
         <Reanimated.View style={[styleAnimation, styles.rightAction]}>
-          <IconSymbol name="trash.fill" size={24} color="white" />
+          <IconSymbol name="trash.fill" size={22} color="white" />
         </Reanimated.View>
-      </Pressable>
+      </AnimatedPressable>
     );
   };
 
@@ -54,10 +55,14 @@ export default function ListItem({ listId }: { listId: string }) {
         overshootRight={false}
         enableContextMenu
       >
-        <View style={styles.listItemContainer}>
-          <Text style={[styles.listItemText, { color: isDark ? "#FFFFFF" : "#000000" }]}>{listId}</Text>
+        <View
+          style={[
+            styles.listItemContainer,
+            { borderBottomColor: C.divider, backgroundColor: C.surface },
+          ]}
+        >
+          <Text style={[styles.listItemText, { color: C.text }]}>{listId}</Text>
         </View>
-
       </ReanimatedSwipeable>
     </Animated.View>
   );
@@ -96,17 +101,20 @@ export const NicknameCircle = ({
 
 const styles = StyleSheet.create({
   listItemContainer: {
-    padding: 16,
+    minHeight: 52,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: borderColor,
-    backgroundColor: "transparent",
+    justifyContent: "center",
   },
   listItemText: {
     fontSize: 16,
+    lineHeight: 23,
+    fontWeight: "400",
   },
   rightAction: {
-    width: 200,
-    height: 65,
+    width: 80,
+    minHeight: 52,
     backgroundColor: appleRed,
     alignItems: "center",
     justifyContent: "center",
@@ -116,11 +124,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: borderColor,
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    minHeight: 52,
   },
   leftContent: {
     flexDirection: "row",
@@ -133,6 +140,7 @@ const styles = StyleSheet.create({
   },
   productCount: {
     fontSize: 12,
+    lineHeight: 17,
     color: "gray",
   },
   rightContent: {

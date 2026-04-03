@@ -1402,7 +1402,7 @@ export default function TodayScreen() {
                     opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ fontSize: 24, marginBottom: 10 }}>🎯</Text>
+                  <Target size={28} color={C.subtext} style={{ marginBottom: 10 }} />
                   <Text style={{ fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 6 }}>
                     No routines yet
                   </Text>

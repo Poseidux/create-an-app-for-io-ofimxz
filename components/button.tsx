@@ -1,16 +1,15 @@
 import React from "react";
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   TextStyle,
-  useColorScheme,
   ViewStyle,
 } from "react-native";
-import { appleBlue, zincColors } from "@/constants/Colors";
+import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { useColors } from "@/constants/Colors";
 
-type ButtonVariant = "filled" | "outline" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "destructive" | "filled" | "outline" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps {
@@ -26,7 +25,7 @@ interface ButtonProps {
 
 export const Button: React.FC<ButtonProps> = ({
   onPress,
-  variant = "filled",
+  variant = "primary",
   size = "md",
   disabled = false,
   loading = false,
@@ -34,74 +33,79 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const C = useColors();
 
-  const sizeStyles: Record<
-    ButtonSize,
-    { height: number; fontSize: number; padding: number }
-  > = {
-    sm: { height: 36, fontSize: 14, padding: 12 },
-    md: { height: 44, fontSize: 16, padding: 16 },
-    lg: { height: 55, fontSize: 18, padding: 20 },
+  const sizeStyles: Record<ButtonSize, { height: number; fontSize: number; paddingHorizontal: number }> = {
+    sm: { height: 40, fontSize: 14, paddingHorizontal: 16 },
+    md: { height: 48, fontSize: 16, paddingHorizontal: 20 },
+    lg: { height: 56, fontSize: 17, paddingHorizontal: 24 },
   };
 
-  const getVariantStyle = () => {
-    const baseStyle: ViewStyle = {
+  const getContainerStyle = (): ViewStyle => {
+    const base: ViewStyle = {
       borderRadius: 12,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
+      height: sizeStyles[size].height,
+      paddingHorizontal: sizeStyles[size].paddingHorizontal,
+      opacity: disabled ? 0.5 : 1,
     };
 
     switch (variant) {
+      case "primary":
       case "filled":
         return {
-          ...baseStyle,
-          backgroundColor: isDark ? zincColors[50] : zincColors[900],
+          ...base,
+          backgroundColor: C.primary,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+        } as ViewStyle;
+      case "secondary":
+        return {
+          ...base,
+          backgroundColor: C.primaryMuted,
         };
+      case "destructive":
+        return {
+          ...base,
+          backgroundColor: C.danger,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+        } as ViewStyle;
       case "outline":
         return {
-          ...baseStyle,
+          ...base,
           backgroundColor: "transparent",
           borderWidth: 1,
-          borderColor: isDark ? zincColors[700] : zincColors[300],
+          borderColor: C.border,
         };
       case "ghost":
         return {
-          ...baseStyle,
+          ...base,
           backgroundColor: "transparent",
         };
     }
   };
 
-  const getTextColor = () => {
-    if (disabled) {
-      return isDark ? zincColors[500] : zincColors[400];
-    }
-
+  const getTextColor = (): string => {
     switch (variant) {
+      case "primary":
       case "filled":
-        return isDark ? zincColors[900] : zincColors[50];
+      case "destructive":
+        return "#FFFFFF";
+      case "secondary":
+        return C.primary;
       case "outline":
       case "ghost":
-        return appleBlue;
+        return C.primary;
     }
   };
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       disabled={disabled || loading}
-      style={[
-        getVariantStyle(),
-        {
-          height: sizeStyles[size].height,
-          paddingHorizontal: sizeStyles[size].padding,
-          opacity: disabled ? 0.5 : 1,
-        },
-        style,
-      ]}
+      style={[getContainerStyle(), style]}
+      scaleValue={0.97}
     >
       {loading ? (
         <ActivityIndicator color={getTextColor()} />
@@ -112,8 +116,8 @@ export const Button: React.FC<ButtonProps> = ({
               fontSize: sizeStyles[size].fontSize,
               color: getTextColor(),
               textAlign: "center",
-              marginBottom: 0,
               fontWeight: "700",
+              lineHeight: Math.round(sizeStyles[size].fontSize * 1.25),
             },
             textStyle,
           ])}
@@ -121,7 +125,7 @@ export const Button: React.FC<ButtonProps> = ({
           {children}
         </Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 

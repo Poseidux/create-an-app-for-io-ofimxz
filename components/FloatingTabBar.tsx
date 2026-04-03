@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
+import { useColors } from '@/constants/Colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -41,47 +42,31 @@ export default function FloatingTabBar({
   tabs,
   containerWidth = screenWidth / 2.5,
   borderRadius = 35,
-  bottomMargin
+  bottomMargin,
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const C = useColors();
   const animatedValue = useSharedValue(0);
 
-  // Active tab detection using usePathname() from expo-router.
-  // pathname examples on Android:
-  //   "/"  or  "/(tabs)/(stopwatches)"  → index 0 (stopwatches, fallback)
-  //   "/(tabs)/(history)"  or  "/(tabs)/(history)/abc123"  → history
-  //   "/(tabs)/(stats)"  → stats
-  //   "/(tabs)/(settings)"  → settings
-  // We split the pathname into segments and check whether any segment
-  // matches the tab's name (with or without parentheses), which is
-  // more reliable than substring matching on the full path string.
   const activeTabIndex = React.useMemo(() => {
-    // Split pathname into individual path segments, e.g.
-    // "/(tabs)/(history)/abc" → ["", "(tabs)", "(history)", "abc"]
     const pathSegments = pathname.split('/');
-
-    // For each tab, check if any path segment matches the tab name
-    // either exactly ("(stopwatches)") or without parens ("stopwatches").
     let bestMatch = -1;
     let bestPriority = -1;
 
     tabs.forEach((tab, index) => {
-      const nameWithParens = tab.name;                        // e.g. "(stopwatches)"
-      const nameWithout = tab.name.replace(/[()]/g, '');     // e.g. "stopwatches"
+      const nameWithParens = tab.name;
+      const nameWithout = tab.name.replace(/[()]/g, '');
 
       for (const seg of pathSegments) {
         if (seg === nameWithParens || seg === nameWithout) {
-          // Exact segment match — highest priority
           if (2 > bestPriority) {
             bestPriority = 2;
             bestMatch = index;
           }
           break;
         }
-        // Fallback: segment contains the bare name (handles edge cases like
-        // Android returning a path without group parens)
         if (seg.includes(nameWithout) && nameWithout.length > bestPriority) {
           bestPriority = nameWithout.length;
           bestMatch = index;
@@ -89,7 +74,6 @@ export default function FloatingTabBar({
       }
     });
 
-    // Default to index 0 (stopwatches) when pathname is "/" or no segment matched
     return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 
@@ -103,16 +87,15 @@ export default function FloatingTabBar({
     }
   }, [activeTabIndex, animatedValue]);
 
-  const handleTabPress = (route: Href) => {
+  const handleTabPress = (route: Href, label: string) => {
+    console.log(`[FloatingTabBar] Tab pressed: ${label}`);
     router.push(route);
   };
-
-  // Remove unnecessary tabBarStyle animation to prevent flickering
 
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
 
   const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 8) / tabs.length; // Account for container padding (4px on each side)
+    const tabWidth = (containerWidth - 8) / tabs.length;
     return {
       transform: [
         {
@@ -126,88 +109,88 @@ export default function FloatingTabBar({
     };
   });
 
-  // Dynamic styles based on theme
-  const dynamicStyles = {
-    blurContainer: {
-      ...styles.blurContainer,
-      borderWidth: 1,
-      borderColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
-      ...Platform.select({
-        ios: {
-          backgroundColor: theme.dark
-            ? 'rgba(17, 17, 19, 0.92)'
-            : 'rgba(255, 255, 255, 0.6)',
-        },
-        android: {
-          backgroundColor: theme.dark
-            ? 'rgba(17, 17, 19, 0.98)'
-            : 'rgba(255, 255, 255, 0.6)',
-        },
-        web: {
-          backgroundColor: theme.dark
-            ? 'rgba(17, 17, 19, 0.98)'
-            : 'rgba(255, 255, 255, 0.6)',
-          backdropFilter: 'blur(10px)',
-        },
-      }),
-    },
-    background: {
-      ...styles.background,
-    },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: theme.dark
-        ? 'rgba(255, 255, 255, 0.06)'
-        : 'rgba(0, 0, 0, 0.04)',
-      width: `${tabWidthPercent}%` as `${number}%`,
-    },
+  const blurContainerStyle = {
+    ...styles.blurContainer,
+    borderWidth: 1,
+    borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+    ...Platform.select({
+      ios: {
+        backgroundColor: theme.dark
+          ? 'rgba(28, 30, 38, 0.94)'
+          : 'rgba(255, 255, 255, 0.72)',
+      },
+      android: {
+        backgroundColor: theme.dark
+          ? 'rgba(28, 30, 38, 0.99)'
+          : 'rgba(255, 255, 255, 0.99)',
+      },
+      web: {
+        backgroundColor: theme.dark
+          ? 'rgba(28, 30, 38, 0.99)'
+          : 'rgba(255, 255, 255, 0.99)',
+        backdropFilter: 'blur(12px)',
+      },
+    }),
   };
+
+  const indicatorDynamicStyle = {
+    ...styles.indicator,
+    backgroundColor: theme.dark
+      ? 'rgba(255, 255, 255, 0.07)'
+      : 'rgba(0, 0, 0, 0.05)',
+    width: `${tabWidthPercent}%` as `${number}%`,
+  };
+
+  const activeColor = C.primary;
+  const inactiveColor = C.textSecondary;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <View style={[
-        styles.container,
-        {
-          width: containerWidth,
-          marginBottom: bottomMargin ?? 20
-        }
-      ]}>
+      <View
+        style={[
+          styles.container,
+          {
+            width: containerWidth,
+            marginBottom: bottomMargin ?? 20,
+          },
+        ]}
+      >
         <BlurView
           intensity={80}
-          style={[dynamicStyles.blurContainer, { borderRadius }]}
+          style={[blurContainerStyle, { borderRadius }]}
         >
-          <View style={dynamicStyles.background} />
-          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
+          <View style={styles.background} />
+          <Animated.View style={[indicatorDynamicStyle, indicatorStyle]} />
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
 
               return (
                 <React.Fragment key={index}>
-                <TouchableOpacity
-                  key={index} // Use index as key
-                  style={styles.tab}
-                  onPress={() => handleTabPress(tab.route)}
-                  activeOpacity={0.7}
-                >
-                  <View key={index} style={styles.tabContent}>
-                    <IconSymbol
-                      android_material_icon_name={tab.icon}
-                      ios_icon_name={tab.icon}
-                      size={24}
-                      color={isActive ? theme.colors.primary : (theme.dark ? '#6B6B72' : '#000000')}
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        { color: theme.dark ? '#6B6B72' : '#8E8E93' },
-                        isActive && { color: theme.colors.primary, fontWeight: '600' },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.tab}
+                    onPress={() => handleTabPress(tab.route, tab.label)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.tabContent}>
+                      <IconSymbol
+                        android_material_icon_name={tab.icon}
+                        ios_icon_name={tab.icon}
+                        size={22}
+                        color={isActive ? activeColor : inactiveColor}
+                      />
+                      <Text
+                        style={[
+                          styles.tabLabel,
+                          { color: inactiveColor },
+                          isActive && { color: activeColor, fontWeight: '600' },
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 </React.Fragment>
               );
             })}
@@ -225,20 +208,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    alignItems: 'center', // Center the content
+    alignItems: 'center',
   },
   container: {
     marginHorizontal: 20,
     alignSelf: 'center',
-    // width and marginBottom handled dynamically via props
   },
   blurContainer: {
     overflow: 'hidden',
-    // borderRadius and other styling applied dynamically
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    // Dynamic styling applied in component
   },
   indicator: {
     position: 'absolute',
@@ -246,8 +226,7 @@ const styles = StyleSheet.create({
     left: 2,
     bottom: 4,
     borderRadius: 27,
-    width: `${(100 / 2) - 1}%`, // Default for 2 tabs, will be overridden by dynamic styles
-    // Dynamic styling applied in component
+    width: `${(100 / 2) - 1}%`,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -264,12 +243,12 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
   },
   tabLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
-    marginTop: 2,
-    // Dynamic styling applied in component
+    marginTop: 1,
+    lineHeight: 13,
   },
 });

@@ -17,15 +17,16 @@ import { useColors } from '@/constants/Colors';
 import { Trash2, Plus, ChevronLeft } from 'lucide-react-native';
 import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 
 const PRESET_TEMPLATES = [
-  { key: 'running',    emoji: '🏃', name: 'Running',    color: '#22c55e' },
-  { key: 'swimming',   emoji: '🏊', name: 'Swimming',   color: '#38bdf8' },
-  { key: 'cycling',    emoji: '🚴', name: 'Cycling',    color: '#fb923c' },
-  { key: 'workout',    emoji: '💪', name: 'Workout',    color: '#f87171' },
-  { key: 'study',      emoji: '📚', name: 'Study',      color: '#a78bfa' },
-  { key: 'meditation', emoji: '🧘', name: 'Meditation', color: '#2dd4bf' },
-  { key: 'sport',      emoji: '⚽', name: 'Sport',      color: '#fbbf24' },
+  { key: 'running',    name: 'Running',    color: '#22c55e' },
+  { key: 'swimming',   name: 'Swimming',   color: '#38bdf8' },
+  { key: 'cycling',    name: 'Cycling',    color: '#fb923c' },
+  { key: 'workout',    name: 'Workout',    color: '#f87171' },
+  { key: 'study',      name: 'Study',      color: '#a78bfa' },
+  { key: 'meditation', name: 'Meditation', color: '#2dd4bf' },
+  { key: 'sport',      name: 'Sport',      color: '#fbbf24' },
 ];
 
 export default function SettingsScreen() {
@@ -97,36 +98,39 @@ export default function SettingsScreen() {
   };
 
   const sectionLabelStyle = {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    color: C.subtext,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: C.textSecondary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 1.2,
-    paddingHorizontal: 16,
+    letterSpacing: 0.6,
+    paddingHorizontal: 20,
     marginBottom: 8,
-    marginTop: 24,
+    marginTop: 28,
+    lineHeight: 17,
   };
 
   const cardStyle = {
-    backgroundColor: C.card,
+    backgroundColor: C.surface,
     borderRadius: 14,
     borderCurve: 'continuous' as const,
     marginHorizontal: 16,
     overflow: 'hidden' as const,
     borderWidth: 1,
     borderColor: C.border,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
   };
 
   const rowStyle = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     paddingHorizontal: 16,
+    minHeight: 52,
     paddingVertical: 14,
   };
 
   const separatorStyle = {
-    height: 1,
-    backgroundColor: C.separator,
+    height: StyleSheet_hairlineWidth,
+    backgroundColor: C.divider,
     marginLeft: 16,
   };
 
@@ -142,7 +146,7 @@ export default function SettingsScreen() {
           paddingTop: insets.top,
           backgroundColor: C.background,
           borderBottomWidth: 1,
-          borderBottomColor: C.separator,
+          borderBottomColor: C.divider,
         }}
       >
         <View
@@ -153,19 +157,18 @@ export default function SettingsScreen() {
             alignItems: 'center',
           }}
         >
-          <Pressable
+          <AnimatedPressable
             onPress={handleBack}
-            style={({ pressed }) => ({
+            style={{
               width: 44,
               height: 44,
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 22,
-              backgroundColor: pressed ? C.border : 'transparent',
-            })}
+            }}
           >
             <ChevronLeft size={24} color={C.primary} />
-          </Pressable>
+          </AnimatedPressable>
           <Text
             style={{
               flex: 1,
@@ -173,11 +176,13 @@ export default function SettingsScreen() {
               fontSize: 17,
               fontWeight: '600',
               color: C.text,
+              letterSpacing: -0.3,
+              lineHeight: 22,
             }}
           >
             Settings
           </Text>
-          <View style={{ width: 36 }} />
+          <View style={{ width: 44 }} />
         </View>
       </View>
 
@@ -190,8 +195,12 @@ export default function SettingsScreen() {
         <Text style={sectionLabelStyle}>Appearance</Text>
         <View style={cardStyle}>
           <View style={rowStyle}>
-            <Text style={{ flex: 1, fontSize: 16, color: C.text }}>Dark Mode</Text>
-            <Text style={{ fontSize: 14, color: C.subtext }}>Always on</Text>
+            <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+              Dark Mode
+            </Text>
+            <Text style={{ fontSize: 14, color: C.textSecondary, lineHeight: 20 }}>
+              Always on
+            </Text>
           </View>
         </View>
 
@@ -200,26 +209,28 @@ export default function SettingsScreen() {
         <View style={cardStyle}>
           {PRESET_TEMPLATES.map((preset, idx) => (
             <React.Fragment key={preset.key}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => handlePresetTap(preset)}
-                style={({ pressed }) => ({
-                  ...rowStyle,
-                  opacity: pressed ? 0.7 : 1,
-                })}
+                style={rowStyle}
               >
-                <Text style={{ fontSize: 18, marginRight: 12 }}>{preset.emoji}</Text>
-                <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
-                  {preset.name}
-                </Text>
                 <View
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
                     backgroundColor: preset.color,
+                    marginRight: 14,
                   }}
                 />
-              </Pressable>
+                <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+                  {preset.name}
+                </Text>
+                <ChevronLeft
+                  size={16}
+                  color={C.textSecondary}
+                  style={{ transform: [{ rotate: '180deg' }] }}
+                />
+              </AnimatedPressable>
               {idx < PRESET_TEMPLATES.length - 1 && (
                 <View style={separatorStyle} />
               )}
@@ -235,10 +246,10 @@ export default function SettingsScreen() {
           {builtInCategories.map((cat, idx) => (
             <React.Fragment key={cat.id}>
               <View style={rowStyle}>
-                <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
+                <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
                   {cat.name}
                 </Text>
-                <Text style={{ fontSize: 13, color: C.subtext }}>
+                <Text style={{ fontSize: 13, color: C.textSecondary, lineHeight: 18 }}>
                   Built-in
                 </Text>
               </View>
@@ -254,11 +265,13 @@ export default function SettingsScreen() {
           <>
             <Text
               style={{
-                fontSize: 13,
-                color: C.subtext,
-                paddingHorizontal: 16,
+                fontSize: 12,
+                color: C.textSecondary,
+                paddingHorizontal: 20,
                 marginTop: 16,
                 marginBottom: 8,
+                fontWeight: '500',
+                lineHeight: 17,
               }}
             >
               Custom
@@ -267,18 +280,16 @@ export default function SettingsScreen() {
               {customCategories.map((cat, idx) => (
                 <React.Fragment key={cat.id}>
                   <View style={rowStyle}>
-                    <Text style={{ flex: 1, fontSize: 16, color: C.text }}>
+                    <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
                       {cat.name}
                     </Text>
-                    <Pressable
+                    <AnimatedPressable
                       onPress={() => handleDeleteCategory(cat.id, cat.name)}
-                      style={({ pressed }) => ({
-                        padding: 6,
-                        opacity: pressed ? 0.6 : 1,
-                      })}
+                      style={{ padding: 8 }}
+                      scaleValue={0.85}
                     >
-                      <Trash2 size={16} color={C.destructive} />
-                    </Pressable>
+                      <Trash2 size={16} color={C.danger} />
+                    </AnimatedPressable>
                   </View>
                   {idx < customCategories.length - 1 && (
                     <View style={separatorStyle} />
@@ -292,11 +303,13 @@ export default function SettingsScreen() {
         {/* Add category */}
         <Text
           style={{
-            fontSize: 13,
-            color: C.subtext,
-            paddingHorizontal: 16,
+            fontSize: 12,
+            color: C.textSecondary,
+            paddingHorizontal: 20,
             marginTop: 16,
             marginBottom: 8,
+            fontWeight: '500',
+            lineHeight: 17,
           }}
         >
           Add Category
@@ -321,50 +334,54 @@ export default function SettingsScreen() {
               flex: 1,
               fontSize: 16,
               color: C.text,
-              paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+              paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+              lineHeight: 23,
             }}
           />
-          <Pressable
+          <AnimatedPressable
             onPress={() => {
               console.log(`[SettingsScreen] Add category button pressed: "${newCategoryName}"`);
               handleAddCategory();
             }}
             disabled={newCategoryName.trim().length === 0}
-            style={({ pressed }) => ({
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: newCategoryName.trim().length === 0 ? C.chipBackground : C.tint,
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: newCategoryName.trim().length === 0 ? C.surfaceSecondary : C.primary,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: pressed ? 0.7 : 1,
-            })}
+            }}
+            scaleValue={0.88}
           >
-            <Plus size={16} color={newCategoryName.trim().length === 0 ? C.subtext : '#fff'} />
-          </Pressable>
+            <Plus size={16} color={newCategoryName.trim().length === 0 ? C.textSecondary : '#fff'} />
+          </AnimatedPressable>
         </View>
 
         {/* Purchases */}
         <Text style={sectionLabelStyle}>Purchases</Text>
         <View style={cardStyle}>
-          <Pressable
+          <AnimatedPressable
             onPress={handleRestorePurchases}
             disabled={isRestoring}
-            style={({ pressed }) => ({
+            style={{
               ...rowStyle,
               paddingVertical: 16,
-              opacity: pressed || isRestoring ? 0.6 : 1,
-            })}
+              opacity: isRestoring ? 0.6 : 1,
+            }}
           >
-            <Text style={{ flex: 1, fontSize: 16, color: C.tint }}>
+            <Text style={{ flex: 1, fontSize: 16, color: C.primary, lineHeight: 23 }}>
               Restore Purchases
             </Text>
             {isRestoring && (
-              <ActivityIndicator size="small" color={C.tint} />
+              <ActivityIndicator size="small" color={C.primary} />
             )}
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+// Hairline width constant to avoid importing StyleSheet just for this
+const StyleSheet_hairlineWidth = 1;

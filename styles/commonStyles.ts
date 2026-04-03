@@ -1,14 +1,15 @@
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+// Legacy color constants kept for backward compatibility
 export const colors = {
-  primary: '#162456',    // Material Blue
-  secondary: '#193cb8',  // Darker Blue
-  accent: '#64B5F6',     // Light Blue
-  background: '#101824',  // Keeping dark background
-  backgroundAlt: '#162133',  // Keeping dark background
-  text: '#e3e3e3',       // Keeping light text
-  grey: '#90CAF9',       // Light Blue Grey
-  card: '#193cb8',       // Keeping dark card background
+  primary: '#162456',
+  secondary: '#193cb8',
+  accent: '#64B5F6',
+  background: '#101824',
+  backgroundAlt: '#162133',
+  text: '#e3e3e3',
+  grey: '#90CAF9',
+  card: '#193cb8',
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -50,14 +51,16 @@ export const commonStyles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     color: colors.text,
-    marginBottom: 10
+    marginBottom: 10,
+    letterSpacing: -0.4,
+    lineHeight: 32,
   },
   text: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
     marginBottom: 8,
-    lineHeight: 24,
+    lineHeight: 23,
     textAlign: 'center',
   },
   section: {
@@ -70,20 +73,30 @@ export const commonStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
   },
+  // ── Reusable design tokens ────────────────────────────────────────────────
   card: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.grey,
+    borderRadius: 14,
+    // @ts-expect-error — RN Web / Expo SDK 54 supports borderCurve
+    borderCurve: 'continuous',
+    padding: 16,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    marginVertical: 8,
-    width: '100%',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+  },
+  screenPadding: {
+    paddingHorizontal: 20,
+  },
+  sectionGap: {
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   icon: {
     width: 60,
     height: 60,
-    tintColor: "white",
+    tintColor: 'white',
   },
 });

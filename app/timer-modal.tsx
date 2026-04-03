@@ -24,6 +24,7 @@ import {
 import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/timer-category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { notifyTimerComplete } from '@/utils/completion-notifications';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -55,26 +56,26 @@ function ColorSwatch({
   hex, label, isSelected, onPress,
 }: { hex: string; label: string; isSelected: boolean; onPress: () => void }) {
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         width: 36,
         height: 36,
         borderRadius: 18,
         backgroundColor: hex,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: pressed ? 0.8 : 1,
         borderWidth: isSelected ? 3 : 0,
         borderColor: isSelected ? '#007AFF' : 'transparent',
         boxShadow: isSelected ? `0 0 0 2px ${hex}` : '0 1px 3px rgba(0,0,0,0.15)',
-      })}
+      }}
+      scaleValue={0.88}
     >
       {isSelected && (
         <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#ffffff' }} />
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -96,7 +97,7 @@ function NumberInput({
 
   return (
     <View style={{ alignItems: 'center', gap: 4 }}>
-      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 15 }}>
         {label}
       </Text>
       <View
@@ -143,20 +144,17 @@ export default function TimerModal() {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#22c55e');
 
-  // Countdown — now with days + hours
   const [cdDays, setCdDays] = useState(0);
   const [cdHours, setCdHours] = useState(0);
   const [cdMinutes, setCdMinutes] = useState(5);
   const [cdSeconds, setCdSeconds] = useState(0);
 
-  // Interval
   const [ivWorkMin, setIvWorkMin] = useState(0);
   const [ivWorkSec, setIvWorkSec] = useState(30);
   const [ivRestMin, setIvRestMin] = useState(0);
   const [ivRestSec, setIvRestSec] = useState(15);
   const [ivRounds, setIvRounds] = useState(8);
 
-  // HIIT
   const [hiitPreset, setHiitPreset] = useState(0);
   const [hiitWorkMin, setHiitWorkMin] = useState(0);
   const [hiitWorkSec, setHiitWorkSec] = useState(20);
@@ -164,22 +162,18 @@ export default function TimerModal() {
   const [hiitRestSec, setHiitRestSec] = useState(10);
   const [hiitRounds, setHiitRounds] = useState(8);
 
-  // Category
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [timerCategories, setTimerCategories] = useState<TimerCategory[]>([]);
   const [newCatName, setNewCatName] = useState('');
 
-  // Goal state
   const [goalEnabled, setGoalEnabled] = useState(false);
   const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
 
-  // Load categories on mount
   useEffect(() => {
     loadTimerCategories().then(setTimerCategories);
   }, []);
 
-  // Load existing config if editing
   useEffect(() => {
     if (!edit) return;
     console.log(`[TimerModal] Loading existing timer config id=${edit}`);
@@ -212,13 +206,12 @@ export default function TimerModal() {
           setHiitWorkMin(Math.floor(wSec / 60)); setHiitWorkSec(wSec % 60);
           setHiitRestMin(Math.floor(rSec / 60)); setHiitRestSec(rSec % 60);
           setHiitRounds(cfg.rounds ?? 8);
-          setHiitPreset(3); // Custom
+          setHiitPreset(3);
         }
       }
     });
   }, [edit]);
 
-  // Load existing goal if editing
   useEffect(() => {
     if (!edit) return;
     console.log(`[TimerModal] Loading goal for timerId=${edit}`);
@@ -257,7 +250,6 @@ export default function TimerModal() {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    // Paywall guard for new timers
     if (!edit) {
       const existingConfigs = await getTimerConfigs();
       if (!isSubscribed && existingConfigs.length >= 3) {
@@ -288,7 +280,6 @@ export default function TimerModal() {
     if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await saveTimerConfig(config);
 
-    // Save or delete goal
     if (goalEnabled) {
       const goalType = mode === 'countdown' ? 'complete_countdown' : 'complete_all_rounds';
       const goal: ItemGoal = {
@@ -317,13 +308,14 @@ export default function TimerModal() {
   const title = isEditing ? 'Edit Timer' : 'New Timer';
 
   const sectionLabel = {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600' as const,
     color: C.textSecondary,
     paddingHorizontal: 4,
-    marginBottom: 12,
+    marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    lineHeight: 17,
   };
 
   const MODES: { value: TimerMode; label: string }[] = [
@@ -336,15 +328,15 @@ export default function TimerModal() {
   const goalDescription = 'Goal achieved when the timer finishes naturally without being stopped early.';
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.card }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card }}>
+    <View style={{ flex: 1, backgroundColor: C.surface }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.surface }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
+            paddingHorizontal: 20,
+            paddingVertical: 14,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: C.border,
           }}
@@ -356,17 +348,23 @@ export default function TimerModal() {
             }}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
           >
-            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>Cancel</Text>
+            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500', lineHeight: 22 }}>
+              Cancel
+            </Text>
           </Pressable>
 
-          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>{title}</Text>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, letterSpacing: -0.3, lineHeight: 22 }}>
+            {title}
+          </Text>
 
           <Pressable
             onPress={handleSave}
             disabled={!canSave}
             style={({ pressed }) => ({ opacity: !canSave ? 0.4 : pressed ? 0.6 : 1, padding: 4 })}
           >
-            <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>Save</Text>
+            <Text style={{ fontSize: 16, color: C.primary, fontWeight: '600', lineHeight: 22 }}>
+              Save
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -377,14 +375,14 @@ export default function TimerModal() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}
         >
           {/* Mode Segmented Control */}
           <View
             style={{
               flexDirection: 'row',
               backgroundColor: C.surfaceSecondary,
-              borderRadius: 10,
+              borderRadius: 12,
               padding: 3,
               marginBottom: 24,
             }}
@@ -400,15 +398,15 @@ export default function TimerModal() {
                   }}
                   style={({ pressed }) => ({
                     flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 8,
+                    paddingVertical: 9,
+                    borderRadius: 10,
                     alignItems: 'center',
-                    backgroundColor: isActive ? C.card : 'transparent',
+                    backgroundColor: isActive ? C.surface : 'transparent',
                     opacity: pressed ? 0.7 : 1,
-                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.10)' : undefined,
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : undefined,
                   })}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: isActive ? '600' : '500', color: isActive ? C.text : C.textSecondary }}>
+                  <Text style={{ fontSize: 13, fontWeight: isActive ? '600' : '500', color: isActive ? C.text : C.textSecondary, lineHeight: 18 }}>
                     {m.label}
                   </Text>
                 </Pressable>
@@ -421,7 +419,6 @@ export default function TimerModal() {
             style={{
               backgroundColor: C.inputBg,
               borderRadius: 14,
-              borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: C.border,
               paddingHorizontal: 16,
@@ -436,10 +433,10 @@ export default function TimerModal() {
               placeholder="Timer name"
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
-              style={{ fontSize: 17, color: C.text, paddingHorizontal: 12, paddingVertical: 10, minHeight: 44, margin: 0 }}
+              style={{ fontSize: 17, color: C.text, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, margin: 0, lineHeight: 24 }}
             />
           </View>
-          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24 }}>
+          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
             Give your timer a descriptive name.
           </Text>
 
@@ -451,23 +448,23 @@ export default function TimerModal() {
                 style={{
                   backgroundColor: C.background,
                   borderRadius: 16,
-                  borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 20,
-                  marginBottom: 24,
+                  marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Days" value={cdDays} onChange={setCdDays} max={99} width={56} />
-                <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>d</Text>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 22 }}>d</Text>
                 <NumberInput label="Hours" value={cdHours} onChange={setCdHours} max={23} width={56} />
-                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 30 }}>:</Text>
                 <NumberInput label="Minutes" value={cdMinutes} onChange={setCdMinutes} max={59} width={56} />
-                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 30 }}>:</Text>
                 <NumberInput label="Seconds" value={cdSeconds} onChange={setCdSeconds} max={59} width={56} />
               </View>
             </>
@@ -480,7 +477,6 @@ export default function TimerModal() {
                 style={{
                   backgroundColor: C.background,
                   borderRadius: 16,
-                  borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 20,
@@ -489,10 +485,11 @@ export default function TimerModal() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 16,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Minutes" value={ivWorkMin} onChange={setIvWorkMin} max={99} />
-                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
                 <NumberInput label="Seconds" value={ivWorkSec} onChange={setIvWorkSec} max={59} />
               </View>
 
@@ -501,7 +498,6 @@ export default function TimerModal() {
                 style={{
                   backgroundColor: C.background,
                   borderRadius: 16,
-                  borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 20,
@@ -510,10 +506,11 @@ export default function TimerModal() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 16,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Minutes" value={ivRestMin} onChange={setIvRestMin} max={99} />
-                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
                 <NumberInput label="Seconds" value={ivRestSec} onChange={setIvRestSec} max={59} />
               </View>
 
@@ -522,14 +519,14 @@ export default function TimerModal() {
                 style={{
                   backgroundColor: C.background,
                   borderRadius: 16,
-                  borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 20,
-                  marginBottom: 24,
+                  marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Rounds" value={ivRounds} onChange={setIvRounds} min={1} max={99} />
@@ -544,21 +541,20 @@ export default function TimerModal() {
                 {HIIT_PRESETS.map((p, idx) => {
                   const isActive = hiitPreset === idx;
                   return (
-                    <Pressable
+                    <AnimatedPressable
                       key={p.label}
                       onPress={() => applyHiitPreset(idx)}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: 14,
-                        paddingVertical: 8,
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 9,
                         borderRadius: 20,
                         backgroundColor: isActive ? C.primary : C.chipBackground,
-                        opacity: pressed ? 0.7 : 1,
-                      })}
+                      }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : C.chipText }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : C.chipText, lineHeight: 18 }}>
                         {p.label}
                       </Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   );
                 })}
               </View>
@@ -570,7 +566,6 @@ export default function TimerModal() {
                     style={{
                       backgroundColor: C.background,
                       borderRadius: 16,
-                      borderCurve: 'continuous',
                       borderWidth: 1,
                       borderColor: C.border,
                       padding: 20,
@@ -579,10 +574,11 @@ export default function TimerModal() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 16,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
                     <NumberInput label="Minutes" value={hiitWorkMin} onChange={setHiitWorkMin} max={99} />
-                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
                     <NumberInput label="Seconds" value={hiitWorkSec} onChange={setHiitWorkSec} max={59} />
                   </View>
 
@@ -591,7 +587,6 @@ export default function TimerModal() {
                     style={{
                       backgroundColor: C.background,
                       borderRadius: 16,
-                      borderCurve: 'continuous',
                       borderWidth: 1,
                       borderColor: C.border,
                       padding: 20,
@@ -600,10 +595,11 @@ export default function TimerModal() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 16,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
                     <NumberInput label="Minutes" value={hiitRestMin} onChange={setHiitRestMin} max={99} />
-                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
                     <NumberInput label="Seconds" value={hiitRestSec} onChange={setHiitRestSec} max={59} />
                   </View>
                 </>
@@ -614,14 +610,14 @@ export default function TimerModal() {
                 style={{
                   backgroundColor: C.background,
                   borderRadius: 16,
-                  borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 20,
-                  marginBottom: 24,
+                  marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Rounds" value={hiitRounds} onChange={setHiitRounds} min={1} max={99} />
@@ -658,25 +654,24 @@ export default function TimerModal() {
             {timerCategories.map(cat => {
               const isSelected = selectedCategoryId === cat.id;
               return (
-                <Pressable
+                <AnimatedPressable
                   key={cat.id}
                   onPress={() => {
                     console.log(`[TimerModal] Category chip pressed: ${cat.id}`);
                     setSelectedCategoryId(cat.id);
                   }}
-                  style={({ pressed }) => ({
+                  style={{
                     flexShrink: 0,
-                    paddingHorizontal: 14,
-                    paddingVertical: 7,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
                     borderRadius: 20,
                     backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
+                  }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText, lineHeight: 20 }}>
                     {cat.name}
                   </Text>
-                </Pressable>
+                </AnimatedPressable>
               );
             })}
           </ScrollView>
@@ -707,36 +702,37 @@ export default function TimerModal() {
                 placeholderTextColor={C.placeholder}
                 returnKeyType="done"
                 onSubmitEditing={handleAddCategory}
-                style={{ fontSize: 14, color: C.text, padding: 0, margin: 0 }}
+                style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
               />
             </View>
-            <Pressable
+            <AnimatedPressable
               onPress={handleAddCategory}
               disabled={!canAddCat}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 8,
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 10,
                 borderRadius: 10,
-                backgroundColor: canAddCat ? C.tint : C.chipBackground,
-                opacity: pressed ? 0.7 : 1,
-              })}
+                backgroundColor: canAddCat ? C.primary : C.chipBackground,
+                opacity: canAddCat ? 1 : 0.5,
+              }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.subtext }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.textSecondary, lineHeight: 20 }}>
                 Add
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
 
           {/* Goal section */}
           <Text style={sectionLabel}>Goal</Text>
           <View
             style={{
-              backgroundColor: C.card,
-              borderRadius: 12,
+              backgroundColor: C.surface,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: C.border,
               overflow: 'hidden',
               marginBottom: 8,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
             }}
           >
             {/* Toggle row */}
@@ -744,15 +740,16 @@ export default function TimerModal() {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 14,
-                paddingVertical: 12,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                minHeight: 52,
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: C.text }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, lineHeight: 21 }}>
                   Add Goal
                 </Text>
-                <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
                   Track completion of this timer
                 </Text>
               </View>
@@ -770,10 +767,10 @@ export default function TimerModal() {
             {goalEnabled && (
               <>
                 <View style={{ height: 1, backgroundColor: C.divider }} />
-                <View style={{ padding: 14, gap: 10 }}>
+                <View style={{ padding: 14, gap: 12 }}>
                   {/* Goal name input */}
                   <View>
-                    <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 8, lineHeight: 17 }}>
                       Goal Name (optional)
                     </Text>
                     <View
@@ -792,7 +789,7 @@ export default function TimerModal() {
                         placeholder="e.g. Complete Tabata"
                         placeholderTextColor={C.placeholder}
                         returnKeyType="done"
-                        style={{ fontSize: 14, color: C.text, padding: 0, margin: 0 }}
+                        style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
                       />
                     </View>
                   </View>
@@ -802,8 +799,8 @@ export default function TimerModal() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 10,
-                      padding: 10,
-                      borderRadius: 10,
+                      padding: 12,
+                      borderRadius: 12,
                       backgroundColor: `${C.primary}14`,
                       borderWidth: 1,
                       borderColor: `${C.primary}40`,
@@ -830,10 +827,10 @@ export default function TimerModal() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary, lineHeight: 20 }}>
                         {goalTypeLabel}
                       </Text>
-                      <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                      <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
                         {goalDescription}
                       </Text>
                     </View>
@@ -842,7 +839,7 @@ export default function TimerModal() {
               </>
             )}
           </View>
-          <Text style={{ fontSize: 12, color: C.subtext, paddingHorizontal: 4, marginBottom: 8 }}>
+          <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 8, lineHeight: 17 }}>
             Goal status is checked when the timer completes or is stopped.
           </Text>
         </ScrollView>

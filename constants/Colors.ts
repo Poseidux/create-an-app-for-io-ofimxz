@@ -44,62 +44,86 @@ export const Colors = {
 
 export const AppColors = {
   light: {
-    background: '#F2F2F7',
+    // ── Backgrounds ──────────────────────────────────────────────────────────
+    background: '#F7F8FA',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#EEF0F5',
+    // ── Cards / legacy ───────────────────────────────────────────────────────
     card: '#FFFFFF',
-    text: '#000000',
-    subtext: '#6C6C70',
-    border: '#C6C6C8',
+    headerBackground: '#F7F8FA',
+    // ── Text ─────────────────────────────────────────────────────────────────
+    text: '#111318',
+    textSecondary: '#5A6070',
+    textTertiary: '#9BA3B5',
+    subtext: '#5A6070',
+    placeholder: '#9BA3B5',
+    // ── Brand ─────────────────────────────────────────────────────────────────
+    primary: '#007AFF',
+    primaryMuted: 'rgba(0,122,255,0.10)',
     tint: '#007AFF',
+    accent: '#34C759',
+    warning: '#F59E0B',
+    // ── Danger ───────────────────────────────────────────────────────────────
+    danger: '#FF3B30',
+    dangerMuted: 'rgba(255,59,48,0.10)',
     destructive: '#FF3B30',
-    icon: '#3C3C43',
-    tabBar: '#FFFFFF',
-    tabBarBorder: '#C6C6C8',
-    headerBackground: '#F2F2F7',
-    chipBackground: '#E5E5EA',
+    // ── Borders / dividers ───────────────────────────────────────────────────
+    border: 'rgba(0,0,0,0.07)',
+    divider: 'rgba(0,0,0,0.04)',
+    separator: 'rgba(0,0,0,0.07)',
+    // ── Chips ────────────────────────────────────────────────────────────────
+    chipBackground: '#E8EAEF',
     chipSelected: '#007AFF',
     chipSelectedText: '#FFFFFF',
     chipText: '#3C3C43',
-    separator: '#C6C6C8',
-    // extras for cards
-    surface: '#FFFFFF',
-    surfaceSecondary: '#EEF1F5',
-    primary: '#007AFF',
-    primaryMuted: 'rgba(0,122,255,0.10)',
-    danger: '#FF3B30',
-    dangerMuted: 'rgba(255,59,48,0.10)',
-    divider: 'rgba(0,0,0,0.04)',
-    textSecondary: '#6C6C70',
-    placeholder: '#9AABB8',
+    // ── Inputs ───────────────────────────────────────────────────────────────
     inputBg: '#FFFFFF',
+    // ── Tab bar ──────────────────────────────────────────────────────────────
+    tabBar: '#FFFFFF',
+    tabBarBorder: 'rgba(0,0,0,0.07)',
+    // ── Icons ────────────────────────────────────────────────────────────────
+    icon: '#3C3C43',
   },
   dark: {
-    background: '#0D0D0F',
-    card: '#161618',
-    text: '#F0F0F2',
-    subtext: '#6B6B72',
-    border: 'rgba(255,255,255,0.07)',
+    // ── Backgrounds ──────────────────────────────────────────────────────────
+    background: '#0F1117',
+    surface: '#1C1E26',
+    surfaceSecondary: '#252830',
+    // ── Cards / legacy ───────────────────────────────────────────────────────
+    card: '#1C1E26',
+    headerBackground: '#0F1117',
+    // ── Text ─────────────────────────────────────────────────────────────────
+    text: '#F0F2F7',
+    textSecondary: '#8B90A0',
+    textTertiary: '#555C70',
+    subtext: '#8B90A0',
+    placeholder: '#555C70',
+    // ── Brand ─────────────────────────────────────────────────────────────────
+    primary: '#4A9EFF',
+    primaryMuted: 'rgba(74,158,255,0.12)',
     tint: '#4A9EFF',
+    accent: '#30D158',
+    warning: '#FFD60A',
+    // ── Danger ───────────────────────────────────────────────────────────────
+    danger: '#FF453A',
+    dangerMuted: 'rgba(255,69,58,0.12)',
     destructive: '#FF453A',
-    icon: '#C8C8D0',
-    tabBar: '#111113',
-    tabBarBorder: 'rgba(255,255,255,0.06)',
-    headerBackground: '#0D0D0F',
-    chipBackground: '#1E1E21',
+    // ── Borders / dividers ───────────────────────────────────────────────────
+    border: 'rgba(255,255,255,0.08)',
+    divider: 'rgba(255,255,255,0.05)',
+    separator: 'rgba(255,255,255,0.08)',
+    // ── Chips ────────────────────────────────────────────────────────────────
+    chipBackground: '#252830',
     chipSelected: '#4A9EFF',
     chipSelectedText: '#FFFFFF',
     chipText: '#C8C8D0',
-    separator: 'rgba(255,255,255,0.07)',
-    // extras for cards
-    surface: '#161618',
-    surfaceSecondary: '#1E1E21',
-    primary: '#4A9EFF',
-    primaryMuted: 'rgba(74,158,255,0.12)',
-    danger: '#FF453A',
-    dangerMuted: 'rgba(255,69,58,0.12)',
-    divider: 'rgba(255,255,255,0.05)',
-    textSecondary: '#8A8A94',
-    placeholder: '#3A3A42',
-    inputBg: '#1E1E21',
+    // ── Inputs ───────────────────────────────────────────────────────────────
+    inputBg: '#252830',
+    // ── Tab bar ──────────────────────────────────────────────────────────────
+    tabBar: '#1C1E26',
+    tabBarBorder: 'rgba(255,255,255,0.08)',
+    // ── Icons ────────────────────────────────────────────────────────────────
+    icon: '#C8C8D0',
   },
 };
 

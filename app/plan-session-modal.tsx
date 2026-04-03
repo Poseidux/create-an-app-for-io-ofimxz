@@ -23,6 +23,7 @@ import {
   todayDateString,
 } from '@/utils/planned-sessions-storage';
 import { Stopwatch } from '@/types/stopwatch';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,6 @@ export default function PlanSessionModal() {
   const today = todayDateString();
   const tomorrow = tomorrowDateString();
 
-  // ── State ──
   const [selectedDate, setSelectedDate] = useState<string>(params.date ?? today);
   const [customDateInput, setCustomDateInput] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -76,7 +76,6 @@ export default function PlanSessionModal() {
   const [timers, setTimers] = useState<TimerConfig[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
 
-  // ── Load data ──
   useEffect(() => {
     console.log('[PlanSessionModal] Loading stopwatches, timers, routines');
     Promise.all([loadStopwatches(), getTimerConfigs(), getRoutines()]).then(
@@ -91,7 +90,6 @@ export default function PlanSessionModal() {
     );
   }, []);
 
-  // ── Date cycling ──
   const handleDatePress = useCallback(() => {
     console.log('[PlanSessionModal] Date selector pressed, current:', selectedDate);
     if (selectedDate === today) {
@@ -118,7 +116,6 @@ export default function PlanSessionModal() {
     setShowCustomInput(false);
   }, [customDateInput]);
 
-  // ── Derived: current items list ──
   const currentItems: Array<{ id: string; name: string; color: string; emoji?: string }> =
     activeTab === 'stopwatch'
       ? stopwatches.map(sw => ({ id: sw.id, name: sw.name, color: sw.color ?? '#22c55e' }))
@@ -128,7 +125,6 @@ export default function PlanSessionModal() {
 
   const selectedItem = currentItems.find(i => i.id === selectedItemId) ?? null;
 
-  // ── Save ──
   const handleSave = useCallback(async () => {
     if (!selectedItem) {
       Alert.alert('No item selected', 'Please select a stopwatch, timer, or routine to plan.');
@@ -170,6 +166,16 @@ export default function PlanSessionModal() {
     { key: 'routine', label: 'Routine' },
   ];
 
+  const sectionLabel = {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: C.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    lineHeight: 17,
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -179,76 +185,77 @@ export default function PlanSessionModal() {
       <View
         style={{
           paddingTop: insets.top + 16,
-          paddingHorizontal: 16,
-          paddingBottom: 14,
+          paddingHorizontal: 20,
+          paddingBottom: 16,
           flexDirection: 'row',
           alignItems: 'center',
           borderBottomWidth: 1,
-          borderBottomColor: C.border,
+          borderBottomColor: C.divider,
+          backgroundColor: C.background,
         }}
       >
-        <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: C.text }}>
+        <Text
+          style={{
+            flex: 1,
+            fontSize: 20,
+            fontWeight: '700',
+            color: C.text,
+            letterSpacing: -0.4,
+            lineHeight: 26,
+          }}
+        >
           Plan a Session
         </Text>
-        <Pressable
+        <AnimatedPressable
           onPress={() => {
             console.log('[PlanSessionModal] Close pressed');
             router.back();
           }}
-          style={({ pressed }) => ({
-            width: 32,
-            height: 32,
-            borderRadius: 16,
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 17,
             backgroundColor: C.surfaceSecondary,
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
+          }}
+          scaleValue={0.88}
         >
           <X size={16} color={C.textSecondary} />
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Date Selector ── */}
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: '600',
-            color: C.subtext,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          Date
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-          <Pressable
+        <Text style={sectionLabel}>Date</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+          <AnimatedPressable
             onPress={handleDatePress}
-            style={({ pressed }) => ({
-              paddingHorizontal: 16,
-              paddingVertical: 10,
+            style={{
+              paddingHorizontal: 18,
+              paddingVertical: 11,
               borderRadius: 12,
-              backgroundColor: C.card,
+              backgroundColor: C.surface,
               borderWidth: 1,
               borderColor: C.primary,
-              opacity: pressed ? 0.7 : 1,
-            })}
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '600', color: C.primary }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: C.primary, lineHeight: 21 }}>
               {dateLabel}
             </Text>
-          </Pressable>
-          <Text style={{ fontSize: 13, color: C.subtext }}>Tap to change</Text>
+          </AnimatedPressable>
+          <Text style={{ fontSize: 13, color: C.textSecondary, lineHeight: 18 }}>
+            Tap to change
+          </Text>
         </View>
 
         {showCustomInput && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, marginTop: -12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24, marginTop: -12 }}>
             <TextInput
               value={customDateInput}
               onChangeText={setCustomDateInput}
@@ -261,47 +268,38 @@ export default function PlanSessionModal() {
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: C.border,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
                 fontSize: 15,
                 color: C.text,
+                lineHeight: 21,
               }}
             />
-            <Pressable
+            <AnimatedPressable
               onPress={handleCustomDateSubmit}
-              style={({ pressed }) => ({
-                paddingHorizontal: 16,
-                paddingVertical: 10,
+              style={{
+                paddingHorizontal: 18,
+                paddingVertical: 12,
                 borderRadius: 12,
                 backgroundColor: C.primary,
-                opacity: pressed ? 0.7 : 1,
-              })}
+              }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Set</Text>
-            </Pressable>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff', lineHeight: 20 }}>
+                Set
+              </Text>
+            </AnimatedPressable>
           </View>
         )}
 
         {/* ── Type Tabs ── */}
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: '600',
-            color: C.subtext,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          Type
-        </Text>
+        <Text style={sectionLabel}>Type</Text>
         <View
           style={{
             flexDirection: 'row',
             backgroundColor: C.surfaceSecondary,
             borderRadius: 12,
             padding: 3,
-            marginBottom: 20,
+            marginBottom: 24,
           }}
         >
           {tabs.map(tab => {
@@ -316,23 +314,20 @@ export default function PlanSessionModal() {
                 }}
                 style={({ pressed }) => ({
                   flex: 1,
-                  paddingVertical: 8,
+                  paddingVertical: 9,
                   borderRadius: 10,
                   alignItems: 'center',
-                  backgroundColor: isActive ? C.card : 'transparent',
+                  backgroundColor: isActive ? C.surface : 'transparent',
                   opacity: pressed ? 0.7 : 1,
-                  shadowColor: isActive ? '#000' : 'transparent',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: isActive ? 0.08 : 0,
-                  shadowRadius: 2,
-                  elevation: isActive ? 2 : 0,
+                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : undefined,
                 })}
               >
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: isActive ? '600' : '500',
-                    color: isActive ? C.text : C.subtext,
+                    color: isActive ? C.text : C.textSecondary,
+                    lineHeight: 18,
                   }}
                 >
                   {tab.label}
@@ -343,32 +338,22 @@ export default function PlanSessionModal() {
         </View>
 
         {/* ── Item List ── */}
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: '600',
-            color: C.subtext,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          Select
-        </Text>
+        <Text style={sectionLabel}>Select</Text>
 
         {currentItems.length === 0 ? (
           <View
             style={{
-              backgroundColor: C.card,
+              backgroundColor: C.surface,
               borderRadius: 16,
               borderWidth: 1,
               borderColor: C.border,
-              padding: 24,
+              padding: 28,
               alignItems: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
             }}
           >
-            <Text style={{ fontSize: 14, color: C.subtext, textAlign: 'center' }}>
+            <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
               {activeTab === 'stopwatch'
                 ? 'No stopwatches yet. Create one in the Sessions tab.'
                 : activeTab === 'timer'
@@ -379,12 +364,13 @@ export default function PlanSessionModal() {
         ) : (
           <View
             style={{
-              backgroundColor: C.card,
+              backgroundColor: C.surface,
               borderRadius: 16,
               borderWidth: 1,
               borderColor: C.border,
               overflow: 'hidden',
-              marginBottom: 20,
+              marginBottom: 24,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
             }}
           >
             {currentItems.map((item, idx) => {
@@ -392,19 +378,19 @@ export default function PlanSessionModal() {
               const isLast = idx === currentItems.length - 1;
               return (
                 <View key={item.id}>
-                  <Pressable
+                  <AnimatedPressable
                     onPress={() => {
                       console.log(`[PlanSessionModal] Item selected: id=${item.id}, name="${item.name}"`);
                       setSelectedItemId(item.id);
                     }}
-                    style={({ pressed }) => ({
+                    style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      paddingHorizontal: 14,
-                      paddingVertical: 14,
+                      paddingHorizontal: 16,
+                      paddingVertical: 15,
+                      minHeight: 52,
                       backgroundColor: isSelected ? C.primaryMuted : 'transparent',
-                      opacity: pressed ? 0.7 : 1,
-                    })}
+                    }}
                   >
                     <View
                       style={{
@@ -412,7 +398,7 @@ export default function PlanSessionModal() {
                         height: 10,
                         borderRadius: 5,
                         backgroundColor: item.color,
-                        marginRight: 12,
+                        marginRight: 14,
                       }}
                     />
                     {item.emoji != null && (
@@ -424,15 +410,16 @@ export default function PlanSessionModal() {
                         fontSize: 15,
                         fontWeight: isSelected ? '600' : '400',
                         color: isSelected ? C.primary : C.text,
+                        lineHeight: 21,
                       }}
                       numberOfLines={1}
                     >
                       {item.name}
                     </Text>
                     {isSelected && <Check size={16} color={C.primary} />}
-                  </Pressable>
+                  </AnimatedPressable>
                   {!isLast && (
-                    <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 36 }} />
+                    <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 40 }} />
                   )}
                 </View>
               );
@@ -441,18 +428,7 @@ export default function PlanSessionModal() {
         )}
 
         {/* ── Optional Time ── */}
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: '600',
-            color: C.subtext,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          Time (optional)
-        </Text>
+        <Text style={sectionLabel}>Time (optional)</Text>
         <TextInput
           value={scheduledTime}
           onChangeText={setScheduledTime}
@@ -464,35 +440,38 @@ export default function PlanSessionModal() {
             borderRadius: 12,
             borderWidth: 1,
             borderColor: C.border,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
             fontSize: 15,
             color: C.text,
-            marginBottom: 28,
+            marginBottom: 32,
+            lineHeight: 21,
           }}
         />
 
         {/* ── Save Button ── */}
-        <Pressable
+        <AnimatedPressable
           onPress={handleSave}
-          style={({ pressed }) => ({
+          style={{
             backgroundColor: selectedItem ? C.primary : C.surfaceSecondary,
-            borderRadius: 14,
-            paddingVertical: 15,
+            borderRadius: 16,
+            height: 56,
             alignItems: 'center',
-            opacity: pressed ? 0.75 : 1,
-          })}
+            justifyContent: 'center',
+            boxShadow: selectedItem ? '0 1px 3px rgba(0,0,0,0.10)' : undefined,
+          }}
         >
           <Text
             style={{
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: '700',
-              color: selectedItem ? '#fff' : C.subtext,
+              color: selectedItem ? '#fff' : C.textSecondary,
+              lineHeight: 22,
             }}
           >
             {saveLabel}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );

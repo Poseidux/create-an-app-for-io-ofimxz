@@ -18,7 +18,7 @@ import { getRoutines } from '@/utils/routine-storage';
 import { Session } from '@/types/stopwatch';
 import { ItemGoal } from '@/utils/goal-storage';
 import { Routine } from '@/utils/routine-storage';
-import { Settings, User, TrendingUp, Trophy } from 'lucide-react-native';
+import { Settings, User, TrendingUp, Trophy, Target } from 'lucide-react-native';
 
 const PROFILE_NAME_KEY = '@chroniqo_profile_name';
 
@@ -320,7 +320,9 @@ export default function ProfileScreen() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 28 }}>🔥</Text>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(251,146,60,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                      <TrendingUp size={18} color="#fb923c" />
+                    </View>
                     <Text
                       style={{
                         fontSize: 28, fontWeight: '800',
@@ -423,7 +425,9 @@ export default function ProfileScreen() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 20 }}>🏆</Text>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(34,197,94,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                      <Trophy size={15} color="#22c55e" />
+                    </View>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#22c55e', marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {goalsAchieved}
                     </Text>
@@ -438,7 +442,9 @@ export default function ProfileScreen() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 20 }}>📊</Text>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${C.primary}1A`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                      <TrendingUp size={15} color={C.primary} />
+                    </View>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {completionRate}
                       <Text style={{ fontSize: 14, fontWeight: '600' }}>%</Text>
@@ -454,7 +460,9 @@ export default function ProfileScreen() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 20 }}>⚡</Text>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${C.primary}1A`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                      <Target size={15} color={C.primary} />
+                    </View>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {goalsActive}
                     </Text>

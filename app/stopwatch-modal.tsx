@@ -30,6 +30,7 @@ import {
   markGoalAchieved,
   markGoalMissed,
 } from '@/utils/goal-storage';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -92,23 +93,23 @@ function ColorSwatch({
   const isWhite = hex === '#FFFFFF';
   const borderRadius = size / 2;
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         width: size,
         height: size,
         borderRadius,
         backgroundColor: hex,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: pressed ? 0.8 : 1,
         borderWidth: isSelected ? 3 : isWhite ? 1 : 0,
         borderColor: isSelected ? '#007AFF' : isWhite ? '#C6C6C8' : 'transparent',
         boxShadow: isSelected
           ? `0 0 0 2px ${hex === '#FFFFFF' ? '#C6C6C8' : hex}`
           : '0 1px 3px rgba(0,0,0,0.15)',
-      })}
+      }}
+      scaleValue={0.88}
     >
       {isSelected && (
         <View
@@ -120,7 +121,7 @@ function ColorSwatch({
           }}
         />
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -157,16 +158,15 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 9,
+        paddingVertical: 10,
         paddingHorizontal: 12,
         backgroundColor: pressed ? C.surfaceSecondary : rowBg,
         borderRadius: 8,
-        borderCurve: 'continuous',
         marginBottom: 2,
       })}
     >
       <View style={{ width: 32 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary, lineHeight: 18 }}>
           {String(lap.lapNumber)}
         </Text>
       </View>
@@ -178,12 +178,13 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
             fontFamily: timerFont,
             color: lapTimeColor,
             fontVariant: ['tabular-nums'],
+            lineHeight: 20,
           }}
         >
           {lapTimeDisplay}
         </Text>
         {lap.note ? (
-          <Text style={{ fontSize: 11, color: C.subtext, marginTop: 1 }}>
+          <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1, lineHeight: 15 }}>
             {lap.note}
           </Text>
         ) : null}
@@ -194,6 +195,7 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
           fontFamily: timerFont,
           color: C.textSecondary,
           fontVariant: ['tabular-nums'],
+          lineHeight: 17,
         }}
       >
         {splitTimeDisplay}
@@ -230,7 +232,7 @@ function GoalNumberInput({
 
   return (
     <View style={{ alignItems: 'center', gap: 4 }}>
-      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 15 }}>
         {label}
       </Text>
       <View
@@ -312,7 +314,6 @@ export default function StopwatchModal() {
   );
   const [newCatName, setNewCatName] = useState('');
 
-  // ─── Goal state ───────────────────────────────────────────────────────────
   const [goalEnabled, setGoalEnabled] = useState(false);
   const [goalType, setGoalType] = useState<StopwatchGoalType>('target_duration');
   const [goalHours, setGoalHours] = useState(0);
@@ -322,14 +323,12 @@ export default function StopwatchModal() {
   const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
 
-  // ─── Note state (cross-platform inline editing) ───────────────────────────
   const [noteText, setNoteText] = useState(existing?.note ?? '');
 
   useEffect(() => {
     setNoteText(existing?.note ?? '');
   }, [existing?.note]);
 
-  // ─── Lap / Timer state (only in edit mode) ────────────────────────────────
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -343,7 +342,6 @@ export default function StopwatchModal() {
     return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
   }, [isEditing, existing?.isRunning]);
 
-  // Load existing goal in edit mode
   useEffect(() => {
     if (!edit) return;
     console.log(`[StopwatchModal] Loading goal for stopwatchId=${edit}`);
@@ -390,13 +388,10 @@ export default function StopwatchModal() {
       console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       stopwatchId = Math.random().toString(36).slice(2);
       addStopwatch(trimmed, selectedColor, cat);
-      // addStopwatch generates its own id internally; for new stopwatches we skip goal saving
-      // since we don't have the id. Goal can be set after creation via edit mode.
       router.back();
       return;
     }
 
-    // Save or delete goal
     if (goalEnabled) {
       let targetMs: number | undefined;
       let personalBestMs: number | undefined;
@@ -463,8 +458,6 @@ export default function StopwatchModal() {
     }
   }, [categories, pendingCatName]);
 
-  // ─── Lap recording ────────────────────────────────────────────────────────
-
   const handleLap = useCallback(() => {
     if (!existing || !edit) return;
     const elapsedMs = getElapsedMs(existing);
@@ -507,7 +500,6 @@ export default function StopwatchModal() {
       console.log(`[StopwatchModal] Auto-saving session: id=${session.id}, totalTime=${elapsedMs}ms`);
       await saveSession(session);
 
-      // Check goal
       const goal = await getGoalForItem(edit);
       if (goal && goal.status === 'active') {
         const laps = existing.laps ?? [];
@@ -560,13 +552,14 @@ export default function StopwatchModal() {
   const slowestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime > b.lapTime ? a : b) : null;
 
   const sectionLabel = {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600' as const,
     color: C.textSecondary,
     paddingHorizontal: 4,
-    marginBottom: 12,
+    marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    lineHeight: 17,
   };
 
   const swColor = existing?.color ?? DEFAULT_STOPWATCH_COLOR;
@@ -578,16 +571,16 @@ export default function StopwatchModal() {
   const goalTimeValid = goalTimeMs > 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.card }}>
+    <View style={{ flex: 1, backgroundColor: C.surface }}>
       {/* FIXED HEADER */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.card }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.surface }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
+            paddingHorizontal: 20,
+            paddingVertical: 14,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: C.border,
           }}
@@ -596,12 +589,12 @@ export default function StopwatchModal() {
             onPress={handleCancel}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
           >
-            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500' }}>
+            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500', lineHeight: 22 }}>
               Cancel
             </Text>
           </Pressable>
 
-          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text }}>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, letterSpacing: -0.3, lineHeight: 22 }}>
             {title}
           </Text>
 
@@ -613,7 +606,7 @@ export default function StopwatchModal() {
               padding: 4,
             })}
           >
-            <Text style={{ fontSize: 16, color: C.tint, fontWeight: '600' }}>
+            <Text style={{ fontSize: 16, color: C.primary, fontWeight: '600', lineHeight: 22 }}>
               {submitLabel}
             </Text>
           </Pressable>
@@ -632,7 +625,7 @@ export default function StopwatchModal() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: 20,
             paddingBottom: 120,
           }}
         >
@@ -642,23 +635,24 @@ export default function StopwatchModal() {
               style={{
                 backgroundColor: C.background,
                 borderRadius: 16,
-                borderCurve: 'continuous',
                 borderWidth: 1,
                 borderColor: C.border,
-                padding: 16,
-                marginBottom: 20,
+                padding: 20,
+                marginBottom: 24,
                 alignItems: 'center',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
               }}
             >
               <Text
                 style={{
-                  fontSize: 40,
+                  fontSize: 56,
                   fontWeight: '800',
                   fontFamily: timerFont,
                   color: existing.isRunning ? swColor : C.text,
                   fontVariant: ['tabular-nums'],
-                  letterSpacing: -1.5,
-                  marginBottom: 4,
+                  letterSpacing: -2,
+                  marginBottom: 8,
+                  lineHeight: 64,
                 }}
               >
                 {timerDisplay}
@@ -680,32 +674,32 @@ export default function StopwatchModal() {
                   fontSize: 13,
                   color: C.text,
                   backgroundColor: C.surfaceSecondary,
-                  borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  marginBottom: 14,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  marginBottom: 16,
                   minHeight: 36,
                   maxHeight: 72,
                   width: '100%',
+                  lineHeight: 19,
                 }}
               />
 
               <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-                <Pressable
+                <AnimatedPressable
                   onPress={handleLap}
                   disabled={!existing.isRunning}
-                  style={({ pressed }) => ({
+                  style={{
                     flex: 1,
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 6,
                     backgroundColor: existing.isRunning ? `${swColor}18` : C.surfaceSecondary,
-                    borderRadius: 10,
-                    borderCurve: 'continuous',
-                    paddingVertical: 10,
-                    opacity: !existing.isRunning ? 0.4 : pressed ? 0.7 : 1,
-                  })}
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    opacity: !existing.isRunning ? 0.4 : 1,
+                  }}
                 >
                   <Flag size={14} color={existing.isRunning ? swColor : C.textSecondary} />
                   <Text
@@ -713,48 +707,47 @@ export default function StopwatchModal() {
                       fontSize: 14,
                       fontWeight: '600',
                       color: existing.isRunning ? swColor : C.textSecondary,
+                      lineHeight: 20,
                     }}
                   >
                     Lap
                   </Text>
-                </Pressable>
+                </AnimatedPressable>
 
-                <Pressable
+                <AnimatedPressable
                   onPress={handleReset}
-                  style={({ pressed }) => ({
+                  style={{
                     flex: 1,
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 6,
                     backgroundColor: C.dangerMuted,
-                    borderRadius: 10,
-                    borderCurve: 'continuous',
-                    paddingVertical: 10,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                  }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: C.danger }}>
-                    Reset & Save
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: C.danger, lineHeight: 20 }}>
+                    Reset &amp; Save
                   </Text>
-                </Pressable>
+                </AnimatedPressable>
               </View>
 
               {laps.length > 0 && (
-                <View style={{ width: '100%', marginTop: 14 }}>
-                  <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 8 }} />
-                  <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 4 }}>
+                <View style={{ width: '100%', marginTop: 16 }}>
+                  <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 10 }} />
+                  <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 6 }}>
                     <View style={{ width: 32 }}>
-                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>
+                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
                         #
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>
+                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
                         Lap Time
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
                       Split
                     </Text>
                   </View>
@@ -777,7 +770,6 @@ export default function StopwatchModal() {
             style={{
               backgroundColor: C.inputBg,
               borderRadius: 14,
-              borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: C.border,
               paddingHorizontal: 16,
@@ -796,15 +788,16 @@ export default function StopwatchModal() {
               style={{
                 fontSize: 17,
                 color: C.text,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
+                paddingHorizontal: 4,
+                paddingVertical: 4,
                 minHeight: 44,
                 margin: 0,
+                lineHeight: 24,
               }}
             />
           </View>
 
-          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24 }}>
+          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
             Give your stopwatch a descriptive name like "Morning Run" or "Sprint 1".
           </Text>
 
@@ -819,26 +812,23 @@ export default function StopwatchModal() {
           >
             {categories.map(cat => {
               const isSelected = selectedCategoryId === cat.id;
-              const chipBg = isSelected ? C.chipSelected : C.chipBackground;
-              const chipTextColor = isSelected ? C.chipSelectedText : C.chipText;
               return (
-                <Pressable
+                <AnimatedPressable
                   key={cat.id}
                   onPress={() => handleCategoryPress(cat.id)}
-                  style={({ pressed }) => ({
+                  style={{
                     flexShrink: 0,
                     flexGrow: 0,
-                    paddingHorizontal: 14,
-                    paddingVertical: 7,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
                     borderRadius: 20,
-                    backgroundColor: chipBg,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
+                    backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                  }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: chipTextColor }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText, lineHeight: 20 }}>
                     {cat.name}
                   </Text>
-                </Pressable>
+                </AnimatedPressable>
               );
             })}
           </ScrollView>
@@ -871,35 +861,24 @@ export default function StopwatchModal() {
                 placeholderTextColor={C.placeholder}
                 returnKeyType="done"
                 onSubmitEditing={handleAddCategoryWithPending}
-                style={{
-                  fontSize: 14,
-                  color: C.text,
-                  padding: 0,
-                  margin: 0,
-                }}
+                style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
               />
             </View>
-            <Pressable
+            <AnimatedPressable
               onPress={handleAddCategoryWithPending}
               disabled={!canAddCat}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 8,
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 10,
                 borderRadius: 10,
-                backgroundColor: canAddCat ? C.tint : C.chipBackground,
-                opacity: pressed ? 0.7 : 1,
-              })}
+                backgroundColor: canAddCat ? C.primary : C.chipBackground,
+                opacity: canAddCat ? 1 : 0.5,
+              }}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: canAddCat ? '#fff' : C.subtext,
-                }}
-              >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.textSecondary, lineHeight: 20 }}>
                 Add
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
 
           {/* Color picker — Primary */}
@@ -910,7 +889,7 @@ export default function StopwatchModal() {
               flexWrap: 'wrap',
               gap: 12,
               paddingHorizontal: 4,
-              marginBottom: 20,
+              marginBottom: 24,
             }}
           >
             {PALETTE_PRIMARY.map((swatch) => (
@@ -951,24 +930,25 @@ export default function StopwatchModal() {
           {/* Goal hint — create mode only */}
           {!isEditing && (
             <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
-              <Text style={{ fontSize: 12, color: C.subtext, textAlign: 'center' }}>
+              <Text style={{ fontSize: 12, color: C.textSecondary, textAlign: 'center', lineHeight: 17 }}>
                 Goals can be set after creating the stopwatch by long-pressing it
               </Text>
             </View>
           )}
 
-          {/* Goal section (edit mode only — we need the stopwatch id) */}
+          {/* Goal section (edit mode only) */}
           {isEditing && (
             <>
               <Text style={sectionLabel}>Goal</Text>
               <View
                 style={{
-                  backgroundColor: C.card,
-                  borderRadius: 12,
+                  backgroundColor: C.surface,
+                  borderRadius: 14,
                   borderWidth: 1,
                   borderColor: C.border,
                   overflow: 'hidden',
                   marginBottom: 8,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 {/* Toggle row */}
@@ -976,15 +956,16 @@ export default function StopwatchModal() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    minHeight: 52,
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: C.text }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, lineHeight: 21 }}>
                       Add Goal
                     </Text>
-                    <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                    <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
                       Track a target for this stopwatch
                     </Text>
                   </View>
@@ -1008,23 +989,22 @@ export default function StopwatchModal() {
                       {GOAL_TYPES.map(gt => {
                         const isActive = goalType === gt.value;
                         return (
-                          <Pressable
+                          <AnimatedPressable
                             key={gt.value}
                             onPress={() => {
                               console.log(`[StopwatchModal] Goal type selected: ${gt.value}`);
                               setGoalType(gt.value);
                             }}
-                            style={({ pressed }) => ({
+                            style={{
                               flexDirection: 'row',
                               alignItems: 'center',
                               gap: 10,
-                              padding: 10,
-                              borderRadius: 10,
+                              padding: 12,
+                              borderRadius: 12,
                               backgroundColor: isActive ? `${C.primary}14` : C.surfaceSecondary,
                               borderWidth: 1,
                               borderColor: isActive ? `${C.primary}40` : 'transparent',
-                              opacity: pressed ? 0.7 : 1,
-                            })}
+                            }}
                           >
                             <View
                               style={{
@@ -1049,14 +1029,14 @@ export default function StopwatchModal() {
                               )}
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? C.primary : C.text }}>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? C.primary : C.text, lineHeight: 20 }}>
                                 {gt.label}
                               </Text>
-                              <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 1 }}>
+                              <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 1, lineHeight: 17 }}>
                                 {gt.description}
                               </Text>
                             </View>
-                          </Pressable>
+                          </AnimatedPressable>
                         );
                       })}
                     </View>
@@ -1084,12 +1064,7 @@ export default function StopwatchModal() {
                           placeholder="Goal name (optional)"
                           placeholderTextColor={C.placeholder}
                           returnKeyType="done"
-                          style={{
-                            fontSize: 14,
-                            color: C.text,
-                            padding: 0,
-                            margin: 0,
-                          }}
+                          style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
                         />
                       </View>
                     </View>
@@ -1108,9 +1083,9 @@ export default function StopwatchModal() {
                           }}
                         >
                           <GoalNumberInput label="Hours" value={goalHours} onChange={setGoalHours} max={99} />
-                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 28 }}>:</Text>
                           <GoalNumberInput label="Min" value={goalMinutes} onChange={setGoalMinutes} max={59} />
-                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16 }}>:</Text>
+                          <Text style={{ fontSize: 22, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 28 }}>:</Text>
                           <GoalNumberInput label="Sec" value={goalSeconds} onChange={setGoalSeconds} max={59} />
                         </View>
                       )}
@@ -1120,7 +1095,7 @@ export default function StopwatchModal() {
                         </View>
                       )}
                       {goalEnabled && goalType !== 'target_laps' && !goalTimeValid && (
-                        <Text style={{ fontSize: 12, color: C.danger, textAlign: 'center', marginTop: 8 }}>
+                        <Text style={{ fontSize: 12, color: C.danger, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
                           Enter a time greater than zero
                         </Text>
                       )}
@@ -1128,7 +1103,7 @@ export default function StopwatchModal() {
                   </>
                 )}
               </View>
-              <Text style={{ fontSize: 12, color: C.subtext, paddingHorizontal: 4, marginBottom: 8 }}>
+              <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 8, lineHeight: 17 }}>
                 Goal status is checked when you reset the stopwatch.
               </Text>
             </>
