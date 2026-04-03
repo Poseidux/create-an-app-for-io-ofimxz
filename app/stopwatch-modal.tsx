@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Switch,
   Alert,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -266,6 +267,80 @@ function GoalNumberInput({
           maxLength={3}
         />
       </View>
+    </View>
+  );
+}
+
+// ─── Hero Timer Card ──────────────────────────────────────────────────────────
+// Animated breathing border glow using useNativeDriver: false (color animation)
+// All other animations use useNativeDriver: true
+
+function HeroTimerCard({
+  children,
+  accentColor,
+}: {
+  children: React.ReactNode;
+  accentColor: string;
+}) {
+  // Border glow opacity: animates between 0.15 and 0.45 over ~3.5s
+  const borderOpacity = useRef(new Animated.Value(0.15)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(borderOpacity, {
+          toValue: 0.45,
+          duration: 3500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderOpacity, {
+          toValue: 0.15,
+          duration: 3500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Interpolate border color from accent with animated opacity
+  const borderColor = borderOpacity.interpolate({
+    inputRange: [0.15, 0.45],
+    outputRange: [`${accentColor}26`, `${accentColor}73`],
+  });
+
+  return (
+    <View style={{ position: 'relative', marginBottom: 24 }}>
+      {/* Soft glow behind the card — rendered before card in tree (lower z) */}
+      <View
+        style={{
+          position: 'absolute',
+          top: -8,
+          left: -8,
+          right: -8,
+          bottom: -8,
+          borderRadius: 24,
+          backgroundColor: `${accentColor}0D`,
+        }}
+        pointerEvents="none"
+      />
+      {/* Animated border ring */}
+      <Animated.View
+        style={{
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor,
+          overflow: 'hidden',
+          // Hero card surface — slightly lighter than supporting cards
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          // Layered shadow: tight ambient + wide accent glow
+          boxShadow: `0 2px 8px rgba(0,0,0,0.45), 0 0 40px ${accentColor}26`,
+          // Top-edge highlight simulating light catching the rim
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255,255,255,0.12)',
+        }}
+      >
+        {children}
+      </Animated.View>
     </View>
   );
 }
@@ -634,16 +709,11 @@ export default function StopwatchModal() {
         >
           {/* Live timer + lap controls (edit mode only) */}
           {isEditing && existing && (
+            <HeroTimerCard accentColor={swColor}>
             <View
               style={{
-                backgroundColor: C.surface,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: C.border,
                 padding: 20,
-                marginBottom: 24,
                 alignItems: 'center',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
               }}
             >
               <Text
@@ -770,6 +840,7 @@ export default function StopwatchModal() {
                 </View>
               )}
             </View>
+            </HeroTimerCard>
           )}
 
           {/* Name Input */}
