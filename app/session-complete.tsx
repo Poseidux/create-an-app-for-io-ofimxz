@@ -16,6 +16,7 @@ import { useColors } from '@/constants/Colors';
 import { formatTime } from '@/types/stopwatch';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ export default function SessionComplete() {
       style={{ flex: 1, backgroundColor: C.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <AmbientBackground />
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -122,14 +124,14 @@ export default function SessionComplete() {
               width: 80,
               height: 80,
               borderRadius: 40,
-              backgroundColor: 'rgba(52,199,89,0.15)',
+              backgroundColor: 'rgba(0,255,148,0.10)',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 24,
-              boxShadow: '0 4px 20px rgba(52,199,89,0.20)',
+              boxShadow: '0 0 40px rgba(0,255,148,0.25), 0 0 80px rgba(0,255,148,0.10)',
             }}
           >
-            <Check size={38} color="#34C759" strokeWidth={2.5} />
+            <Check size={38} color={C.accent} strokeWidth={2.5} />
           </View>
 
           <Text
@@ -164,11 +166,11 @@ export default function SessionComplete() {
               backgroundColor: C.surface,
               borderRadius: 20,
               borderWidth: 1,
-              borderColor: C.border,
+              borderColor: C.borderGlow,
               paddingHorizontal: 32,
               paddingVertical: 16,
               alignItems: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+              boxShadow: '0 0 30px rgba(0,212,255,0.15), 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5)',
             }}
           >
             <Text
@@ -188,7 +190,7 @@ export default function SessionComplete() {
                 fontSize: 52,
                 fontWeight: '800',
                 fontFamily: timerFont,
-                color: sessionColor,
+                color: C.primary,
                 fontVariant: ['tabular-nums'],
                 letterSpacing: -2,
                 lineHeight: 60,
@@ -208,7 +210,7 @@ export default function SessionComplete() {
             borderColor: C.border,
             padding: 20,
             marginBottom: 16,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
           <Text
@@ -253,7 +255,7 @@ export default function SessionComplete() {
             borderColor: C.border,
             padding: 20,
             marginBottom: 36,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
           <Text
@@ -298,10 +300,10 @@ export default function SessionComplete() {
               width: '100%',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+              boxShadow: '0 0 24px rgba(0,212,255,0.4), 0 4px 12px rgba(0,0,0,0.4)',
             }}
           >
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff', lineHeight: 22 }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#0D0F14', lineHeight: 22 }}>
               Save &amp; Done
             </Text>
           </AnimatedPressable>

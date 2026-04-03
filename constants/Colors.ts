@@ -48,6 +48,7 @@ export const AppColors = {
     background: '#F7F8FA',
     surface: '#FFFFFF',
     surfaceSecondary: '#EEF0F5',
+    surfaceElevated: '#E8EBF2',
     // ── Cards / legacy ───────────────────────────────────────────────────────
     card: '#FFFFFF',
     headerBackground: '#F7F8FA',
@@ -60,6 +61,7 @@ export const AppColors = {
     // ── Brand ─────────────────────────────────────────────────────────────────
     primary: '#007AFF',
     primaryMuted: 'rgba(0,122,255,0.10)',
+    primaryGlow: 'rgba(0,122,255,0.20)',
     tint: '#007AFF',
     accent: '#34C759',
     warning: '#F59E0B',
@@ -69,6 +71,7 @@ export const AppColors = {
     destructive: '#FF3B30',
     // ── Borders / dividers ───────────────────────────────────────────────────
     border: 'rgba(0,0,0,0.07)',
+    borderGlow: 'rgba(0,122,255,0.25)',
     divider: 'rgba(0,0,0,0.04)',
     separator: 'rgba(0,0,0,0.07)',
     // ── Chips ────────────────────────────────────────────────────────────────
@@ -85,49 +88,61 @@ export const AppColors = {
     icon: '#3C3C43',
   },
   dark: {
-    // ── Backgrounds ──────────────────────────────────────────────────────────
-    background: '#0F1117',
-    surface: '#1C1E26',
-    surfaceSecondary: '#252830',
-    // ── Cards / legacy ───────────────────────────────────────────────────────
-    card: '#1C1E26',
-    headerBackground: '#0F1117',
-    // ── Text ─────────────────────────────────────────────────────────────────
-    text: '#F0F2F7',
-    textSecondary: '#8B90A0',
-    textTertiary: '#555C70',
-    subtext: '#8B90A0',
-    placeholder: '#555C70',
-    // ── Brand ─────────────────────────────────────────────────────────────────
-    primary: '#4A9EFF',
-    primaryMuted: 'rgba(74,158,255,0.12)',
-    tint: '#4A9EFF',
-    accent: '#30D158',
-    warning: '#FFD60A',
-    // ── Danger ───────────────────────────────────────────────────────────────
-    danger: '#FF453A',
-    dangerMuted: 'rgba(255,69,58,0.12)',
-    destructive: '#FF453A',
-    // ── Borders / dividers ───────────────────────────────────────────────────
-    border: 'rgba(255,255,255,0.08)',
-    divider: 'rgba(255,255,255,0.05)',
-    separator: 'rgba(255,255,255,0.08)',
-    // ── Chips ────────────────────────────────────────────────────────────────
-    chipBackground: '#252830',
-    chipSelected: '#4A9EFF',
-    chipSelectedText: '#FFFFFF',
-    chipText: '#C8C8D0',
-    // ── Inputs ───────────────────────────────────────────────────────────────
-    inputBg: '#252830',
-    // ── Tab bar ──────────────────────────────────────────────────────────────
-    tabBar: '#1C1E26',
-    tabBarBorder: 'rgba(255,255,255,0.08)',
-    // ── Icons ────────────────────────────────────────────────────────────────
-    icon: '#C8C8D0',
+    // Backgrounds — graphite, NOT black
+    background: '#0D0F14',        // deep graphite
+    surface: '#141720',           // elevated card surface
+    surfaceSecondary: '#1A1D26',  // input bg, secondary surfaces
+    surfaceElevated: '#1E2130',   // highest elevation (modals, sheets)
+
+    // Cards / legacy
+    card: '#141720',
+    headerBackground: '#0D0F14',
+
+    // Text
+    text: '#E8EBF4',              // near-white, slightly cool
+    textSecondary: '#7A8099',     // blue-tinted muted
+    textTertiary: '#4A5068',      // placeholders
+    subtext: '#7A8099',
+    placeholder: '#4A5068',
+
+    // Brand — electric cyan accent
+    primary: '#00D4FF',           // electric cyan
+    primaryMuted: 'rgba(0,212,255,0.10)',
+    primaryGlow: 'rgba(0,212,255,0.20)',  // for glow effects
+    tint: '#00D4FF',
+    accent: '#00FF94',            // electric green for success
+    warning: '#FFB800',
+
+    // Danger
+    danger: '#FF4560',
+    dangerMuted: 'rgba(255,69,96,0.12)',
+    destructive: '#FF4560',
+
+    // Borders / dividers — very subtle
+    border: 'rgba(255,255,255,0.07)',
+    borderGlow: 'rgba(0,212,255,0.25)',   // glowing border for active elements
+    divider: 'rgba(255,255,255,0.04)',
+    separator: 'rgba(255,255,255,0.06)',
+
+    // Chips
+    chipBackground: '#1A1D26',
+    chipSelected: '#00D4FF',
+    chipSelectedText: '#0D0F14',
+    chipText: '#7A8099',
+
+    // Inputs
+    inputBg: '#1A1D26',
+
+    // Tab bar
+    tabBar: '#141720',
+    tabBarBorder: 'rgba(0,212,255,0.12)',
+
+    // Icons
+    icon: '#7A8099',
   },
 };
 
-export type AppColorPalette = typeof AppColors.light;
+export type AppColorPalette = typeof AppColors.dark;
 
 export function useColors(): AppColorPalette {
   const { colorScheme } = useThemeContext();

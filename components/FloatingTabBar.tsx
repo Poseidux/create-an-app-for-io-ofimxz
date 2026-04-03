@@ -11,7 +11,6 @@ import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
 import { BlurView } from 'expo-blur';
-import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -46,7 +45,6 @@ export default function FloatingTabBar({
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const theme = useTheme();
   const C = useColors();
   const animatedValue = useSharedValue(0);
 
@@ -112,23 +110,17 @@ export default function FloatingTabBar({
   const blurContainerStyle = {
     ...styles.blurContainer,
     borderWidth: 1,
-    borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+    borderColor: 'rgba(0,212,255,0.15)',
+    boxShadow: '0 0 0 1px rgba(0,212,255,0.08), 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
     ...Platform.select({
       ios: {
-        backgroundColor: theme.dark
-          ? 'rgba(28, 30, 38, 0.94)'
-          : 'rgba(255, 255, 255, 0.72)',
+        backgroundColor: 'rgba(14,16,20,0.92)',
       },
       android: {
-        backgroundColor: theme.dark
-          ? 'rgba(28, 30, 38, 0.99)'
-          : 'rgba(255, 255, 255, 0.99)',
+        backgroundColor: 'rgba(20,23,32,0.98)',
       },
       web: {
-        backgroundColor: theme.dark
-          ? 'rgba(28, 30, 38, 0.99)'
-          : 'rgba(255, 255, 255, 0.99)',
+        backgroundColor: 'rgba(20,23,32,0.98)',
         backdropFilter: 'blur(12px)',
       },
     }),
@@ -136,14 +128,13 @@ export default function FloatingTabBar({
 
   const indicatorDynamicStyle = {
     ...styles.indicator,
-    backgroundColor: theme.dark
-      ? 'rgba(255, 255, 255, 0.07)'
-      : 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(0,212,255,0.12)',
+    boxShadow: '0 0 12px rgba(0,212,255,0.3)',
     width: `${tabWidthPercent}%` as `${number}%`,
   };
 
-  const activeColor = C.primary;
-  const inactiveColor = C.textSecondary;
+  const activeColor = '#00D4FF';
+  const inactiveColor = '#4A5068';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -157,7 +148,7 @@ export default function FloatingTabBar({
         ]}
       >
         <BlurView
-          intensity={80}
+          intensity={60}
           style={[blurContainerStyle, { borderRadius }]}
         >
           <View style={styles.background} />
@@ -247,8 +238,9 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 1,
     lineHeight: 13,
+    letterSpacing: 0.3,
   },
 });

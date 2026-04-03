@@ -18,6 +18,7 @@ import { Trash2, Plus, ChevronLeft } from 'lucide-react-native';
 import { BUILT_IN_CATEGORIES } from '@/utils/category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 const PRESET_TEMPLATES = [
   { key: 'running',    name: 'Running',    color: '#22c55e' },
@@ -98,11 +99,11 @@ export default function SettingsScreen() {
   };
 
   const sectionLabelStyle = {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: C.textSecondary,
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: C.textTertiary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.6,
+    letterSpacing: 2.0,
     paddingHorizontal: 20,
     marginBottom: 8,
     marginTop: 28,
@@ -111,13 +112,13 @@ export default function SettingsScreen() {
 
   const cardStyle = {
     backgroundColor: C.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     borderCurve: 'continuous' as const,
     marginHorizontal: 16,
     overflow: 'hidden' as const,
     borderWidth: 1,
     borderColor: C.border,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
   };
 
   const rowStyle = {
@@ -129,7 +130,7 @@ export default function SettingsScreen() {
   };
 
   const separatorStyle = {
-    height: StyleSheet_hairlineWidth,
+    height: 1,
     backgroundColor: C.divider,
     marginLeft: 16,
   };
@@ -140,6 +141,7 @@ export default function SettingsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <AmbientBackground />
       {/* Header */}
       <View
         style={{
@@ -195,7 +197,7 @@ export default function SettingsScreen() {
         <Text style={sectionLabelStyle}>Appearance</Text>
         <View style={cardStyle}>
           <View style={rowStyle}>
-            <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+            <Text style={{ flex: 1, fontSize: 15, color: C.text, lineHeight: 23 }}>
               Dark Mode
             </Text>
             <Text style={{ fontSize: 14, color: C.textSecondary, lineHeight: 20 }}>
@@ -222,7 +224,7 @@ export default function SettingsScreen() {
                     marginRight: 14,
                   }}
                 />
-                <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+                <Text style={{ flex: 1, fontSize: 15, color: C.text, lineHeight: 23 }}>
                   {preset.name}
                 </Text>
                 <ChevronLeft
@@ -246,7 +248,7 @@ export default function SettingsScreen() {
           {builtInCategories.map((cat, idx) => (
             <React.Fragment key={cat.id}>
               <View style={rowStyle}>
-                <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+                <Text style={{ flex: 1, fontSize: 15, color: C.text, lineHeight: 23 }}>
                   {cat.name}
                 </Text>
                 <Text style={{ fontSize: 13, color: C.textSecondary, lineHeight: 18 }}>
@@ -280,7 +282,7 @@ export default function SettingsScreen() {
               {customCategories.map((cat, idx) => (
                 <React.Fragment key={cat.id}>
                   <View style={rowStyle}>
-                    <Text style={{ flex: 1, fontSize: 16, color: C.text, lineHeight: 23 }}>
+                    <Text style={{ flex: 1, fontSize: 15, color: C.text, lineHeight: 23 }}>
                       {cat.name}
                     </Text>
                     <AnimatedPressable
@@ -332,7 +334,7 @@ export default function SettingsScreen() {
             onSubmitEditing={handleAddCategory}
             style={{
               flex: 1,
-              fontSize: 16,
+              fontSize: 15,
               color: C.text,
               paddingVertical: Platform.OS === 'ios' ? 14 : 10,
               lineHeight: 23,
@@ -354,7 +356,7 @@ export default function SettingsScreen() {
             }}
             scaleValue={0.88}
           >
-            <Plus size={16} color={newCategoryName.trim().length === 0 ? C.textSecondary : '#fff'} />
+            <Plus size={16} color={newCategoryName.trim().length === 0 ? C.textSecondary : '#0D0F14'} />
           </AnimatedPressable>
         </View>
 
@@ -370,7 +372,7 @@ export default function SettingsScreen() {
               opacity: isRestoring ? 0.6 : 1,
             }}
           >
-            <Text style={{ flex: 1, fontSize: 16, color: C.primary, lineHeight: 23 }}>
+            <Text style={{ flex: 1, fontSize: 15, color: C.primary, lineHeight: 23 }}>
               Restore Purchases
             </Text>
             {isRestoring && (
@@ -382,6 +384,3 @@ export default function SettingsScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-// Hairline width constant to avoid importing StyleSheet just for this
-const StyleSheet_hairlineWidth = 1;

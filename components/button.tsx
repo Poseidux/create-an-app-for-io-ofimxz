@@ -58,7 +58,7 @@ export const Button: React.FC<ButtonProps> = ({
         return {
           ...base,
           backgroundColor: C.primary,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+          boxShadow: '0 0 20px rgba(0,212,255,0.35), 0 2px 8px rgba(0,0,0,0.3)',
         } as ViewStyle;
       case "secondary":
         return {
@@ -69,7 +69,7 @@ export const Button: React.FC<ButtonProps> = ({
         return {
           ...base,
           backgroundColor: C.danger,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+          boxShadow: '0 0 16px rgba(255,69,96,0.30), 0 2px 6px rgba(0,0,0,0.3)',
         } as ViewStyle;
       case "outline":
         return {
@@ -90,6 +90,7 @@ export const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case "primary":
       case "filled":
+        return "#0D0F14";
       case "destructive":
         return "#FFFFFF";
       case "secondary":

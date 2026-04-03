@@ -19,6 +19,7 @@ import { Session } from '@/types/stopwatch';
 import { ItemGoal } from '@/utils/goal-storage';
 import { Routine } from '@/utils/routine-storage';
 import { Settings, User, TrendingUp, Trophy, Target } from 'lucide-react-native';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 const PROFILE_NAME_KEY = '@chroniqo_profile_name';
 
@@ -88,7 +89,6 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [goals, setGoals] = useState<ItemGoal[]>([]);
-  // routines loaded to keep parity with other screens; unused in render but available for future use
   const [, setRoutines] = useState<Routine[]>([]);
 
   useFocusEffect(
@@ -125,7 +125,6 @@ export default function ProfileScreen() {
     router.push('/settings');
   };
 
-  // Derived stats
   const totalSessions = sessions.length;
   const totalTimeMs = sessions.reduce((acc, s) => acc + (s.totalTime ?? 0), 0);
   const totalTimeDisplay = formatTotalTime(totalTimeMs);
@@ -136,7 +135,6 @@ export default function ProfileScreen() {
     ? Math.round((goalsAchieved / (goalsAchieved + goalsMissed)) * 100)
     : 0;
 
-  // Top stopwatches by total session time
   const stopwatchMap = new Map<string, TopStopwatch>();
   for (const s of sessions) {
     const existing = stopwatchMap.get(s.stopwatchId);
@@ -157,15 +155,12 @@ export default function ProfileScreen() {
     .sort((a, b) => b.totalTime - a.totalTime)
     .slice(0, 3);
 
-  // Streak
   const streak = computeStreak(sessions);
 
-  // Best session
   const bestSession = sessions.length > 0
     ? sessions.reduce((best, s) => (s.totalTime ?? 0) > (best.totalTime ?? 0) ? s : best, sessions[0])
     : null;
 
-  // Last 7 days bar chart data
   const last7Days = getLast7Days();
   const sessionsByDay: Record<string, number> = {};
   for (const s of sessions) {
@@ -182,16 +177,16 @@ export default function ProfileScreen() {
   const trimmedName = name.trim();
   const avatarInitial = trimmedName.length > 0 ? trimmedName[0].toUpperCase() : null;
   const editHintVisible = trimmedName.length === 0;
-  const avatarBg = `${C.primary}33`;
+  const avatarBg = C.primaryMuted;
 
   const sectionTitle = (label: string) => (
     <Text
       style={{
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
-        color: C.subtext,
+        color: C.textTertiary,
         textTransform: 'uppercase',
-        letterSpacing: 1.2,
+        letterSpacing: 2.0,
         paddingHorizontal: 20,
         marginBottom: 10,
         marginTop: 28,
@@ -203,6 +198,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <AmbientBackground />
       {/* Header */}
       <View
         style={{
@@ -216,7 +212,7 @@ export default function ProfileScreen() {
           alignItems: 'center',
         }}
       >
-        <Text style={{ flex: 1, fontSize: 32, fontWeight: '800', color: C.text, letterSpacing: -0.8 }}>
+        <Text style={{ flex: 1, fontSize: 28, fontWeight: '800', color: C.text, letterSpacing: -0.8 }}>
           Profile
         </Text>
         <Pressable
@@ -224,6 +220,7 @@ export default function ProfileScreen() {
           style={({ pressed }) => ({
             width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
             borderRadius: 12, backgroundColor: C.surfaceSecondary, opacity: pressed ? 0.7 : 1,
+            borderWidth: 1, borderColor: C.border,
           })}
         >
           <Settings size={20} color={C.textSecondary} />
@@ -238,15 +235,23 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <View
           style={{
-            marginHorizontal: 20, backgroundColor: C.card, borderRadius: 16,
-            borderWidth: 1, borderColor: C.border, padding: 20,
-            flexDirection: 'row', alignItems: 'center', gap: 16,
+            marginHorizontal: 20,
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.border,
+            padding: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
           <View
             style={{
               width: 68, height: 68, borderRadius: 34,
               backgroundColor: avatarBg, alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 20px rgba(0,212,255,0.2)',
             }}
           >
             {avatarInitial ? (
@@ -281,9 +286,10 @@ export default function ProfileScreen() {
         {!hasData && (
           <View
             style={{
-              marginHorizontal: 20, marginTop: 24, backgroundColor: C.card,
+              marginHorizontal: 20, marginTop: 24, backgroundColor: C.surface,
               borderRadius: 16, borderWidth: 1, borderColor: C.border,
               padding: 28, alignItems: 'center',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
             }}
           >
             <TrendingUp size={36} color={C.textSecondary} style={{ marginBottom: 12 }} />
@@ -315,9 +321,10 @@ export default function ProfileScreen() {
                   {/* Streak card */}
                   <View
                     style={{
-                      flex: 1, backgroundColor: C.card, borderRadius: 14,
+                      flex: 1, backgroundColor: C.surface, borderRadius: 14,
                       borderWidth: 1, borderColor: C.border, padding: 16,
                       alignItems: 'center',
+                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                     }}
                   >
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(251,146,60,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
@@ -332,7 +339,7 @@ export default function ProfileScreen() {
                     >
                       {streak}
                     </Text>
-                    <Text style={{ fontSize: 11, color: C.subtext, marginTop: 2, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>
                       Day Streak
                     </Text>
                   </View>
@@ -341,19 +348,20 @@ export default function ProfileScreen() {
                   {bestSession && (
                     <View
                       style={{
-                        flex: 1, backgroundColor: C.card, borderRadius: 14,
+                        flex: 1, backgroundColor: C.surface, borderRadius: 14,
                         borderWidth: 1, borderColor: C.border, padding: 16,
+                        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                       }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                         <Trophy size={14} color="#fbbf24" />
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 1.5 }}>
                           Best Session
                         </Text>
                       </View>
                       <Text
                         style={{
-                          fontSize: 20, fontWeight: '800', color: C.text,
+                          fontSize: 20, fontWeight: '800', color: C.primary,
                           fontVariant: ['tabular-nums'],
                         }}
                       >
@@ -377,8 +385,9 @@ export default function ProfileScreen() {
                 {sectionTitle('Last 7 Days')}
                 <View
                   style={{
-                    marginHorizontal: 20, backgroundColor: C.card, borderRadius: 14,
+                    marginHorizontal: 20, backgroundColor: C.surface, borderRadius: 14,
                     borderWidth: 1, borderColor: C.border, padding: 16,
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 80 }}>
@@ -420,9 +429,10 @@ export default function ProfileScreen() {
                 <View style={{ marginHorizontal: 16, flexDirection: 'row', gap: 10 }}>
                   <View
                     style={{
-                      flex: 1, backgroundColor: C.card, borderRadius: 14,
+                      flex: 1, backgroundColor: C.surface, borderRadius: 14,
                       borderWidth: 1, borderColor: C.border, padding: 14,
                       alignItems: 'center',
+                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                     }}
                   >
                     <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(34,197,94,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
@@ -431,42 +441,44 @@ export default function ProfileScreen() {
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#22c55e', marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {goalsAchieved}
                     </Text>
-                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>
                       Achieved
                     </Text>
                   </View>
                   <View
                     style={{
-                      flex: 1, backgroundColor: C.card, borderRadius: 14,
+                      flex: 1, backgroundColor: C.surface, borderRadius: 14,
                       borderWidth: 1, borderColor: C.border, padding: 14,
                       alignItems: 'center',
+                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                     }}
                   >
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${C.primary}1A`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
                       <TrendingUp size={15} color={C.primary} />
                     </View>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {completionRate}
                       <Text style={{ fontSize: 14, fontWeight: '600' }}>%</Text>
                     </Text>
-                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>
                       Completion
                     </Text>
                   </View>
                   <View
                     style={{
-                      flex: 1, backgroundColor: C.card, borderRadius: 14,
+                      flex: 1, backgroundColor: C.surface, borderRadius: 14,
                       borderWidth: 1, borderColor: C.border, padding: 14,
                       alignItems: 'center',
+                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                     }}
                   >
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${C.primary}1A`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
                       <Target size={15} color={C.primary} />
                     </View>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 4, fontVariant: ['tabular-nums'] }}>
                       {goalsActive}
                     </Text>
-                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    <Text style={{ fontSize: 10, color: C.subtext, marginTop: 2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>
                       Active
                     </Text>
                   </View>
@@ -480,8 +492,9 @@ export default function ProfileScreen() {
                 {sectionTitle('Most Used')}
                 <View
                   style={{
-                    marginHorizontal: 20, backgroundColor: C.card, borderRadius: 14,
+                    marginHorizontal: 20, backgroundColor: C.surface, borderRadius: 14,
                     borderWidth: 1, borderColor: C.border, overflow: 'hidden',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   {topStopwatches.map((sw, idx) => {
@@ -505,9 +518,8 @@ export default function ProfileScreen() {
                               {timeLabel}
                             </Text>
                           </View>
-                          {/* Progress bar */}
                           <View style={{ height: 3, backgroundColor: C.surfaceSecondary, borderRadius: 2, marginLeft: 20, overflow: 'hidden' }}>
-                            <View style={{ height: 3, width: shareWidth, backgroundColor: sw.color || C.primary, borderRadius: 2 }} />
+                            <View style={{ height: 3, width: shareWidth, backgroundColor: sw.color || C.primary, borderRadius: 4 }} />
                           </View>
                         </View>
                         {!isLast && <View style={{ height: 1, backgroundColor: C.border, marginLeft: 38 }} />}
@@ -535,14 +547,15 @@ function StatChip({ label, value, C, accent }: StatChipProps) {
   return (
     <View
       style={{
-        flex: 1, minWidth: '46%', backgroundColor: C.card,
+        flex: 1, minWidth: '46%', backgroundColor: C.surface,
         borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
       <Text
         style={{
-          fontSize: 11, fontWeight: '600', color: C.textSecondary,
-          textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6,
+          fontSize: 10, fontWeight: '700', color: C.textTertiary,
+          textTransform: 'uppercase', letterSpacing: 2.0, marginBottom: 6,
         }}
       >
         {label}
@@ -550,7 +563,7 @@ function StatChip({ label, value, C, accent }: StatChipProps) {
       <Text
         style={{
           fontSize: 24, fontWeight: '800',
-          color: accent ?? C.text,
+          color: accent ?? C.primary,
           fontVariant: ['tabular-nums'],
         }}
       >

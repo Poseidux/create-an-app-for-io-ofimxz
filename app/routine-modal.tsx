@@ -53,11 +53,11 @@ function SectionLabel({ title, C }: { title: string; C: ReturnType<typeof useCol
   return (
     <Text
       style={{
-        fontSize: 12,
-        fontWeight: '600',
-        color: C.textSecondary,
+        fontSize: 10,
+        fontWeight: '700',
+        color: C.textTertiary,
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
+        letterSpacing: 2.0,
         marginBottom: 10,
         lineHeight: 17,
       }}
@@ -195,6 +195,8 @@ export default function RoutineModal() {
             backgroundColor: C.surfaceSecondary,
             alignItems: 'center',
             justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: C.border,
           }}
           scaleValue={0.88}
         >
@@ -224,11 +226,11 @@ export default function RoutineModal() {
             backgroundColor: C.primary,
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            boxShadow: '0 0 20px rgba(0,212,255,0.35)',
           }}
           scaleValue={0.88}
         >
-          <Check size={18} color="#fff" />
+          <Check size={18} color="#0D0F14" />
         </AnimatedPressable>
       </View>
 
@@ -251,13 +253,13 @@ export default function RoutineModal() {
             <SectionLabel title="Name" C={C} />
             <View
               style={{
-                backgroundColor: C.surface,
+                backgroundColor: C.surfaceSecondary,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: C.border,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               }}
             >
               <TextInput
@@ -290,17 +292,19 @@ export default function RoutineModal() {
                     key={opt.key}
                     onPress={() => handleTypeSelect(opt.key)}
                     style={{
-                      backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                      backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
                       borderRadius: 20,
                       paddingHorizontal: 16,
                       paddingVertical: 9,
+                      borderWidth: isSelected ? 0 : 1,
+                      borderColor: C.border,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 14,
                         fontWeight: '600',
-                        color: isSelected ? C.chipSelectedText : C.chipText,
+                        color: isSelected ? '#0D0F14' : C.chipText,
                         lineHeight: 20,
                       }}
                     >
@@ -333,8 +337,8 @@ export default function RoutineModal() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       boxShadow: isSelected
-                        ? `0 0 0 3px ${C.background}, 0 0 0 5px ${c}`
-                        : '0 1px 3px rgba(0,0,0,0.15)',
+                        ? `0 0 12px ${c}60`
+                        : '0 1px 4px rgba(0,0,0,0.3)',
                     }}
                     scaleValue={0.88}
                   >
@@ -373,17 +377,19 @@ export default function RoutineModal() {
                       setDurationMinutes(d);
                     }}
                     style={{
-                      backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                      backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
                       borderRadius: 20,
                       paddingHorizontal: 16,
                       paddingVertical: 9,
+                      borderWidth: isSelected ? 0 : 1,
+                      borderColor: C.border,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 14,
                         fontWeight: '600',
-                        color: isSelected ? C.chipSelectedText : C.chipText,
+                        color: isSelected ? '#0D0F14' : C.chipText,
                         lineHeight: 20,
                       }}
                     >
@@ -400,13 +406,13 @@ export default function RoutineModal() {
             <SectionLabel title="Description" C={C} />
             <View
               style={{
-                backgroundColor: C.surface,
+                backgroundColor: C.surfaceSecondary,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: C.border,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               }}
             >
               <TextInput
@@ -437,6 +443,8 @@ export default function RoutineModal() {
                 height: 52,
                 alignItems: 'center',
                 justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: `${C.danger}30`,
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: '600', color: C.danger, lineHeight: 22 }}>

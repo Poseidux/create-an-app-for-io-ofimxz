@@ -38,6 +38,7 @@ import {
   PlannedSession,
 } from '@/utils/planned-sessions-storage';
 import type { Session } from '@/types/stopwatch';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,6 @@ function getRoutineElapsedMs(entry: RoutineTimerEntry): number {
   return entry.accumulatedMs + (Date.now() - entry.startedAt);
 }
 
-/** Returns true if scheduledTime (HH:MM) was more than 30 min ago today */
 function isMissed(scheduledTime: string | null | undefined): boolean {
   if (!scheduledTime) return false;
   try {
@@ -210,7 +210,7 @@ function StatusBadge({ status, withDot, dotColor }: { status: PlannedSession['st
       : C.surfaceSecondary;
   const label =
     status === 'done'
-      ? '✓ Done'
+      ? 'Done'
       : status === 'in_progress'
       ? 'In Progress'
       : status === 'skipped'
@@ -278,6 +278,32 @@ function RoutineCard({
   const durationLabel = `${routine.durationMinutes}m`;
   const startBgColor = routine.color + '18';
 
+  const idleCardStyle = {
+    width: 148,
+    minHeight: 130,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    borderTopWidth: 2,
+    borderTopColor: routine.color,
+    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
+  };
+
+  const activeCardStyle = {
+    width: 148,
+    minHeight: 148,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    borderTopWidth: 2,
+    borderTopColor: routine.color,
+    boxShadow: `0 0 20px ${routine.color}20, 0 4px 16px rgba(0,0,0,0.4)`,
+  };
+
   if (isIdle) {
     return (
       <Pressable
@@ -285,16 +311,8 @@ function RoutineCard({
         onLongPress={onLongPress}
         delayLongPress={500}
         style={({ pressed }) => ({
-          width: 148,
-          minHeight: 130,
-          backgroundColor: C.card,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: C.border,
-          padding: 14,
+          ...idleCardStyle,
           opacity: pressed ? 0.8 : 1,
-          borderTopWidth: 3,
-          borderTopColor: routine.color,
         })}
       >
         {routine.emoji ? <Text style={{ fontSize: 22, marginBottom: 8 }}>{routine.emoji}</Text> : null}
@@ -307,7 +325,7 @@ function RoutineCard({
         {routine.useCount > 0 && (
           <Text style={{ fontSize: 11, color: C.subtext, marginTop: 3 }}>
             {routine.useCount}
-            × used
+            {' x used'}
           </Text>
         )}
         <View style={{ marginTop: 10, backgroundColor: startBgColor, borderRadius: 8, paddingVertical: 7, alignItems: 'center' }}>
@@ -322,17 +340,7 @@ function RoutineCard({
       <Pressable
         onLongPress={onLongPress}
         delayLongPress={500}
-        style={{
-          width: 148,
-          minHeight: 130,
-          backgroundColor: C.card,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: C.border,
-          padding: 14,
-          borderTopWidth: 3,
-          borderTopColor: routine.color,
-        }}
+        style={idleCardStyle}
       >
         {routine.emoji ? <Text style={{ fontSize: 22, marginBottom: 6 }}>{routine.emoji}</Text> : null}
         <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 }} numberOfLines={1}>
@@ -348,7 +356,7 @@ function RoutineCard({
             marginBottom: 10,
           }}
         >
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#22c55e' }}>✓ Done</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#22c55e' }}>Done</Text>
         </View>
         <Pressable
           onPress={onRestart}
@@ -368,20 +376,7 @@ function RoutineCard({
 
   // Active or Paused
   return (
-    <View
-      style={{
-        width: 148,
-        minHeight: 148,
-        backgroundColor: C.card,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: C.border,
-        padding: 14,
-        borderTopWidth: 3,
-        borderTopColor: routine.color,
-      }}
-    >
-      {/* Header row: emoji + name + pulsing dot */}
+    <View style={activeCardStyle}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 5 }}>
         {routine.emoji ? <Text style={{ fontSize: 16 }}>{routine.emoji}</Text> : null}
         <Text style={{ fontSize: 12, fontWeight: '700', color: C.text, flex: 1 }} numberOfLines={1}>
@@ -390,22 +385,20 @@ function RoutineCard({
         {isActive && <PulsingDot color={routine.color} />}
       </View>
 
-      {/* Countdown */}
       <Text
         style={{
-          fontSize: 26,
-          fontWeight: '700',
+          fontSize: 28,
+          fontWeight: '800',
           fontFamily: timerFont,
           color: routine.color,
           fontVariant: ['tabular-nums'],
-          letterSpacing: -1,
+          letterSpacing: -1.5,
           marginBottom: 6,
         }}
       >
         {countdownDisplay}
       </Text>
 
-      {/* Progress bar */}
       <View
         style={{
           height: 3,
@@ -425,7 +418,6 @@ function RoutineCard({
         />
       </View>
 
-      {/* Buttons */}
       {isActive ? (
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <Pressable
@@ -511,12 +503,10 @@ export default function TodayScreen() {
   const routineTimersRef = useRef<RoutineTimers>({});
   const routineTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Keep ref in sync for use inside interval
   useEffect(() => {
     routineTimersRef.current = routineTimers;
   }, [routineTimers]);
 
-  // ── Load data on focus ──
   useFocusEffect(
     useCallback(() => {
       console.log('[TodayScreen] Focus: loading dashboard data');
@@ -539,7 +529,6 @@ export default function TodayScreen() {
           planned.filter(p => p.completedSessionId).map(p => p.completedSessionId as string)
         );
 
-        // Auto-reconcile in_progress planned items
         const updatedPlanned = [...planned];
         for (let i = 0; i < updatedPlanned.length; i++) {
           const p = updatedPlanned[i];
@@ -566,7 +555,6 @@ export default function TodayScreen() {
         setRoutines(rts);
         setPlannedSessions(updatedPlanned);
 
-        // Push widget data with fresh loaded values
         const todayStr = todayDateString();
         const todaySessionsCount = sess.filter((s: any) => s.startedAt.slice(0, 10) === todayStr).length;
         const todayTimeMs = sess.filter((s: any) => s.startedAt.slice(0, 10) === todayStr).reduce((sum: number, s: any) => sum + (s.totalTime ?? 0), 0);
@@ -594,7 +582,6 @@ export default function TodayScreen() {
     }, [])
   );
 
-  // ── Tick for running stopwatches ──
   const anyRunning = stopwatches.some(sw => sw.isRunning);
   useEffect(() => {
     if (anyRunning) {
@@ -605,7 +592,6 @@ export default function TodayScreen() {
     return () => { if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; } };
   }, [anyRunning]);
 
-  // ── Tick for routine timers ──
   const anyRoutineActive = Object.values(routineTimers).some(e => !e.isPaused && !e.isComplete);
   useEffect(() => {
     if (anyRoutineActive) {
@@ -616,7 +602,6 @@ export default function TodayScreen() {
     return () => { if (routineTickRef.current) { clearInterval(routineTickRef.current); routineTickRef.current = null; } };
   }, [anyRoutineActive]);
 
-  // ── Check routine completion ──
   useEffect(() => {
     const timers = routineTimers;
     const updates: RoutineTimers = {};
@@ -644,7 +629,6 @@ export default function TodayScreen() {
     }
   }, [routineTimers, routines]);
 
-  // ── Derived data ──
   const runningStopwatches = stopwatches.filter(sw => sw.isRunning);
   const todaySessions = sessions.filter(s => isToday(s.startedAt));
   const activeGoals = goals.filter(g => g.status === 'active').slice(0, 3);
@@ -657,7 +641,6 @@ export default function TodayScreen() {
 
   const bottomPad = insets.bottom + 100;
 
-  // ── Handlers ──
   const handleAddPress = () => {
     console.log('[TodayScreen] Header + button pressed');
     router.push('/stopwatch-modal');
@@ -765,7 +748,6 @@ export default function TodayScreen() {
   const handleStartPlanned = async (planned: PlannedSession) => {
     console.log(`[TodayScreen] Start planned item: id=${planned.id}, name="${planned.itemName}", type=${planned.itemType}, status=${planned.status}`);
 
-    // If already in_progress, navigate directly to the running session
     if (planned.status === 'in_progress') {
       if (planned.itemType === 'stopwatch' || planned.itemType === 'routine') {
         const runningMatch = stopwatches.find(sw => sw.name === planned.itemName && sw.isRunning);
@@ -783,7 +765,6 @@ export default function TodayScreen() {
       return;
     }
 
-    // Mark as in_progress and navigate
     const updated = { ...planned, status: 'in_progress' as const };
     await savePlannedSession(updated);
     setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
@@ -831,8 +812,20 @@ export default function TodayScreen() {
     ]);
   };
 
+  const sectionLabelStyle = {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: C.textTertiary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 2.0,
+    marginBottom: 12,
+    marginTop: 4,
+    marginHorizontal: 20,
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <AmbientBackground />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPad }}
@@ -852,17 +845,26 @@ export default function TodayScreen() {
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text
                 style={{
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: '800',
                   color: C.text,
-                  letterSpacing: -0.8,
-                  lineHeight: 38,
+                  letterSpacing: -1.0,
+                  lineHeight: 40,
                 }}
                 numberOfLines={1}
               >
                 {greetingText}
               </Text>
-              <Text style={{ fontSize: 13, color: C.subtext, marginTop: 4 }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.5,
+                  color: C.textSecondary,
+                  marginTop: 6,
+                }}
+              >
                 {todayDateText}
               </Text>
             </View>
@@ -879,6 +881,9 @@ export default function TodayScreen() {
                 opacity: pressed ? 0.75 : 1,
                 marginTop: 2,
                 marginRight: 8,
+                borderWidth: 1,
+                borderColor: C.border,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               })}
               accessibilityLabel="Plan a session"
             >
@@ -896,10 +901,11 @@ export default function TodayScreen() {
                 justifyContent: 'center',
                 opacity: pressed ? 0.75 : 1,
                 marginTop: 2,
+                boxShadow: '0 0 16px rgba(0,212,255,0.4), 0 2px 8px rgba(0,0,0,0.3)',
               })}
               accessibilityLabel="Add stopwatch"
             >
-              <Plus size={20} color="#fff" />
+              <Plus size={20} color="#0D0F14" />
             </Pressable>
           </View>
         </AnimatedItem>
@@ -910,12 +916,12 @@ export default function TodayScreen() {
             <View style={{ marginHorizontal: 16, marginBottom: 24 }}>
               <View
                 style={{
-                  backgroundColor: C.card,
-                  borderRadius: 16,
-                  borderCurve: 'continuous',
+                  backgroundColor: C.surface,
+                  borderRadius: 20,
                   borderWidth: 1,
                   borderColor: C.border,
                   overflow: 'hidden',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 32px rgba(0,0,0,0.5)',
                 }}
               >
                 <View style={{ padding: 16, paddingBottom: 12 }}>
@@ -946,6 +952,7 @@ export default function TodayScreen() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginRight: 12,
+                      boxShadow: '0 0 8px rgba(0,212,255,0.2)',
                     }}
                   >
                     <Clock size={18} color={C.primary} />
@@ -1035,39 +1042,28 @@ export default function TodayScreen() {
         {runningStopwatches.length > 0 && (
           <AnimatedItem index={1}>
             <View style={{ marginBottom: 28 }}>
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: C.subtext,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.2,
-                  marginBottom: 12,
-                  marginTop: 4,
-                  marginHorizontal: 20,
-                }}
-              >
-                Active Now
-              </Text>
+              <Text style={sectionLabelStyle}>Active Now</Text>
               <View style={{ marginHorizontal: 20, gap: 8 }}>
                 {runningStopwatches.map(sw => {
                   const swColor = sw.color ?? '#22c55e';
                   const elapsedMs = getElapsedMs(sw);
                   const timeDisplay = formatTime(elapsedMs);
+                  const borderTopColor = swColor;
                   return (
                     <View
                       key={sw.id}
                       style={{
-                        backgroundColor: C.card,
+                        backgroundColor: C.surface,
                         borderRadius: 14,
                         borderWidth: 1,
-                        borderColor: C.border,
-                        borderLeftWidth: 4,
-                        borderLeftColor: swColor,
+                        borderColor: swColor + '40',
+                        borderTopWidth: 2,
+                        borderTopColor,
                         padding: 16,
                         flexDirection: 'row',
                         alignItems: 'center',
                         overflow: 'hidden',
+                        boxShadow: `0 0 20px ${swColor}18, 0 4px 16px rgba(0,0,0,0.4)`,
                       }}
                     >
                       <View style={{ marginRight: 12 }}>
@@ -1086,8 +1082,8 @@ export default function TodayScreen() {
                       </View>
                       <Text
                         style={{
-                          fontSize: 24,
-                          fontWeight: '700',
+                          fontSize: 26,
+                          fontWeight: '800',
                           fontFamily: timerFont,
                           color: swColor,
                           fontVariant: ['tabular-nums'],
@@ -1107,7 +1103,6 @@ export default function TodayScreen() {
         {/* ── Today's Plan ── */}
         <AnimatedItem index={2}>
           <View style={{ marginBottom: 28 }}>
-            {/* Section header with + Plan button */}
             <View
               style={{
                 flexDirection: 'row',
@@ -1116,16 +1111,7 @@ export default function TodayScreen() {
                 marginHorizontal: 20,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: C.subtext,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.2,
-                  flex: 1,
-                }}
-              >
+              <Text style={{ ...sectionLabelStyle, marginHorizontal: 0, marginBottom: 0, flex: 1 }}>
                 Today's Plan
               </Text>
               <Pressable
@@ -1150,7 +1136,6 @@ export default function TodayScreen() {
             </View>
 
             {plannedSessions.length === 0 ? (
-              /* Empty state */
               <View style={{ marginHorizontal: 20 }}>
                 <Pressable
                   onPress={() => {
@@ -1158,13 +1143,14 @@ export default function TodayScreen() {
                     router.push('/plan-session-modal');
                   }}
                   style={({ pressed }) => ({
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 28,
                     alignItems: 'center',
                     opacity: pressed ? 0.8 : 1,
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                   })}
                 >
                   <View
@@ -1209,7 +1195,6 @@ export default function TodayScreen() {
                 </Pressable>
               </View>
             ) : (
-              /* Planned items list */
               <View style={{ marginHorizontal: 20, gap: 8 }}>
                 {plannedSessions.map((planned) => {
                   const linkedSession =
@@ -1218,7 +1203,6 @@ export default function TodayScreen() {
                       : undefined;
                   const doneText = linkedSession ? formatDuration(linkedSession.totalTime) : null;
 
-                  // Find matching running stopwatch for in_progress items
                   const matchingRunning = planned.status === 'in_progress'
                     ? stopwatches.find(sw => sw.name === planned.itemName && sw.isRunning)
                     : undefined;
@@ -1229,14 +1213,11 @@ export default function TodayScreen() {
                   const runningSS = (runningTotalSec % 60).toString().padStart(2, '0');
                   const runningDisplay = `${runningMM}:${runningSS}`;
 
-                  // Duration label for pending items
                   const durationLabel = planned.durationMinutes != null
                     ? `~${planned.durationMinutes}m`
                     : null;
 
-                  // Missed check
                   const missedCheck = planned.status === 'pending' && isMissed(planned.scheduledTime);
-
                   const isNavigable = planned.status === 'pending' || planned.status === 'in_progress';
 
                   return (
@@ -1246,7 +1227,7 @@ export default function TodayScreen() {
                       onLongPress={() => handlePlannedLongPress(planned)}
                       delayLongPress={400}
                       style={({ pressed }) => ({
-                        backgroundColor: C.card,
+                        backgroundColor: C.surface,
                         borderRadius: 14,
                         borderWidth: 1,
                         borderColor: C.border,
@@ -1254,9 +1235,9 @@ export default function TodayScreen() {
                         opacity: pressed && isNavigable ? 0.8 : 1,
                         flexDirection: 'row',
                         alignItems: 'center',
+                        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                       })}
                     >
-                      {/* Left accent bar */}
                       <View
                         style={{
                           width: 3,
@@ -1273,11 +1254,9 @@ export default function TodayScreen() {
                           paddingVertical: 14,
                         }}
                       >
-                        {/* Emoji for routines */}
                         {planned.itemEmoji != null && (
                           <Text style={{ fontSize: 14, marginRight: 8 }}>{planned.itemEmoji}</Text>
                         )}
-                        {/* Name + time */}
                         <View style={{ flex: 1 }}>
                           <Text
                             style={{
@@ -1295,7 +1274,6 @@ export default function TodayScreen() {
                               {planned.scheduledTime}
                             </Text>
                           )}
-                          {/* Duration hint for pending */}
                           {planned.status === 'pending' && durationLabel !== null && (
                             <Text style={{ fontSize: 12, color: C.subtext, marginTop: 2 }}>
                               {durationLabel}
@@ -1307,7 +1285,6 @@ export default function TodayScreen() {
                             </Text>
                           )}
                         </View>
-                        {/* Status badge or Start button */}
                         {planned.status === 'pending' ? (
                           missedCheck ? (
                             <Pressable
@@ -1376,7 +1353,7 @@ export default function TodayScreen() {
         <AnimatedItem index={3}>
           <View style={{ marginBottom: 28 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginHorizontal: 20 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 1.2, flex: 1 }}>
+              <Text style={{ ...sectionLabelStyle, marginHorizontal: 0, marginBottom: 0, flex: 1 }}>
                 Routines
               </Text>
               <Pressable
@@ -1397,9 +1374,10 @@ export default function TodayScreen() {
                 <Pressable
                   onPress={handleCreateRoutine}
                   style={({ pressed }) => ({
-                    backgroundColor: C.card, borderRadius: 14, borderWidth: 1,
+                    backgroundColor: C.surface, borderRadius: 14, borderWidth: 1,
                     borderColor: C.border, padding: 24, alignItems: 'center',
                     opacity: pressed ? 0.8 : 1,
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                   })}
                 >
                   <Target size={28} color={C.subtext} style={{ marginBottom: 10 }} />
@@ -1441,7 +1419,7 @@ export default function TodayScreen() {
                   onPress={handleCreateRoutine}
                   style={({ pressed }) => ({
                     width: 96,
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
@@ -1463,30 +1441,18 @@ export default function TodayScreen() {
         {/* ── Active Goals ── */}
         <AnimatedItem index={4}>
           <View style={{ marginBottom: 28 }}>
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: '700',
-                color: C.subtext,
-                textTransform: 'uppercase',
-                letterSpacing: 1.2,
-                marginBottom: 12,
-                marginTop: 4,
-                marginHorizontal: 20,
-              }}
-            >
-              Active Goals
-            </Text>
+            <Text style={sectionLabelStyle}>Active Goals</Text>
             {activeGoals.length === 0 ? (
               <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 24,
                     alignItems: 'center',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                   }}
                 >
                   <Target size={28} color={C.subtext} style={{ marginBottom: 8 }} />
@@ -1509,11 +1475,12 @@ export default function TodayScreen() {
               <View
                 style={{
                   marginHorizontal: 20,
-                  backgroundColor: C.card,
+                  backgroundColor: C.surface,
                   borderRadius: 14,
                   borderWidth: 1,
                   borderColor: C.border,
                   overflow: 'hidden',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                 }}
               >
                 {activeGoals.map((goal, idx) => {
@@ -1543,6 +1510,7 @@ export default function TodayScreen() {
                               alignItems: 'center',
                               justifyContent: 'center',
                               marginRight: 12,
+                              boxShadow: '0 0 8px rgba(0,212,255,0.2)',
                             }}
                           >
                             <Flag size={14} color={C.primary} />
@@ -1573,7 +1541,6 @@ export default function TodayScreen() {
                             </View>
                           )}
                         </View>
-                        {/* Progress bar */}
                         <View style={{ height: 3, backgroundColor: C.surfaceSecondary, borderRadius: 2, overflow: 'hidden' }}>
                           <View style={{ height: 3, width: '40%', backgroundColor: C.primary, borderRadius: 2 }} />
                         </View>
@@ -1592,30 +1559,18 @@ export default function TodayScreen() {
         {/* ── Recent Activity ── */}
         <AnimatedItem index={5}>
           <View style={{ marginBottom: 8 }}>
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: '700',
-                color: C.subtext,
-                textTransform: 'uppercase',
-                letterSpacing: 1.2,
-                marginBottom: 12,
-                marginTop: 4,
-                marginHorizontal: 20,
-              }}
-            >
-              Recent Activity
-            </Text>
+            <Text style={sectionLabelStyle}>Recent Activity</Text>
             {mostRecentSession === null ? (
               <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 24,
                     alignItems: 'center',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                   }}
                 >
                   <TrendingUp size={28} color={C.subtext} style={{ marginBottom: 8 }} />
@@ -1638,13 +1593,14 @@ export default function TodayScreen() {
               <View style={{ marginHorizontal: 20 }}>
                 <View
                   style={{
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: C.border,
                     borderLeftWidth: 4,
                     borderLeftColor: mostRecentSession.color,
                     overflow: 'hidden',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
                   }}
                 >
                   <View style={{ padding: 16 }}>

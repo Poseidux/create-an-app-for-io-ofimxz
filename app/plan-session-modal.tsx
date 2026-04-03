@@ -167,11 +167,11 @@ export default function PlanSessionModal() {
   ];
 
   const sectionLabel = {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: C.textSecondary,
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: C.textTertiary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.6,
+    letterSpacing: 2.0,
     marginBottom: 10,
     lineHeight: 17,
   };
@@ -218,6 +218,8 @@ export default function PlanSessionModal() {
             backgroundColor: C.surfaceSecondary,
             alignItems: 'center',
             justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: C.border,
           }}
           scaleValue={0.88}
         >
@@ -241,8 +243,8 @@ export default function PlanSessionModal() {
               borderRadius: 12,
               backgroundColor: C.surface,
               borderWidth: 1,
-              borderColor: C.primary,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              borderColor: C.borderGlow,
+              boxShadow: '0 0 12px rgba(0,212,255,0.15)',
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: '600', color: C.primary, lineHeight: 21 }}>
@@ -264,7 +266,7 @@ export default function PlanSessionModal() {
               keyboardType="numbers-and-punctuation"
               style={{
                 flex: 1,
-                backgroundColor: C.inputBg,
+                backgroundColor: C.surfaceSecondary,
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: C.border,
@@ -273,6 +275,7 @@ export default function PlanSessionModal() {
                 fontSize: 15,
                 color: C.text,
                 lineHeight: 21,
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               }}
             />
             <AnimatedPressable
@@ -282,9 +285,10 @@ export default function PlanSessionModal() {
                 paddingVertical: 12,
                 borderRadius: 12,
                 backgroundColor: C.primary,
+                boxShadow: '0 0 20px rgba(0,212,255,0.35)',
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff', lineHeight: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#0D0F14', lineHeight: 20 }}>
                 Set
               </Text>
             </AnimatedPressable>
@@ -318,8 +322,10 @@ export default function PlanSessionModal() {
                   borderRadius: 10,
                   alignItems: 'center',
                   backgroundColor: isActive ? C.surface : 'transparent',
+                  borderWidth: isActive ? 1 : 0,
+                  borderColor: isActive ? C.border : 'transparent',
                   opacity: pressed ? 0.7 : 1,
-                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : undefined,
+                  boxShadow: isActive ? '0 0 8px rgba(0,212,255,0.15)' : undefined,
                 })}
               >
                 <Text
@@ -350,7 +356,7 @@ export default function PlanSessionModal() {
               padding: 28,
               alignItems: 'center',
               marginBottom: 24,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
             }}
           >
             <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
@@ -370,7 +376,7 @@ export default function PlanSessionModal() {
               borderColor: C.border,
               overflow: 'hidden',
               marginBottom: 24,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
             }}
           >
             {currentItems.map((item, idx) => {
@@ -436,7 +442,7 @@ export default function PlanSessionModal() {
           placeholderTextColor={C.placeholder}
           keyboardType="numbers-and-punctuation"
           style={{
-            backgroundColor: C.inputBg,
+            backgroundColor: C.surfaceSecondary,
             borderRadius: 12,
             borderWidth: 1,
             borderColor: C.border,
@@ -446,6 +452,7 @@ export default function PlanSessionModal() {
             color: C.text,
             marginBottom: 32,
             lineHeight: 21,
+            boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
           }}
         />
 
@@ -458,14 +465,14 @@ export default function PlanSessionModal() {
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: selectedItem ? '0 1px 3px rgba(0,0,0,0.10)' : undefined,
+            boxShadow: selectedItem ? '0 0 20px rgba(0,212,255,0.35), 0 4px 12px rgba(0,0,0,0.4)' : undefined,
           }}
         >
           <Text
             style={{
               fontSize: 17,
               fontWeight: '700',
-              color: selectedItem ? '#fff' : C.textSecondary,
+              color: selectedItem ? '#0D0F14' : C.textSecondary,
               lineHeight: 22,
             }}
           >

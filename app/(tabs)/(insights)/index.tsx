@@ -29,6 +29,7 @@ import { Session, Lap, formatTime } from '@/types/stopwatch';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal, GoalStatus } from '@/utils/goal-storage';
 import { getRoutines, Routine } from '@/utils/routine-storage';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,11 +111,10 @@ function formatDateTime(iso: string): string {
   }
 }
 
-/** Returns Monday of the current week as a local-time Date at midnight */
 function getWeekStart(): Date {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon, ...
-  const diff = day === 0 ? -6 : 1 - day; // Monday
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
   const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
   return mon;
 }
@@ -220,15 +220,16 @@ function StatCard({ label, value, sub, accent, iconNode, iconBgColor }: StatCard
   return (
     <View
       style={{
-        backgroundColor: C.card,
+        backgroundColor: C.surface,
         borderRadius: 14,
+        // @ts-expect-error borderCurve
         borderCurve: 'continuous',
         borderWidth: 1,
         borderColor: C.border,
         padding: 14,
         flex: 1,
         gap: 6,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -246,7 +247,7 @@ function StatCard({ label, value, sub, accent, iconNode, iconBgColor }: StatCard
             {iconNode}
           </View>
         ) : null}
-        <Text style={{ fontSize: 11, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, flex: 1 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 2.0, flex: 1 }}>
           {label}
         </Text>
       </View>
@@ -255,7 +256,7 @@ function StatCard({ label, value, sub, accent, iconNode, iconBgColor }: StatCard
           fontSize: 22,
           fontWeight: '800',
           fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-          color: accent ?? C.text,
+          color: accent ?? C.primary,
           fontVariant: ['tabular-nums'],
           letterSpacing: -0.5,
         }}
@@ -279,16 +280,18 @@ function MiniStatChip({ label, value }: { label: string; value: string }) {
     <View
       style={{
         flex: 1,
-        backgroundColor: C.card,
+        backgroundColor: C.surface,
         borderRadius: 12,
+        // @ts-expect-error borderCurve
         borderCurve: 'continuous',
         borderWidth: 1,
         borderColor: C.border,
         padding: 12,
         alignItems: 'center',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
-      <Text style={{ fontSize: 10, fontWeight: '600', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+      <Text style={{ fontSize: 10, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 2.0, marginBottom: 6 }}>
         {label}
       </Text>
       <Text
@@ -319,7 +322,7 @@ function WeekStat({ label, value }: { label: string; value: string }) {
         style={{
           fontSize: 22,
           fontWeight: '800',
-          color: C.text,
+          color: C.primary,
           fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
           fontVariant: ['tabular-nums'],
         }}
@@ -384,7 +387,7 @@ function SwStatRow({
         </Text>
       </View>
       <View style={{ height: 3, backgroundColor: C.surfaceSecondary, borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-        <View style={{ height: 3, width: barWidth, backgroundColor: color, borderRadius: 2 }} />
+        <View style={{ height: 3, width: barWidth, backgroundColor: color, borderRadius: 4 }} />
       </View>
     </View>
   );
@@ -561,7 +564,7 @@ function GoalsSection({
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 10 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 2.0, flex: 1 }}>
           Goals
         </Text>
         <Target size={14} color={C.textSecondary} />
@@ -580,12 +583,14 @@ function GoalsSection({
         <View
           style={{
             marginHorizontal: 16,
-            backgroundColor: C.card,
+            backgroundColor: C.surface,
             borderRadius: 14,
+            // @ts-expect-error borderCurve
             borderCurve: 'continuous',
             borderWidth: 1,
             borderColor: C.border,
             overflow: 'hidden',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
           {goals.map((goal, idx) => (
@@ -598,12 +603,13 @@ function GoalsSection({
         <View
           style={{
             marginHorizontal: 16,
-            backgroundColor: C.card,
+            backgroundColor: C.surface,
             borderRadius: 14,
             borderWidth: 1,
             borderColor: C.border,
             padding: 24,
             alignItems: 'center',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
           <Target size={28} color={C.textSecondary} style={{ marginBottom: 8 }} />
@@ -641,7 +647,6 @@ function WeeklyReviewCard({
   const streak = computeStreak(sessions);
   const streakDisplay = `${streak}d`;
 
-  // Routine usage this week
   const weekCompletions = completions.filter(c => c.completedAt.slice(0, 10) >= weekStartDateStr);
   const routineUsageMap: Record<string, number> = {};
   for (const c of weekCompletions) {
@@ -657,7 +662,6 @@ function WeeklyReviewCard({
       return { name: routine ? routine.name : 'Unknown', count };
     });
 
-  // Recent reflections this week
   const weekReflections = weekCompletions
     .filter(c => c.note || c.focusRating > 0)
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
@@ -668,16 +672,16 @@ function WeeklyReviewCard({
   return (
     <View
       style={{
-        backgroundColor: C.card,
+        backgroundColor: C.surface,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: C.border,
         marginHorizontal: 16,
         padding: 16,
         marginBottom: 28,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
-      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 }}>
         <Calendar size={15} color={C.primary} />
         <Text style={{ fontSize: 13, fontWeight: '700', color: C.text, letterSpacing: 0.2 }}>
@@ -685,18 +689,15 @@ function WeeklyReviewCard({
         </Text>
       </View>
 
-      {/* Stats row */}
       <View style={{ flexDirection: 'row', marginBottom: 16 }}>
         <WeekStat label="Focused" value={weekTimeDisplay} />
         <WeekStat label="Sessions" value={String(weekSessionCount)} />
         <WeekStat label="Streak" value={streakDisplay} />
       </View>
 
-      {/* Divider */}
       <View style={{ height: 1, backgroundColor: dividerColor, marginBottom: 12 }} />
 
-      {/* Routine Usage */}
-      <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+      <Text style={{ fontSize: 10, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 2.0, marginBottom: 8 }}>
         Routine Usage
       </Text>
       {topRoutines.length > 0 ? (
@@ -719,11 +720,9 @@ function WeeklyReviewCard({
         </Text>
       )}
 
-      {/* Divider */}
       <View style={{ height: 1, backgroundColor: dividerColor, marginTop: 10, marginBottom: 12 }} />
 
-      {/* Recent Reflections */}
-      <Text style={{ fontSize: 11, fontWeight: '700', color: C.subtext, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+      <Text style={{ fontSize: 10, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 2.0, marginBottom: 8 }}>
         Recent Reflections
       </Text>
       {weekReflections.length > 0 ? (
@@ -861,11 +860,9 @@ export default function InsightsScreen() {
     }, [])
   );
 
-  // Filter chips — unique stopwatch names, up to 4
   const uniqueNames = Array.from(new Set(allSessions.map(s => s.stopwatchName))).slice(0, 4);
   const filterChips = ['All', ...uniqueNames];
 
-  // Filtered sessions
   const sessions = activeFilter === 'All'
     ? allSessions
     : allSessions.filter(s => s.stopwatchName === activeFilter);
@@ -880,7 +877,6 @@ export default function InsightsScreen() {
   const stats = sessions.length > 0 ? computeStats(sessions) : null;
   const totalTimeDisplay = stats ? formatTime(stats.totalTime) : '0:00';
 
-  // Weekly stats for share
   const weekStart = getWeekStart();
   const weekStartDateStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
   const weekSessions = allSessions.filter(s => s.startedAt.slice(0, 10) >= weekStartDateStr);
@@ -908,11 +904,11 @@ export default function InsightsScreen() {
   };
 
   const sectionLabel = {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700' as const,
-    color: C.subtext,
+    color: C.textTertiary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 1.2,
+    letterSpacing: 2.0,
     paddingHorizontal: 20,
     marginBottom: 12,
     marginTop: 28,
@@ -948,7 +944,6 @@ export default function InsightsScreen() {
   const longestSessionMs = getLongestSession(sessions);
   const longestSessionDisplay = longestSessionMs > 0 ? formatTime(longestSessionMs) : '—';
 
-  // Session history
   const MAX_HISTORY = 20;
   const sortedSessions = [...sessions].sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
@@ -958,13 +953,13 @@ export default function InsightsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <AmbientBackground />
       {/* Header */}
       <View
         style={{
-          paddingTop: insets.top,
+          paddingTop: insets.top + 12,
           paddingHorizontal: 20,
           paddingBottom: 14,
-          paddingTop: insets.top + 12,
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: C.background,
@@ -993,6 +988,8 @@ export default function InsightsScreen() {
             alignItems: 'center',
             justifyContent: 'center',
             opacity: pressed ? 0.6 : 1,
+            borderWidth: 1,
+            borderColor: C.border,
           })}
         >
           <Share2 size={18} color={C.textSecondary} />
@@ -1017,18 +1014,20 @@ export default function InsightsScreen() {
                   setActiveFilter(chip);
                 }}
                 style={{
-                  backgroundColor: isSelected ? C.primary : C.chipBackground,
+                  backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
                   borderRadius: 20,
                   paddingHorizontal: 14,
                   paddingVertical: 7,
                   alignSelf: 'center',
+                  borderWidth: isSelected ? 0 : 1,
+                  borderColor: C.border,
                 }}
               >
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: '600',
-                    color: isSelected ? '#fff' : C.chipText,
+                    color: isSelected ? '#0D0F14' : C.chipText,
                   }}
                 >
                   {chip}
@@ -1052,13 +1051,13 @@ export default function InsightsScreen() {
 
         {allSessions.length === 0 ? (
           <>
-            {/* Empty state */}
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 40 }}>
               <View
                 style={{
                   width: 72,
                   height: 72,
                   borderRadius: 22,
+                  // @ts-expect-error borderCurve
                   borderCurve: 'continuous',
                   backgroundColor: C.surfaceSecondary,
                   alignItems: 'center',
@@ -1093,12 +1092,14 @@ export default function InsightsScreen() {
                 <View
                   style={{
                     marginHorizontal: 16,
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
+                    // @ts-expect-error borderCurve
                     borderCurve: 'continuous',
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 16,
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   <BarChart data={sessionChartData} barColor={C.primary} maxBarHeight={80} />
@@ -1113,12 +1114,14 @@ export default function InsightsScreen() {
                 <View
                   style={{
                     marginHorizontal: 16,
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
+                    // @ts-expect-error borderCurve
                     borderCurve: 'continuous',
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 16,
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   <BarChart data={timeChartData} barColor="#34C759" maxBarHeight={80} formatValue={formatTimeShort} />
@@ -1138,8 +1141,8 @@ export default function InsightsScreen() {
               <StatCard
                 label="Sessions"
                 value={String(stats!.totalSessions)}
-                iconNode={<BarChart2 size={15} color="#0A84FF" />}
-                iconBgColor="rgba(10,132,255,0.15)"
+                iconNode={<BarChart2 size={15} color={C.primary} />}
+                iconBgColor={C.primaryMuted}
               />
             </View>
             <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 10 }}>
@@ -1205,12 +1208,14 @@ export default function InsightsScreen() {
                 <View
                   style={{
                     marginHorizontal: 16,
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
+                    // @ts-expect-error borderCurve
                     borderCurve: 'continuous',
                     borderWidth: 1,
                     borderColor: C.border,
                     overflow: 'hidden',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   {stats!.perStopwatch.map((sw, idx) => (
@@ -1235,12 +1240,14 @@ export default function InsightsScreen() {
                 <View
                   style={{
                     marginHorizontal: 16,
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 14,
+                    // @ts-expect-error borderCurve
                     borderCurve: 'continuous',
                     borderWidth: 1,
                     borderColor: C.border,
                     overflow: 'hidden',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   {visibleSessions.map((session, idx) => (

@@ -102,10 +102,11 @@ function NumberInput({
       </Text>
       <View
         style={{
-          backgroundColor: C.inputBg,
+          backgroundColor: C.surfaceSecondary,
           borderRadius: 10,
           borderWidth: 1,
           borderColor: C.border,
+          boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
           width,
           alignItems: 'center',
         }}
@@ -308,13 +309,13 @@ export default function TimerModal() {
   const title = isEditing ? 'Edit Timer' : 'New Timer';
 
   const sectionLabel = {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: C.textSecondary,
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: C.textTertiary,
     paddingHorizontal: 4,
     marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.6,
+    letterSpacing: 2.0,
     lineHeight: 17,
   };
 
@@ -327,9 +328,17 @@ export default function TimerModal() {
   const goalTypeLabel = mode === 'countdown' ? 'Complete countdown' : 'Complete all rounds';
   const goalDescription = 'Goal achieved when the timer finishes naturally without being stopped early.';
 
+  const durationCardStyle = {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: C.surface }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.surface }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.background }}>
         <View
           style={{
             flexDirection: 'row',
@@ -338,7 +347,7 @@ export default function TimerModal() {
             paddingHorizontal: 20,
             paddingVertical: 14,
             borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: C.border,
+            borderBottomColor: C.divider,
           }}
         >
           <Pressable
@@ -402,8 +411,10 @@ export default function TimerModal() {
                     borderRadius: 10,
                     alignItems: 'center',
                     backgroundColor: isActive ? C.surface : 'transparent',
+                    borderWidth: isActive ? 1 : 0,
+                    borderColor: isActive ? C.border : 'transparent',
                     opacity: pressed ? 0.7 : 1,
-                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : undefined,
+                    boxShadow: isActive ? '0 0 8px rgba(0,212,255,0.15)' : undefined,
                   })}
                 >
                   <Text style={{ fontSize: 13, fontWeight: isActive ? '600' : '500', color: isActive ? C.text : C.textSecondary, lineHeight: 18 }}>
@@ -417,13 +428,14 @@ export default function TimerModal() {
           {/* Name */}
           <View
             style={{
-              backgroundColor: C.inputBg,
+              backgroundColor: C.surfaceSecondary,
               borderRadius: 14,
               borderWidth: 1,
               borderColor: C.border,
               paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 8,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
             }}
           >
             <TextInput
@@ -446,17 +458,13 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Duration</Text>
               <View
                 style={{
-                  backgroundColor: C.background,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: C.border,
+                  ...durationCardStyle,
                   padding: 20,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Days" value={cdDays} onChange={setCdDays} max={99} width={56} />
@@ -475,17 +483,13 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Work Time</Text>
               <View
                 style={{
-                  backgroundColor: C.background,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: C.border,
+                  ...durationCardStyle,
                   padding: 20,
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 16,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Minutes" value={ivWorkMin} onChange={setIvWorkMin} max={99} />
@@ -496,17 +500,13 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rest Time</Text>
               <View
                 style={{
-                  backgroundColor: C.background,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: C.border,
+                  ...durationCardStyle,
                   padding: 20,
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 16,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Minutes" value={ivRestMin} onChange={setIvRestMin} max={99} />
@@ -517,16 +517,12 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rounds</Text>
               <View
                 style={{
-                  backgroundColor: C.background,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: C.border,
+                  ...durationCardStyle,
                   padding: 20,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Rounds" value={ivRounds} onChange={setIvRounds} min={1} max={99} />
@@ -548,10 +544,12 @@ export default function TimerModal() {
                         paddingHorizontal: 16,
                         paddingVertical: 9,
                         borderRadius: 20,
-                        backgroundColor: isActive ? C.primary : C.chipBackground,
+                        backgroundColor: isActive ? C.primary : C.surfaceSecondary,
+                        borderWidth: isActive ? 0 : 1,
+                        borderColor: C.border,
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#fff' : C.chipText, lineHeight: 18 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#0D0F14' : C.chipText, lineHeight: 18 }}>
                         {p.label}
                       </Text>
                     </AnimatedPressable>
@@ -564,17 +562,13 @@ export default function TimerModal() {
                   <Text style={sectionLabel}>Work Time</Text>
                   <View
                     style={{
-                      backgroundColor: C.background,
-                      borderRadius: 16,
-                      borderWidth: 1,
-                      borderColor: C.border,
+                      ...durationCardStyle,
                       padding: 20,
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 16,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
                     <NumberInput label="Minutes" value={hiitWorkMin} onChange={setHiitWorkMin} max={99} />
@@ -585,17 +579,13 @@ export default function TimerModal() {
                   <Text style={sectionLabel}>Rest Time</Text>
                   <View
                     style={{
-                      backgroundColor: C.background,
-                      borderRadius: 16,
-                      borderWidth: 1,
-                      borderColor: C.border,
+                      ...durationCardStyle,
                       padding: 20,
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 16,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
                     <NumberInput label="Minutes" value={hiitRestMin} onChange={setHiitRestMin} max={99} />
@@ -608,16 +598,12 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rounds</Text>
               <View
                 style={{
-                  backgroundColor: C.background,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: C.border,
+                  ...durationCardStyle,
                   padding: 20,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 <NumberInput label="Rounds" value={hiitRounds} onChange={setHiitRounds} min={1} max={99} />
@@ -665,10 +651,12 @@ export default function TimerModal() {
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
-                    backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                    backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
+                    borderWidth: isSelected ? 0 : 1,
+                    borderColor: C.border,
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText, lineHeight: 20 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? '#0D0F14' : C.chipText, lineHeight: 20 }}>
                     {cat.name}
                   </Text>
                 </AnimatedPressable>
@@ -687,12 +675,13 @@ export default function TimerModal() {
             <View
               style={{
                 flex: 1,
-                backgroundColor: C.inputBg,
+                backgroundColor: C.surfaceSecondary,
                 borderRadius: 10,
                 borderWidth: 1,
                 borderColor: C.border,
                 paddingHorizontal: 12,
                 paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               }}
             >
               <TextInput
@@ -712,11 +701,12 @@ export default function TimerModal() {
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 borderRadius: 10,
-                backgroundColor: canAddCat ? C.primary : C.chipBackground,
+                backgroundColor: canAddCat ? C.primary : C.surfaceSecondary,
                 opacity: canAddCat ? 1 : 0.5,
+                boxShadow: canAddCat ? '0 0 20px rgba(0,212,255,0.35)' : undefined,
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.textSecondary, lineHeight: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#0D0F14' : C.textSecondary, lineHeight: 20 }}>
                 Add
               </Text>
             </AnimatedPressable>
@@ -727,12 +717,12 @@ export default function TimerModal() {
           <View
             style={{
               backgroundColor: C.surface,
-              borderRadius: 14,
+              borderRadius: 16,
               borderWidth: 1,
               borderColor: C.border,
               overflow: 'hidden',
               marginBottom: 8,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
             }}
           >
             {/* Toggle row */}
@@ -775,12 +765,13 @@ export default function TimerModal() {
                     </Text>
                     <View
                       style={{
-                        backgroundColor: C.inputBg,
+                        backgroundColor: C.surfaceSecondary,
                         borderRadius: 10,
                         borderWidth: 1,
                         borderColor: C.border,
                         paddingHorizontal: 12,
                         paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                        boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
                       }}
                     >
                       <TextInput

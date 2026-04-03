@@ -48,6 +48,7 @@ import {
 import { deleteTimerConfig, getTimerConfigs, TimerConfig } from '@/utils/timer-storage';
 import { loadTimerCategories } from '@/utils/timer-category-storage';
 import { notifyTimerComplete } from '@/utils/completion-notifications';
+import { AmbientBackground } from '@/components/AmbientBackground';
 
 // ─── Presets ──────────────────────────────────────────────────────────────────
 
@@ -277,6 +278,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
     );
   };
 
+  const cardGlow = sw.isRunning ? `0 0 20px ${swColor}18, 0 4px 16px rgba(0,0,0,0.4)` : '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)';
+
   return (
     <Animated.View
       style={{
@@ -297,13 +300,14 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
       >
         <View
           style={{
-            backgroundColor: C.card,
+            backgroundColor: C.surface,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: C.border,
+            borderColor: sw.isRunning ? swColor + '40' : C.border,
             borderLeftWidth: 3,
             borderLeftColor: swColor,
             padding: 18,
+            boxShadow: cardGlow,
           }}
         >
           {/* Top row: name + status */}
@@ -341,7 +345,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
               fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
               color: sw.isRunning ? swColor : C.text,
               fontVariant: ['tabular-nums'],
-              letterSpacing: -2,
+              letterSpacing: -1,
               marginBottom: 6,
             }}
           >
@@ -392,6 +396,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
                   width: 40,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
+                  borderWidth: 1,
+                  borderColor: C.border,
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: pressed ? 0.7 : 1,
@@ -409,6 +415,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
                   width: 40,
                   borderRadius: 10,
                   backgroundColor: C.surfaceSecondary,
+                  borderWidth: 1,
+                  borderColor: C.border,
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: pressed ? 0.7 : 1,
@@ -428,6 +436,8 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
                 width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
+                borderWidth: 1,
+                borderColor: C.border,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.7 : 1,
@@ -564,11 +574,11 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
           {/* Note */}
           <Text
             style={{
-              fontSize: 13,
-              fontWeight: '600',
-              color: C.subtext,
+              fontSize: 10,
+              fontWeight: '700',
+              color: C.textTertiary,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 2.0,
               marginBottom: 8,
             }}
           >
@@ -582,7 +592,7 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
             placeholderTextColor={C.placeholder}
             multiline
             style={{
-              backgroundColor: C.inputBg,
+              backgroundColor: C.surfaceSecondary,
               borderRadius: 12,
               borderCurve: 'continuous',
               borderWidth: 1,
@@ -592,6 +602,7 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
               color: C.text,
               minHeight: 80,
               marginBottom: 24,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
             }}
           />
 
@@ -609,11 +620,11 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
                 <Flag size={14} color={C.textSecondary} />
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontWeight: '600',
-                    color: C.subtext,
+                    fontSize: 10,
+                    fontWeight: '700',
+                    color: C.textTertiary,
                     textTransform: 'uppercase',
-                    letterSpacing: 0.5,
+                    letterSpacing: 2.0,
                   }}
                 >
                   {`${laps.length} Lap${laps.length !== 1 ? 's' : ''}`}
@@ -621,12 +632,13 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
               </View>
               <View
                 style={{
-                  backgroundColor: C.card,
+                  backgroundColor: C.surface,
                   borderRadius: 14,
                   borderCurve: 'continuous',
                   borderWidth: 1,
                   borderColor: C.border,
                   padding: 8,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                 }}
               >
                 {/* Column headers */}
@@ -681,6 +693,7 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
                             fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                             color: lapTimeColor,
                             fontVariant: ['tabular-nums'],
+                            letterSpacing: -1,
                           }}
                         >
                           {lapTimeDisplay}
@@ -697,6 +710,7 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
                           fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                           color: C.textSecondary,
                           fontVariant: ['tabular-nums'],
+                          letterSpacing: -1,
                         }}
                       >
                         {splitTimeDisplay}
@@ -807,6 +821,10 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
     );
   };
 
+  const cardGlow = runtime.isRunning
+    ? `0 0 20px ${timerColor}18, 0 4px 16px rgba(0,0,0,0.4)`
+    : '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)';
+
   return (
     <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
       <Pressable
@@ -816,13 +834,14 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
       >
         <View
           style={{
-            backgroundColor: C.card,
+            backgroundColor: C.surface,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: C.border,
+            borderColor: runtime.isRunning ? timerColor + '40' : C.border,
             borderLeftWidth: 3,
             borderLeftColor: timerColor,
             padding: 18,
+            boxShadow: cardGlow,
           }}
         >
           {/* Top row */}
@@ -859,7 +878,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                   fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                   color: '#22c55e',
                   fontVariant: ['tabular-nums'],
-                  letterSpacing: -2,
+                  letterSpacing: -1,
                 }}
               >
                 00:00:00.00
@@ -885,7 +904,7 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                 fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
                 color: runtime.isRunning ? timerColor : C.text,
                 fontVariant: ['tabular-nums'],
-                letterSpacing: -2,
+                letterSpacing: -1,
                 marginBottom: 6,
               }}
             >
@@ -965,6 +984,8 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                 width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
+                borderWidth: 1,
+                borderColor: C.border,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.7 : 1,
@@ -983,6 +1004,8 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
                 width: 40,
                 borderRadius: 10,
                 backgroundColor: C.surfaceSecondary,
+                borderWidth: 1,
+                borderColor: C.border,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.7 : 1,
@@ -1019,7 +1042,6 @@ export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Stopwatch state
   const {
     stopwatches,
     startStopwatch,
@@ -1027,14 +1049,10 @@ export default function SessionsScreen() {
   } = useStopwatch();
   const { categories, selectedCategory, setSelectedCategory } = useCategory();
 
-  // Goals
   const [goalsMap, setGoalsMap] = useState<Record<string, ItemGoal>>({});
-
-  // Timer state
   const [timerConfigs, setTimerConfigs] = useState<TimerConfig[]>([]);
   const [timerRuntimes, setTimerRuntimes] = useState<Record<string, TimerRuntime>>({});
 
-  // UI state
   const [activeTab, setActiveTab] = useState<'stopwatches' | 'timers'>('stopwatches');
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [presetsExpanded, setPresetsExpanded] = useState(false);
@@ -1042,7 +1060,6 @@ export default function SessionsScreen() {
   const [, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Tick for stopwatch display ──────────────────────────────────────────────
   useEffect(() => {
     const anyRunning = stopwatches.some(sw => sw.isRunning);
     const anyTimerRunning = Object.values(timerRuntimes).some(r => r.isRunning);
@@ -1064,7 +1081,6 @@ export default function SessionsScreen() {
     };
   }, [stopwatches, timerRuntimes]);
 
-  // ── Timer tick logic ────────────────────────────────────────────────────────
   useEffect(() => {
     const anyRunning = Object.values(timerRuntimes).some(r => r.isRunning);
     if (!anyRunning) return;
@@ -1084,19 +1100,16 @@ export default function SessionsScreen() {
           next[configId] = { ...r, startedAt: now };
 
           if (newRemaining <= 0) {
-            // Phase transition
             if (cfg.mode === 'countdown') {
               next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
               markGoalAchieved(configId).catch(() => {});
               notifyTimerComplete(cfg.name).catch(() => {});
             } else {
-              // interval / hiit
               const totalRounds = cfg.rounds ?? 1;
               if (r.phase === 'work') {
                 if (cfg.restMs && cfg.restMs > 0) {
                   next[configId] = { ...next[configId], phase: 'rest', remainingMs: cfg.restMs, startedAt: now };
                 } else {
-                  // no rest — go to next round
                   const nextRound = r.currentRound + 1;
                   if (nextRound > totalRounds) {
                     next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
@@ -1107,7 +1120,6 @@ export default function SessionsScreen() {
                   }
                 }
               } else {
-                // rest -> next round
                 const nextRound = r.currentRound + 1;
                 if (nextRound > totalRounds) {
                   next[configId] = { ...next[configId], remainingMs: 0, isRunning: false, isComplete: true, startedAt: null };
@@ -1129,7 +1141,6 @@ export default function SessionsScreen() {
     return () => clearInterval(id);
   }, [timerRuntimes, timerConfigs]);
 
-  // ── Load on focus ───────────────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
       console.log('[SessionsScreen] Focus: loading goals + timer configs');
@@ -1157,13 +1168,11 @@ export default function SessionsScreen() {
     }, [])
   );
 
-  // ── Filtered stopwatches ────────────────────────────────────────────────────
   const filteredStopwatches =
     selectedCategory === 'all'
       ? stopwatches
       : stopwatches.filter(sw => sw.category === selectedCategory);
 
-  // ── Timer handlers ──────────────────────────────────────────────────────────
   const handleTimerStart = useCallback((configId: string) => {
     setTimerRuntimes(prev => {
       const r = prev[configId];
@@ -1235,14 +1244,12 @@ export default function SessionsScreen() {
     });
   }, []);
 
-  // ── Category chips ──────────────────────────────────────────────────────────
   const allCategoryChips = categories;
-
-  // ── Tick value for stopwatch cards ─────────────────────────────────────────
   const [tick] = useState(0);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <AmbientBackground />
       {/* ── Header ── */}
       <View
         style={{
@@ -1273,7 +1280,7 @@ export default function SessionsScreen() {
           >
             Sessions
           </Text>
-          {/* Add button — context-aware */}
+          {/* FAB Add button */}
           <Pressable
             onPress={() => {
               if (activeTab === 'timers') {
@@ -1288,13 +1295,14 @@ export default function SessionsScreen() {
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: C.surfaceSecondary,
+              backgroundColor: C.primary,
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.75 : 1,
+              boxShadow: '0 0 24px rgba(0,212,255,0.45), 0 4px 12px rgba(0,0,0,0.4)',
             })}
           >
-            <Plus size={18} color={C.text} />
+            <Plus size={18} color="#0D0F14" />
           </Pressable>
         </View>
       </View>
@@ -1321,10 +1329,10 @@ export default function SessionsScreen() {
             paddingVertical: 8,
             alignItems: 'center',
             borderRadius: 10,
-            backgroundColor: activeTab === 'stopwatches' ? C.card : 'transparent',
-            ...(activeTab === 'stopwatches' && Platform.OS === 'ios'
-              ? { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-              : {}),
+            backgroundColor: activeTab === 'stopwatches' ? C.surface : 'transparent',
+            borderWidth: activeTab === 'stopwatches' ? 1 : 0,
+            borderColor: activeTab === 'stopwatches' ? C.border : 'transparent',
+            ...(activeTab === 'stopwatches' ? { boxShadow: '0 0 8px rgba(0,212,255,0.15)' } : {}),
           }}
         >
           <Text
@@ -1347,10 +1355,10 @@ export default function SessionsScreen() {
             paddingVertical: 8,
             alignItems: 'center',
             borderRadius: 10,
-            backgroundColor: activeTab === 'timers' ? C.card : 'transparent',
-            ...(activeTab === 'timers' && Platform.OS === 'ios'
-              ? { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-              : {}),
+            backgroundColor: activeTab === 'timers' ? C.surface : 'transparent',
+            borderWidth: activeTab === 'timers' ? 1 : 0,
+            borderColor: activeTab === 'timers' ? C.border : 'transparent',
+            ...(activeTab === 'timers' ? { boxShadow: '0 0 8px rgba(0,212,255,0.15)' } : {}),
           }}
         >
           <Text
@@ -1372,7 +1380,6 @@ export default function SessionsScreen() {
       >
         {activeTab === 'stopwatches' ? (
           <>
-            {/* ════ STOPWATCHES SECTION ════ */}
             <View
               style={{
                 flexDirection: 'row',
@@ -1411,7 +1418,9 @@ export default function SessionsScreen() {
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 12,
-                  backgroundColor: presetsExpanded ? C.chipSelected : C.chipBackground,
+                  backgroundColor: presetsExpanded ? C.primary : C.surfaceSecondary,
+                  borderWidth: presetsExpanded ? 0 : 1,
+                  borderColor: C.border,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
@@ -1419,13 +1428,13 @@ export default function SessionsScreen() {
                   style={{
                     fontSize: 12,
                     fontWeight: '600',
-                    color: presetsExpanded ? C.chipSelectedText : C.chipText,
+                    color: presetsExpanded ? '#0D0F14' : C.chipText,
                   }}
                 >
                   Presets
                 </Text>
                 {presetsExpanded ? (
-                  <ChevronUp size={12} color={C.chipSelectedText} />
+                  <ChevronUp size={12} color="#0D0F14" />
                 ) : (
                   <ChevronDown size={12} color={C.chipText} />
                 )}
@@ -1454,7 +1463,7 @@ export default function SessionsScreen() {
                       paddingHorizontal: 14,
                       paddingVertical: 8,
                       borderRadius: 20,
-                      backgroundColor: C.card,
+                      backgroundColor: C.surface,
                       borderWidth: 1,
                       borderColor: C.border,
                       opacity: pressed ? 0.7 : 1,
@@ -1488,7 +1497,9 @@ export default function SessionsScreen() {
                       paddingHorizontal: 14,
                       paddingVertical: 6,
                       borderRadius: 20,
-                      backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                      backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
+                      borderWidth: isSelected ? 0 : 1,
+                      borderColor: C.border,
                       opacity: pressed ? 0.7 : 1,
                     })}
                   >
@@ -1496,7 +1507,7 @@ export default function SessionsScreen() {
                       style={{
                         fontSize: 13,
                         fontWeight: '500',
-                        color: isSelected ? C.chipSelectedText : C.chipText,
+                        color: isSelected ? '#0D0F14' : C.chipText,
                       }}
                     >
                       {cat.name}
@@ -1528,12 +1539,13 @@ export default function SessionsScreen() {
               <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
                 <View
                   style={{
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 16,
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 24,
                     alignItems: 'center',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   <Timer size={32} color={C.subtext} style={{ marginBottom: 10 }} />
@@ -1563,7 +1575,6 @@ export default function SessionsScreen() {
           </>
         ) : (
           <>
-            {/* ════ TIMERS SECTION ════ */}
             <View style={{ marginTop: 20 }} />
 
             {/* Timer cards */}
@@ -1592,12 +1603,13 @@ export default function SessionsScreen() {
               <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
                 <View
                   style={{
-                    backgroundColor: C.card,
+                    backgroundColor: C.surface,
                     borderRadius: 16,
                     borderWidth: 1,
                     borderColor: C.border,
                     padding: 24,
                     alignItems: 'center',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                   }}
                 >
                   <Timer size={32} color={C.subtext} style={{ marginBottom: 10 }} />
@@ -1662,14 +1674,15 @@ export default function SessionsScreen() {
         />
         <View
           style={{
-            backgroundColor: C.card,
+            backgroundColor: C.surface,
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
+            borderTopWidth: 1,
+            borderColor: C.border,
             paddingBottom: insets.bottom + 16,
             paddingTop: 8,
           }}
         >
-          {/* Drag handle */}
           <View
             style={{
               width: 36,
@@ -1683,11 +1696,11 @@ export default function SessionsScreen() {
 
           <Text
             style={{
-              fontSize: 13,
-              fontWeight: '600',
-              color: C.subtext,
+              fontSize: 10,
+              fontWeight: '700',
+              color: C.textTertiary,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 2.0,
               paddingHorizontal: 16,
               marginBottom: 12,
             }}
@@ -1695,7 +1708,6 @@ export default function SessionsScreen() {
             Create New
           </Text>
 
-          {/* New Stopwatch */}
           <Pressable
             onPress={() => {
               console.log('[SessionsScreen] New Stopwatch pressed');
@@ -1735,7 +1747,6 @@ export default function SessionsScreen() {
 
           <View style={{ height: 1, backgroundColor: C.divider, marginLeft: 74 }} />
 
-          {/* New Timer */}
           <Pressable
             onPress={() => {
               console.log('[SessionsScreen] New Timer pressed');

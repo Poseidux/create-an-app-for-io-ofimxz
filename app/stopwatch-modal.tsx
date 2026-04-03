@@ -107,7 +107,9 @@ function ColorSwatch({
         borderColor: isSelected ? '#007AFF' : isWhite ? '#C6C6C8' : 'transparent',
         boxShadow: isSelected
           ? `0 0 0 2px ${hex === '#FFFFFF' ? '#C6C6C8' : hex}`
-          : '0 1px 3px rgba(0,0,0,0.15)',
+          : isSelected
+          ? `0 0 12px ${hex}60`
+          : '0 1px 4px rgba(0,0,0,0.3)',
       }}
       scaleValue={0.88}
     >
@@ -237,12 +239,13 @@ function GoalNumberInput({
       </Text>
       <View
         style={{
-          backgroundColor: C.inputBg,
+          backgroundColor: C.surfaceSecondary,
           borderRadius: 10,
           borderWidth: 1,
           borderColor: C.border,
           width: 64,
           alignItems: 'center',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
         }}
       >
         <TextInput
@@ -552,13 +555,13 @@ export default function StopwatchModal() {
   const slowestLap = laps.length >= 2 ? laps.reduce((a, b) => a.lapTime > b.lapTime ? a : b) : null;
 
   const sectionLabel = {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: C.textSecondary,
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: C.textTertiary,
     paddingHorizontal: 4,
     marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.6,
+    letterSpacing: 2.0,
     lineHeight: 17,
   };
 
@@ -571,9 +574,9 @@ export default function StopwatchModal() {
   const goalTimeValid = goalTimeMs > 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.surface }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* FIXED HEADER */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.surface }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.background }}>
         <View
           style={{
             flexDirection: 'row',
@@ -582,7 +585,7 @@ export default function StopwatchModal() {
             paddingHorizontal: 20,
             paddingVertical: 14,
             borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: C.border,
+            borderBottomColor: C.divider,
           }}
         >
           <Pressable
@@ -633,26 +636,26 @@ export default function StopwatchModal() {
           {isEditing && existing && (
             <View
               style={{
-                backgroundColor: C.background,
+                backgroundColor: C.surface,
                 borderRadius: 16,
                 borderWidth: 1,
                 borderColor: C.border,
                 padding: 20,
                 marginBottom: 24,
                 alignItems: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
               }}
             >
               <Text
                 style={{
-                  fontSize: 56,
+                  fontSize: 60,
                   fontWeight: '800',
                   fontFamily: timerFont,
                   color: existing.isRunning ? swColor : C.text,
                   fontVariant: ['tabular-nums'],
-                  letterSpacing: -2,
+                  letterSpacing: -2.5,
                   marginBottom: 8,
-                  lineHeight: 64,
+                  lineHeight: 68,
                 }}
               >
                 {timerDisplay}
@@ -698,6 +701,8 @@ export default function StopwatchModal() {
                     backgroundColor: existing.isRunning ? `${swColor}18` : C.surfaceSecondary,
                     borderRadius: 12,
                     paddingVertical: 12,
+                    borderWidth: 1,
+                    borderColor: existing.isRunning ? `${swColor}30` : C.border,
                     opacity: !existing.isRunning ? 0.4 : 1,
                   }}
                 >
@@ -725,6 +730,8 @@ export default function StopwatchModal() {
                     backgroundColor: C.dangerMuted,
                     borderRadius: 12,
                     paddingVertical: 12,
+                    borderWidth: 1,
+                    borderColor: `${C.danger}30`,
                   }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '600', color: C.danger, lineHeight: 20 }}>
@@ -768,13 +775,14 @@ export default function StopwatchModal() {
           {/* Name Input */}
           <View
             style={{
-              backgroundColor: C.inputBg,
+              backgroundColor: C.surfaceSecondary,
               borderRadius: 14,
               borderWidth: 1,
               borderColor: C.border,
               paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 8,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
             }}
           >
             <TextInput
@@ -822,10 +830,12 @@ export default function StopwatchModal() {
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
-                    backgroundColor: isSelected ? C.chipSelected : C.chipBackground,
+                    backgroundColor: isSelected ? C.primary : C.surfaceSecondary,
+                    borderWidth: isSelected ? 0 : 1,
+                    borderColor: C.border,
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? C.chipSelectedText : C.chipText, lineHeight: 20 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isSelected ? '#0D0F14' : C.chipText, lineHeight: 20 }}>
                     {cat.name}
                   </Text>
                 </AnimatedPressable>
@@ -846,12 +856,13 @@ export default function StopwatchModal() {
             <View
               style={{
                 flex: 1,
-                backgroundColor: C.inputBg,
+                backgroundColor: C.surfaceSecondary,
                 borderRadius: 10,
                 borderWidth: 1,
                 borderColor: C.border,
                 paddingHorizontal: 12,
                 paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               }}
             >
               <TextInput
@@ -871,11 +882,12 @@ export default function StopwatchModal() {
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 borderRadius: 10,
-                backgroundColor: canAddCat ? C.primary : C.chipBackground,
+                backgroundColor: canAddCat ? C.primary : C.surfaceSecondary,
                 opacity: canAddCat ? 1 : 0.5,
+                boxShadow: canAddCat ? '0 0 20px rgba(0,212,255,0.35)' : undefined,
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#fff' : C.textSecondary, lineHeight: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: canAddCat ? '#0D0F14' : C.textSecondary, lineHeight: 20 }}>
                 Add
               </Text>
             </AnimatedPressable>
@@ -943,12 +955,12 @@ export default function StopwatchModal() {
               <View
                 style={{
                   backgroundColor: C.surface,
-                  borderRadius: 14,
+                  borderRadius: 16,
                   borderWidth: 1,
                   borderColor: C.border,
                   overflow: 'hidden',
                   marginBottom: 8,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                 }}
               >
                 {/* Toggle row */}
@@ -1047,12 +1059,13 @@ export default function StopwatchModal() {
                     <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
                       <View
                         style={{
-                          backgroundColor: C.inputBg,
+                          backgroundColor: C.surfaceSecondary,
                           borderRadius: 10,
                           borderWidth: 1,
                           borderColor: C.border,
                           paddingHorizontal: 12,
                           paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                          boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
                         }}
                       >
                         <TextInput

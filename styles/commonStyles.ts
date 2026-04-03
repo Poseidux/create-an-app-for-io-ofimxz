@@ -2,14 +2,14 @@ import { StyleSheet } from 'react-native';
 
 // Legacy color constants kept for backward compatibility
 export const colors = {
-  primary: '#162456',
-  secondary: '#193cb8',
-  accent: '#64B5F6',
-  background: '#101824',
-  backgroundAlt: '#162133',
-  text: '#e3e3e3',
-  grey: '#90CAF9',
-  card: '#193cb8',
+  primary: '#00D4FF',
+  secondary: '#1A1D26',
+  accent: '#00FF94',
+  background: '#0D0F14',
+  backgroundAlt: '#141720',
+  text: '#E8EBF4',
+  grey: '#7A8099',
+  card: '#141720',
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -75,12 +75,14 @@ export const commonStyles = StyleSheet.create({
   },
   // ── Reusable design tokens ────────────────────────────────────────────────
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     // @ts-expect-error — RN Web / Expo SDK 54 supports borderCurve
     borderCurve: 'continuous',
     padding: 16,
+    backgroundColor: '#141720',
     borderWidth: 1,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
+    borderColor: 'rgba(255,255,255,0.07)',
+    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
   },
   screenPadding: {
     paddingHorizontal: 20,
@@ -89,9 +91,9 @@ export const commonStyles = StyleSheet.create({
     marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2.0,
     textTransform: 'uppercase',
   },
   icon: {
