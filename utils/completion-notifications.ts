@@ -11,11 +11,33 @@ async function requestPermissionsIfNeeded(): Promise<void> {
   }
 }
 
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync('timer-complete', {
+      name: 'Timer Complete',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'default',
+    });
+    console.log('[CompletionNotification] Android channel ensured: timer-complete');
+  } catch (e) {
+    console.warn('[CompletionNotification] Failed to set Android notification channel:', e);
+  }
+}
+
 async function scheduleNotification(title: string, body: string): Promise<void> {
   try {
+    await ensureAndroidChannel();
+    const content: Notifications.NotificationContentInput = {
+      title,
+      body,
+      sound: true,
+      ...(Platform.OS === 'android' ? { channelId: 'timer-complete' } : {}),
+    };
     await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: { seconds: 1 },
+      content,
+      trigger: null,
     });
     console.log(`[CompletionNotification] Scheduled notification: "${title}"`);
   } catch (e) {

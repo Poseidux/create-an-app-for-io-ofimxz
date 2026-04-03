@@ -153,6 +153,12 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    Notifications.requestPermissionsAsync().then(({ status }) => {
+      console.log(`[RootLayout] Notification permission status: ${status}`);
+    }).catch(() => {});
+  }, []);
+
   if (!loaded) {
     return null;
   }
