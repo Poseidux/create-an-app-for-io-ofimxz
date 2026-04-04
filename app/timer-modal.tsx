@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,11 +21,13 @@ import {
   getGoalForItem,
   saveGoal,
   deleteGoalForItem,
+  markGoalAchieved,
 } from '@/utils/goal-storage';
 import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/timer-category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { Timer, Repeat, Zap, Check } from 'lucide-react-native';
+import { Timer, Repeat, Zap, Check, Pause, Play, RotateCcw } from 'lucide-react-native';
+import { notifyTimerComplete } from '@/utils/completion-notifications';
 
 function timerNoteKey(id: string): string {
   return `notes_timer_${id}`;
@@ -72,6 +74,15 @@ function formatMsShort(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
+  return `${pad2(m)}:${pad2(s)}`;
+}
+
+function formatRemainingMs(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
   return `${pad2(m)}:${pad2(s)}`;
 }
 
@@ -212,13 +223,409 @@ function NumberInput({
   );
 }
 
+// ─── Running Timer View ───────────────────────────────────────────────────────
+
+interface RunningTimerViewProps {
+  config: TimerConfig;
+  onClose: () => void;
+}
+
+function RunningTimerView({ config, onClose }: RunningTimerViewProps) {
+  const C = useColors();
+  const timerColor = config.color ?? '#fb923c';
+  const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+  const totalMs =
+    config.mode === 'countdown'
+      ? (config.countdownMs ?? 60000)
+      : (config.workMs ?? 60000);
+
+  const [remainingMs, setRemainingMs] = useState(totalMs);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [phase, setPhase] = useState<'work' | 'rest' | 'countdown'>(
+    config.mode === 'countdown' ? 'countdown' : 'work'
+  );
+  const [currentRound, setCurrentRound] = useState(1);
+
+  const startedAtRef = useRef<number | null>(null);
+  const remainingRef = useRef(remainingMs);
+  const phaseRef = useRef(phase);
+  const roundRef = useRef(currentRound);
+  const isRunningRef = useRef(false);
+  const isCompleteRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  remainingRef.current = remainingMs;
+  phaseRef.current = phase;
+  roundRef.current = currentRound;
+  isRunningRef.current = isRunning;
+  isCompleteRef.current = isComplete;
+
+  const totalRounds = config.rounds ?? 1;
+
+  const handleComplete = useCallback(async () => {
+    console.log(`[RunningTimerView] Timer complete: ${config.name}`);
+    setIsComplete(true);
+    setIsRunning(false);
+    setRemainingMs(0);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (Platform.OS === 'ios') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+    await markGoalAchieved(config.id).catch(() => {});
+    await notifyTimerComplete(config.name).catch(() => {});
+  }, [config.id, config.name]);
+
+  const tick = useCallback(() => {
+    if (!isRunningRef.current || isCompleteRef.current) return;
+    const now = Date.now();
+    const elapsed = startedAtRef.current !== null ? now - startedAtRef.current : 0;
+    startedAtRef.current = now;
+
+    const newRemaining = remainingRef.current - elapsed;
+
+    if (newRemaining <= 0) {
+      if (config.mode === 'countdown') {
+        handleComplete();
+        return;
+      }
+      // interval / hiit
+      const currentPhase = phaseRef.current;
+      const currentRoundVal = roundRef.current;
+      if (currentPhase === 'work') {
+        if (config.restMs && config.restMs > 0) {
+          setPhase('rest');
+          setRemainingMs(config.restMs);
+          startedAtRef.current = Date.now();
+        } else {
+          const nextRound = currentRoundVal + 1;
+          if (nextRound > totalRounds) {
+            handleComplete();
+          } else {
+            setCurrentRound(nextRound);
+            setRemainingMs(config.workMs ?? 60000);
+            startedAtRef.current = Date.now();
+          }
+        }
+      } else {
+        const nextRound = currentRoundVal + 1;
+        if (nextRound > totalRounds) {
+          handleComplete();
+        } else {
+          setCurrentRound(nextRound);
+          setPhase('work');
+          setRemainingMs(config.workMs ?? 60000);
+          startedAtRef.current = Date.now();
+        }
+      }
+    } else {
+      setRemainingMs(newRemaining);
+    }
+  }, [config, totalRounds, handleComplete]);
+
+  // Auto-start on mount
+  useEffect(() => {
+    console.log(`[RunningTimerView] Auto-starting timer: ${config.name}`);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    setIsRunning(true);
+    startedAtRef.current = Date.now();
+    isRunningRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (isRunning && !isComplete) {
+      intervalRef.current = setInterval(tick, 50);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning, isComplete, tick]);
+
+  const handlePause = () => {
+    console.log(`[RunningTimerView] Pause timer: ${config.name}`);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    setIsRunning(false);
+    startedAtRef.current = null;
+  };
+
+  const handleResume = () => {
+    console.log(`[RunningTimerView] Resume timer: ${config.name}`);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    setIsRunning(true);
+    startedAtRef.current = Date.now();
+  };
+
+  const handleReset = () => {
+    console.log(`[RunningTimerView] Reset timer: ${config.name}`);
+    setIsRunning(false);
+    setIsComplete(false);
+    setRemainingMs(totalMs);
+    setPhase(config.mode === 'countdown' ? 'countdown' : 'work');
+    setCurrentRound(1);
+    startedAtRef.current = null;
+  };
+
+  const progressPercent = totalMs > 0 ? Math.max(0, Math.min(100, ((totalMs - remainingMs) / totalMs) * 100)) : 0;
+  const remainingDisplay = formatRemainingMs(remainingMs);
+
+  const phaseLabel = phase === 'work' ? 'WORK' : phase === 'rest' ? 'REST' : null;
+  const roundsLabel = config.mode !== 'countdown' ? `Round ${currentRound}/${totalRounds}` : null;
+
+  const statusText = isComplete ? 'Complete' : isRunning ? 'Running' : 'Paused';
+  const statusColor = isComplete ? '#22c55e' : isRunning ? timerColor : '#fb923c';
+  const statusBg = isComplete ? 'rgba(34,197,94,0.12)' : isRunning ? `${timerColor}18` : 'rgba(251,146,60,0.12)';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.background }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingVertical: 14,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: C.divider,
+          }}
+        >
+          <Pressable
+            onPress={() => {
+              console.log('[RunningTimerView] Close pressed');
+              onClose();
+            }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
+          >
+            <Text style={{ fontSize: 16, color: C.textSecondary, fontWeight: '500', lineHeight: 22 }}>
+              Close
+            </Text>
+          </Pressable>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, letterSpacing: -0.3, lineHeight: 22 }}>
+            {config.name}
+          </Text>
+          <View style={{ width: 60 }} />
+        </View>
+      </SafeAreaView>
+
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        {/* Status badge */}
+        <View
+          style={{
+            paddingHorizontal: 14,
+            paddingVertical: 5,
+            borderRadius: 20,
+            backgroundColor: statusBg,
+            marginBottom: 32,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '700', color: statusColor, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+            {statusText}
+          </Text>
+        </View>
+
+        {/* Countdown display */}
+        <View
+          style={{
+            alignItems: 'center',
+            marginBottom: 24,
+            boxShadow: isRunning ? `0 0 60px ${timerColor}30` : undefined,
+            borderRadius: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 80,
+              fontWeight: '800',
+              fontFamily: timerFont,
+              color: isComplete ? '#22c55e' : isRunning ? timerColor : C.text,
+              fontVariant: ['tabular-nums'],
+              letterSpacing: -3,
+              lineHeight: 88,
+            }}
+          >
+            {isComplete ? '00:00' : remainingDisplay}
+          </Text>
+        </View>
+
+        {/* Progress bar */}
+        <View
+          style={{
+            width: '100%',
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: `${timerColor}28`,
+            marginBottom: 16,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: isComplete ? '#22c55e' : timerColor,
+              width: `${isComplete ? 100 : progressPercent}%`,
+            }}
+          />
+        </View>
+
+        {/* Phase + round labels */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 48 }}>
+          {phaseLabel !== null && (
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 8,
+                backgroundColor: phase === 'work' ? `${timerColor}26` : 'rgba(251,146,60,0.15)',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: phase === 'work' ? timerColor : '#fb923c',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {phaseLabel}
+              </Text>
+            </View>
+          )}
+          {roundsLabel !== null && (
+            <Text style={{ fontSize: 13, color: C.textSecondary, fontWeight: '500' }}>
+              {roundsLabel}
+            </Text>
+          )}
+        </View>
+
+        {/* Controls */}
+        {!isComplete ? (
+          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <Pressable
+              onPress={handleReset}
+              style={({ pressed }) => ({
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: C.surfaceSecondary,
+                borderWidth: 1,
+                borderColor: C.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <RotateCcw size={22} color={C.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              onPress={isRunning ? handlePause : handleResume}
+              style={({ pressed }) => ({
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: isRunning ? 'rgba(251,146,60,0.15)' : timerColor,
+                borderWidth: isRunning ? 1 : 0,
+                borderColor: isRunning ? '#fb923c40' : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+                boxShadow: isRunning ? undefined : `0 0 32px ${timerColor}50`,
+              })}
+            >
+              {isRunning ? (
+                <Pause size={32} color="#fb923c" />
+              ) : (
+                <Play size={32} color={getContrastColor(timerColor)} />
+              )}
+            </Pressable>
+
+            <View style={{ width: 56 }} />
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', gap: 16 }}>
+            <View
+              style={{
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 20,
+                backgroundColor: 'rgba(34,197,94,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(34,197,94,0.3)',
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#22c55e' }}>
+                Timer Complete!
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleReset}
+              style={({ pressed }) => ({
+                paddingHorizontal: 24,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: C.surfaceSecondary,
+                borderWidth: 1,
+                borderColor: C.border,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: C.textSecondary }}>
+                Restart
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export default function TimerModal() {
   const C = useColors();
   const router = useRouter();
-  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { edit, autoStart } = useLocalSearchParams<{ edit?: string; autoStart?: string }>();
   const { isSubscribed } = useSubscription();
+
+  // autoStart contains the timer config ID to load and immediately run
+  const [autoStartConfig, setAutoStartConfig] = useState<TimerConfig | null>(null);
+  const [autoStartLoading, setAutoStartLoading] = useState(Boolean(autoStart));
+
+  useEffect(() => {
+    if (!autoStart) return;
+    console.log(`[TimerModal] autoStart mode: loading config id=${autoStart}`);
+    getTimerConfigs().then(configs => {
+      const cfg = configs.find(c => c.id === autoStart);
+      if (cfg) {
+        console.log(`[TimerModal] autoStart config found: name="${cfg.name}"`);
+        setAutoStartConfig(cfg);
+      } else {
+        console.warn(`[TimerModal] autoStart config not found for id=${autoStart}`);
+      }
+      setAutoStartLoading(false);
+    });
+  }, [autoStart]);
 
   const [mode, setMode] = useState<TimerMode>('countdown');
   const [name, setName] = useState('');
@@ -251,6 +658,9 @@ export default function TimerModal() {
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
   const [creationGoalText, setCreationGoalText] = useState('');
   const [timerNote, setTimerNote] = useState('');
+
+  const [nameError, setNameError] = useState('');
+  const [durationError, setDurationError] = useState('');
 
   useEffect(() => {
     loadTimerCategories().then(setTimerCategories);
@@ -341,7 +751,33 @@ export default function TimerModal() {
 
   const handleSave = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    let hasError = false;
+
+    if (!trimmed) {
+      setNameError('Name is required');
+      hasError = true;
+    } else {
+      setNameError('');
+    }
+
+    const countdownMs = ((cdDays * 86400) + (cdHours * 3600) + (cdMinutes * 60) + cdSeconds) * 1000;
+    const ivWorkMs = (ivWorkMin * 60 + ivWorkSec) * 1000;
+    const hiitWorkMs = (hiitWorkMin * 60 + hiitWorkSec) * 1000;
+
+    if (mode === 'countdown' && countdownMs === 0) {
+      setDurationError('Duration must be greater than zero');
+      hasError = true;
+    } else if (mode === 'interval' && ivWorkMs === 0) {
+      setDurationError('Work time must be greater than zero');
+      hasError = true;
+    } else if (mode === 'hiit' && hiitWorkMs === 0) {
+      setDurationError('Work time must be greater than zero');
+      hasError = true;
+    } else {
+      setDurationError('');
+    }
+
+    if (hasError) return;
 
     if (!edit) {
       const existingConfigs = await getTimerConfigs();
@@ -357,14 +793,13 @@ export default function TimerModal() {
     const category = selectedCategoryId === 'all' ? undefined : selectedCategoryId;
 
     if (mode === 'countdown') {
-      const countdownMs = ((cdDays * 86400) + (cdHours * 3600) + (cdMinutes * 60) + cdSeconds) * 1000;
       config = { id, name: trimmed, mode, color, category, countdownMs };
     } else if (mode === 'interval') {
-      const workMs = (ivWorkMin * 60 + ivWorkSec) * 1000;
+      const workMs = ivWorkMs;
       const restMs = (ivRestMin * 60 + ivRestSec) * 1000;
       config = { id, name: trimmed, mode, color, category, workMs, restMs, rounds: ivRounds };
     } else {
-      const workMs = (hiitWorkMin * 60 + hiitWorkSec) * 1000;
+      const workMs = hiitWorkMs;
       const restMs = (hiitRestMin * 60 + hiitRestSec) * 1000;
       config = { id, name: trimmed, mode, color, category, workMs, restMs, rounds: hiitRounds };
     }
@@ -378,6 +813,7 @@ export default function TimerModal() {
     if (noteTrimmed || edit) {
       console.log(`[TimerModal] Saving note for timerId=${id}`);
       await AsyncStorage.setItem(timerNoteKey(id), noteTrimmed).catch(() => {});
+      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
     // Save creation-time goal text if in create mode
@@ -423,6 +859,29 @@ export default function TimerModal() {
 
     router.back();
   };
+
+  // ── If autoStart mode, show running view ──────────────────────────────────
+  if (autoStart) {
+    if (autoStartLoading) {
+      return (
+        <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: C.textSecondary, fontSize: 15 }}>Loading timer…</Text>
+        </View>
+      );
+    }
+    if (autoStartConfig) {
+      return (
+        <RunningTimerView
+          config={autoStartConfig}
+          onClose={() => {
+            console.log('[TimerModal] Running view closed');
+            router.back();
+          }}
+        />
+      );
+    }
+    // Config not found — fall back to create form
+  }
 
   const canSave = name.trim().length > 0;
   const canAddCat = newCatName.trim().length > 0;
@@ -553,6 +1012,7 @@ export default function TimerModal() {
                   onPress={() => {
                     console.log(`[TimerModal] Mode selected: ${m.value}`);
                     setMode(m.value);
+                    setDurationError('');
                   }}
                   style={({ pressed }) => ({
                     flex: 1,
@@ -586,15 +1046,14 @@ export default function TimerModal() {
               borderRadius: 14,
               borderCurve: 'continuous',
               borderWidth: 1,
-              borderColor: C.border,
+              borderColor: nameError ? C.danger : C.border,
               paddingVertical: 14,
-              marginBottom: 8,
+              marginBottom: nameError ? 4 : 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
               flexDirection: 'row',
               alignItems: 'center',
             }}
           >
-            {/* Left accent bar */}
             <View
               style={{
                 width: 3,
@@ -608,7 +1067,10 @@ export default function TimerModal() {
             <TextInput
               autoFocus={!isEditing}
               value={name}
-              onChangeText={setName}
+              onChangeText={(t) => {
+                setName(t);
+                if (t.trim()) setNameError('');
+              }}
               placeholder="Name this timer..."
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
@@ -625,9 +1087,16 @@ export default function TimerModal() {
               }}
             />
           </View>
-          <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
-            Give your timer a descriptive name.
-          </Text>
+          {nameError !== '' && (
+            <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 8, lineHeight: 17 }}>
+              {nameError}
+            </Text>
+          )}
+          {nameError === '' && (
+            <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
+              Give your timer a descriptive name.
+            </Text>
+          )}
 
           {/* ── Mode-specific fields ───────────────────────────────────────── */}
           {mode === 'countdown' && (
@@ -679,7 +1148,7 @@ export default function TimerModal() {
               <View
                 style={{
                   ...refinedCard,
-                  marginBottom: 28,
+                  marginBottom: durationError ? 4 : 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -694,6 +1163,11 @@ export default function TimerModal() {
                 <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 30 }}>:</Text>
                 <NumberInput label="Seconds" value={cdSeconds} onChange={setCdSeconds} max={59} width={56} />
               </View>
+              {durationError !== '' && (
+                <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
+                  {durationError}
+                </Text>
+              )}
             </>
           )}
 
@@ -776,7 +1250,7 @@ export default function TimerModal() {
               <View
                 style={{
                   ...refinedCard,
-                  marginBottom: 28,
+                  marginBottom: durationError ? 4 : 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -784,6 +1258,11 @@ export default function TimerModal() {
               >
                 <NumberInput label="Rounds" value={ivRounds} onChange={setIvRounds} min={1} max={99} />
               </View>
+              {durationError !== '' && (
+                <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
+                  {durationError}
+                </Text>
+              )}
             </>
           )}
 
@@ -916,7 +1395,7 @@ export default function TimerModal() {
               <View
                 style={{
                   ...refinedCard,
-                  marginBottom: 28,
+                  marginBottom: durationError ? 4 : 28,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -924,13 +1403,17 @@ export default function TimerModal() {
               >
                 <NumberInput label="Rounds" value={hiitRounds} onChange={setHiitRounds} min={1} max={99} />
               </View>
+              {durationError !== '' && (
+                <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
+                  {durationError}
+                </Text>
+              )}
             </>
           )}
 
           {/* ── Color Picker ───────────────────────────────────────────────── */}
           <Text style={sectionLabel}>Color</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 4, marginBottom: 28, alignItems: 'center' }}>
-            {/* Selected color preview swatch */}
             <View
               style={{
                 width: 48,
@@ -1068,6 +1551,7 @@ export default function TimerModal() {
                     if (edit) {
                       console.log(`[TimerModal] Note saved via blur for timerId=${edit}`);
                       AsyncStorage.setItem(timerNoteKey(edit), timerNote.trim()).catch(() => {});
+                      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                     }
                   }}
                   placeholder="Add a note for this timer…"
@@ -1158,7 +1642,6 @@ export default function TimerModal() {
                   boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
                 }}
               >
-                {/* Toggle row */}
                 <View
                   style={{
                     flexDirection: 'row',
@@ -1191,7 +1674,6 @@ export default function TimerModal() {
                   <>
                     <View style={{ height: 1, backgroundColor: C.divider }} />
                     <View style={{ padding: 14, gap: 12 }}>
-                      {/* Goal name input */}
                       <View>
                         <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 8, lineHeight: 17 }}>
                           Goal Name (optional)

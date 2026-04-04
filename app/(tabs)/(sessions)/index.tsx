@@ -178,18 +178,19 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
     : null;
 
   const handleStartPause = () => {
-    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (sw.isRunning) {
+      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       console.log(`[SessionsScreen] Pause stopwatch: id=${sw.id}`);
       pauseStopwatch(sw.id);
     } else {
+      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       console.log(`[SessionsScreen] Start stopwatch: id=${sw.id}`);
       startStopwatch(sw.id);
     }
   };
 
   const handleLap = () => {
-    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const now = Date.now();
     const elapsed = getElapsedMs(sw);
     const prevSplit = laps.length > 0 ? laps[laps.length - 1].splitTime : 0;
@@ -797,11 +798,12 @@ function TimerCard({ config, runtime, goal, onStart, onPause, onReset, onDelete,
     : null;
 
   const handleStartPause = () => {
-    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (runtime.isRunning) {
+      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       console.log(`[SessionsScreen] Pause timer: id=${config.id}`);
       onPause();
     } else {
+      if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       console.log(`[SessionsScreen] Start timer: id=${config.id}`);
       onStart();
     }

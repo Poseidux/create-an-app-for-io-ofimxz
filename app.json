@@ -19,7 +19,6 @@
         "UIBackgroundModes": [
           "remote-notification"
         ],
-        "NSLocationWhenInUseUsageDescription": "This app does not use your location."
       },
       "splash": {
         "image": "./assets/images/9217b728-5aad-427c-8a0f-459f53b19344.png",

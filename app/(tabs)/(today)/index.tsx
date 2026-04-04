@@ -778,9 +778,9 @@ export default function TodayScreen() {
         router.push(`/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`);
       }
     } else {
-      // Timer — navigate to Sessions tab where the timer can be started
-      console.log(`[TodayScreen] Navigating to Sessions for timer: id=${planned.itemId}`);
-      router.push('/(tabs)/(sessions)');
+      // Timer — open timer-modal with autoStart so it begins immediately
+      console.log(`[TodayScreen] Opening timer-modal with autoStart for planned timer: id=${planned.itemId}`);
+      router.push(`/timer-modal?autoStart=${planned.itemId}`);
     }
   };
 
