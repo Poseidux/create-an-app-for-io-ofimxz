@@ -170,7 +170,10 @@ export async function notifyRoutineComplete(name: string): Promise<void> {
     };
     await Notifications.scheduleNotificationAsync({
       content,
-      trigger: null,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 1,
+      },
     });
     console.log(`[CompletionNotification] Routine complete notification fired: "${name}"`);
   } catch (e) {
