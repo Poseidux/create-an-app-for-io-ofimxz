@@ -906,7 +906,7 @@ export default function InsightsScreen() {
   const sectionLabel = {
     fontSize: 10,
     fontWeight: '700' as const,
-    color: C.textTertiary,
+    color: C.textSecondary,
     textTransform: 'uppercase' as const,
     letterSpacing: 2.0,
     paddingHorizontal: 20,
@@ -962,9 +962,6 @@ export default function InsightsScreen() {
           paddingBottom: 14,
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: C.background,
-          borderBottomWidth: 1,
-          borderBottomColor: C.separator,
         }}
       >
         <Text
@@ -1002,7 +999,7 @@ export default function InsightsScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' }}
-          style={{ backgroundColor: C.background, borderBottomWidth: 1, borderBottomColor: C.separator, flexGrow: 0 }}
+          style={{ flexGrow: 0 }}
         >
           {filterChips.map(chip => {
             const isSelected = activeFilter === chip;

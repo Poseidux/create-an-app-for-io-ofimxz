@@ -24,6 +24,7 @@ import {
 import { useColors } from '@/constants/Colors';
 import { getElapsedMs, formatTime, Stopwatch } from '@/types/stopwatch';
 import { loadStopwatches } from '@/utils/stopwatch-storage';
+import { useStopwatch } from '@/contexts/StopwatchContext';
 import { getSessions } from '@/utils/session-storage';
 import { getGoals, ItemGoal } from '@/utils/goal-storage';
 import { getRoutines, markRoutineUsed, Routine } from '@/utils/routine-storage';
@@ -490,6 +491,8 @@ export default function TodayScreen() {
   const { pushWidgetData } = useWidget();
   const { isSubscribed } = useSubscription();
 
+  const { stopwatches: contextStopwatches, startStopwatch } = useStopwatch();
+
   const [profileName, setProfileName] = useState<string | undefined>(undefined);
   const [stopwatches, setStopwatches] = useState<Stopwatch[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -749,32 +752,35 @@ export default function TodayScreen() {
     console.log(`[TodayScreen] Start planned item: id=${planned.id}, name="${planned.itemName}", type=${planned.itemType}, status=${planned.status}`);
 
     if (planned.status === 'in_progress') {
-      if (planned.itemType === 'stopwatch' || planned.itemType === 'routine') {
-        const runningMatch = stopwatches.find(sw => sw.name === planned.itemName && sw.isRunning);
-        if (runningMatch) {
-          console.log(`[TodayScreen] Navigating to running stopwatch: id=${runningMatch.id}`);
-          router.push(`/stopwatch-modal?id=${runningMatch.id}`);
-        } else {
-          console.log(`[TodayScreen] No running match found, opening by name`);
-          router.push(`/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`);
-        }
-      } else {
-        console.log(`[TodayScreen] Navigating to in-progress timer: id=${planned.itemId}`);
-        router.push(`/timer-modal?id=${planned.itemId}`);
-      }
+      // Already in progress — navigate to Sessions to interact with it
+      console.log(`[TodayScreen] Item already in_progress, navigating to Sessions`);
+      router.push('/(tabs)/(sessions)');
       return;
     }
 
+    // Mark as in_progress
     const updated = { ...planned, status: 'in_progress' as const };
     await savePlannedSession(updated);
     setPlannedSessions(prev => prev.map(p => p.id === planned.id ? updated : p));
 
     if (planned.itemType === 'stopwatch' || planned.itemType === 'routine') {
-      router.push(
-        `/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`
-      );
+      // Find the existing stopwatch by itemId in the context (live state)
+      const existingSw = contextStopwatches.find(sw => sw.id === planned.itemId);
+      if (existingSw) {
+        console.log(`[TodayScreen] Starting existing stopwatch: id=${existingSw.id}`);
+        if (!existingSw.isRunning) {
+          startStopwatch(existingSw.id);
+        }
+        // No navigation needed — the Active Now section will show it running
+      } else {
+        // Stopwatch not found (deleted?) — fall back to create flow
+        console.log(`[TodayScreen] Stopwatch not found by id, falling back to create: name="${planned.itemName}"`);
+        router.push(`/stopwatch-modal?name=${encodeURIComponent(planned.itemName)}&color=${encodeURIComponent(planned.itemColor)}`);
+      }
     } else {
-      router.push(`/timer-modal?id=${planned.itemId}`);
+      // Timer — navigate to Sessions tab where the timer can be started
+      console.log(`[TodayScreen] Navigating to Sessions for timer: id=${planned.itemId}`);
+      router.push('/(tabs)/(sessions)');
     }
   };
 
@@ -815,7 +821,7 @@ export default function TodayScreen() {
   const sectionLabelStyle = {
     fontSize: 10,
     fontWeight: '700' as const,
-    color: C.textTertiary,
+    color: C.textSecondary,
     textTransform: 'uppercase' as const,
     letterSpacing: 2.0,
     marginBottom: 12,
@@ -1223,36 +1229,36 @@ export default function TodayScreen() {
                   return (
                     <Pressable
                       key={planned.id}
-                      onPress={isNavigable ? () => handleStartPlanned(planned) : undefined}
                       onLongPress={() => handlePlannedLongPress(planned)}
                       delayLongPress={400}
-                      style={({ pressed }) => ({
+                      style={{
                         backgroundColor: C.surface,
                         borderRadius: 14,
                         borderWidth: 1,
                         borderColor: C.border,
                         overflow: 'hidden',
-                        opacity: pressed && isNavigable ? 0.8 : 1,
                         flexDirection: 'row',
                         alignItems: 'center',
                         boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px rgba(0,0,0,0.35)',
-                      })}
+                      }}
                     >
-                      <View
-                        style={{
-                          width: 3,
-                          alignSelf: 'stretch',
-                          backgroundColor: planned.itemColor,
+                      {/* Left color accent bar */}
+                      <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: planned.itemColor }} />
+
+                      {/* Tappable body — navigates to Sessions */}
+                      <Pressable
+                        onPress={() => {
+                          console.log(`[TodayScreen] Planned card body tapped: navigating to Sessions for "${planned.itemName}"`);
+                          router.push('/(tabs)/(sessions)');
                         }}
-                      />
-                      <View
-                        style={{
+                        style={({ pressed }) => ({
                           flex: 1,
                           flexDirection: 'row',
                           alignItems: 'center',
                           paddingHorizontal: 14,
                           paddingVertical: 14,
-                        }}
+                          opacity: pressed ? 0.7 : 1,
+                        })}
                       >
                         {planned.itemEmoji != null && (
                           <Text style={{ fontSize: 14, marginRight: 8 }}>{planned.itemEmoji}</Text>
@@ -1285,6 +1291,10 @@ export default function TodayScreen() {
                             </Text>
                           )}
                         </View>
+                      </Pressable>
+
+                      {/* Right action area — Start button or status */}
+                      <View style={{ paddingRight: 14 }}>
                         {planned.status === 'pending' ? (
                           missedCheck ? (
                             <Pressable
@@ -1305,14 +1315,16 @@ export default function TodayScreen() {
                             <Pressable
                               onPress={() => handleStartPlanned(planned)}
                               style={({ pressed }) => ({
-                                paddingHorizontal: 12,
-                                paddingVertical: 6,
+                                paddingHorizontal: 14,
+                                paddingVertical: 8,
                                 borderRadius: 10,
-                                backgroundColor: C.primaryMuted,
+                                backgroundColor: planned.itemColor + '20',
+                                borderWidth: 1,
+                                borderColor: planned.itemColor + '40',
                                 opacity: pressed ? 0.7 : 1,
                               })}
                             >
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: C.primary }}>
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: planned.itemColor }}>
                                 Start
                               </Text>
                             </Pressable>

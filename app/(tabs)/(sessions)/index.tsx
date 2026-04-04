@@ -476,6 +476,7 @@ interface DetailsSheetProps {
 
 function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
   const C = useColors();
+  const router = useRouter();
   const { updateNote, updateLapNote } = useStopwatch();
   const [noteText, setNoteText] = useState(sw.note ?? '');
   const laps = sw.laps ?? [];
@@ -551,6 +552,27 @@ function DetailsSheet({ sw, onClose }: DetailsSheetProps) {
           <Text style={{ flex: 1, fontSize: 17, fontWeight: '700', color: C.text }}>
             {sw.name}
           </Text>
+          <Pressable
+            onPress={() => {
+              console.log(`[SessionsScreen] Edit stopwatch pressed from DetailsSheet: id=${sw.id}`);
+              onClose();
+              setTimeout(() => {
+                router.push(`/stopwatch-modal?edit=${sw.id}`);
+              }, 150);
+            }}
+            style={({ pressed }) => ({
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: C.primaryMuted,
+              opacity: pressed ? 0.7 : 1,
+              marginRight: 8,
+            })}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '600', color: C.primary }}>
+              Edit / Goals
+            </Text>
+          </Pressable>
           <Pressable
             onPress={() => {
               console.log('[SessionsScreen] Details sheet closed');
@@ -1254,9 +1276,6 @@ export default function SessionsScreen() {
       <View
         style={{
           paddingTop: insets.top,
-          backgroundColor: C.background,
-          borderBottomWidth: 1,
-          borderBottomColor: C.separator,
         }}
       >
         <View
@@ -1698,7 +1717,7 @@ export default function SessionsScreen() {
             style={{
               fontSize: 10,
               fontWeight: '700',
-              color: C.textTertiary,
+              color: C.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: 2.0,
               paddingHorizontal: 16,

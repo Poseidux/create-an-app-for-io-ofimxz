@@ -48,9 +48,16 @@ async function scheduleNotification(title: string, body: string): Promise<void> 
 async function fireHaptics(): Promise<void> {
   try {
     if (Platform.OS === 'ios') {
+      // Fire notification success haptic first, then a heavy impact for maximum feel
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Small gap then a second heavy impact for a distinct "completion" double-pulse
+      await new Promise(resolve => setTimeout(resolve, 80));
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await new Promise(resolve => setTimeout(resolve, 80));
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } else {
-      Vibration.vibrate([0, 200, 100, 200]);
+      // Android: strong vibration pattern — long buzz, pause, two short buzzes
+      Vibration.vibrate([0, 300, 100, 150, 100, 150]);
     }
   } catch {}
 }

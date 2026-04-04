@@ -184,7 +184,7 @@ export default function ProfileScreen() {
       style={{
         fontSize: 10,
         fontWeight: '700',
-        color: C.textTertiary,
+        color: C.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 2.0,
         paddingHorizontal: 20,
@@ -205,9 +205,6 @@ export default function ProfileScreen() {
           paddingTop: insets.top + 12,
           paddingHorizontal: 20,
           paddingBottom: 14,
-          backgroundColor: C.background,
-          borderBottomWidth: 1,
-          borderBottomColor: C.border,
           flexDirection: 'row',
           alignItems: 'center',
         }}
