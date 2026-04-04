@@ -240,11 +240,17 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
               if (goal && goal.status === 'active') {
                 if (goal.goalType === 'target_duration' && goal.targetMs && totalTime >= goal.targetMs) {
                   await markGoalAchieved(sw.id);
+                  if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  console.log(`[SessionsScreen] Goal achieved on reset: id=${sw.id}`);
                 } else if (goal.goalType === 'target_laps' && goal.targetLaps && laps.length >= goal.targetLaps) {
                   await markGoalAchieved(sw.id);
+                  if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  console.log(`[SessionsScreen] Goal achieved on reset: id=${sw.id}`);
                 } else {
                   await markGoalMissed(sw.id);
                 }
+              } else {
+                if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
               console.log(`[SessionsScreen] Navigating to session-complete: duration=${totalTime}, name=${sw.name}`);
               router.push(

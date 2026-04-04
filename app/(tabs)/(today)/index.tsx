@@ -779,8 +779,11 @@ export default function TodayScreen() {
       }
     } else {
       // Timer — open timer-modal with autoStart so it begins immediately
-      console.log(`[TodayScreen] Opening timer-modal with autoStart for planned timer: id=${planned.itemId}`);
-      router.push(`/timer-modal?autoStart=${planned.itemId}`);
+      console.log(`[TodayScreen] Opening timer-modal with autoStart for planned timer: id=${planned.itemId}, plannedId=${planned.id}`);
+      router.push({
+        pathname: '/timer-modal',
+        params: { id: planned.itemId, autoStart: 'true', plannedId: planned.id },
+      });
     }
   };
 

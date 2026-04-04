@@ -5,11 +5,13 @@ import {
   ScrollView,
   Platform,
   Pressable,
-  Share,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import {
   BarChart2,
   Flag,
@@ -21,7 +23,6 @@ import {
   Share2,
   Tag,
   Calendar,
-  Clock,
   ChevronDown,
 } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
@@ -886,21 +887,119 @@ export default function InsightsScreen() {
 
   const handleShare = async () => {
     console.log('[InsightsScreen] Share button pressed');
-    const goalLine = goals.length > 0
-      ? `Goals: ${achievedGoals} achieved, ${activeGoals} active`
-      : null;
-    const lines = [
-      'Chroniqo Stats',
-      `This Week: ${weekTimeDisplay} focused, ${weekSessions.length} sessions`,
-      `Streak: ${streak} day${streak !== 1 ? 's' : ''}`,
-      `Total Time: ${totalTimeDisplay}`,
-      stats ? `Sessions: ${stats.totalSessions}` : null,
-      stats ? `Total Laps: ${stats.totalLaps}` : null,
-      goalLine,
-    ].filter(Boolean) as string[];
-    const summary = lines.join('\n');
-    console.log('[InsightsScreen] Sharing stats summary');
-    await Share.share({ message: summary });
+    try {
+      const topActivitiesRows = stats && stats.perStopwatch.length > 0
+        ? stats.perStopwatch.slice(0, 5).map(sw => `
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #2a2a2e;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sw.color};margin-right:8px;"></span>
+              ${sw.name}
+            </td>
+            <td style="padding:8px 12px;border-bottom:1px solid #2a2a2e;text-align:right;font-family:monospace;">${formatTimeShort(sw.totalTime)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #2a2a2e;text-align:right;color:#888;">${sw.sessions} session${sw.sessions !== 1 ? 's' : ''}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="3" style="padding:12px;color:#888;text-align:center;">No activity data</td></tr>';
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  body { background:#0d0f14; color:#f0f0f2; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; margin:0; padding:24px; }
+  h1 { font-size:28px; font-weight:800; letter-spacing:-0.5px; margin:0 0 4px; color:#fff; }
+  .subtitle { font-size:13px; color:#888; margin-bottom:28px; }
+  .section-label { font-size:10px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:2px; margin:24px 0 10px; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:8px; }
+  .stat-card { background:#1a1a1e; border-radius:12px; border:1px solid #2a2a2e; padding:14px; }
+  .stat-label { font-size:10px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px; }
+  .stat-value { font-size:22px; font-weight:800; color:#00d4ff; font-family:monospace; }
+  .stat-sub { font-size:12px; color:#888; margin-top:4px; }
+  .accent-green { color:#22c55e; }
+  .accent-orange { color:#fb923c; }
+  .accent-purple { color:#a78bfa; }
+  table { width:100%; border-collapse:collapse; background:#1a1a1e; border-radius:12px; overflow:hidden; border:1px solid #2a2a2e; }
+  th { padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:1.5px; border-bottom:1px solid #2a2a2e; }
+  td { font-size:14px; color:#f0f0f2; }
+  .footer { margin-top:32px; font-size:11px; color:#555; text-align:center; }
+</style>
+</head>
+<body>
+<h1>Chroniqo Stats</h1>
+<div class="subtitle">Generated ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+
+<div class="section-label">This Week</div>
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Focused</div>
+    <div class="stat-value">${weekTimeDisplay}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Sessions</div>
+    <div class="stat-value">${weekSessions.length}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Streak</div>
+    <div class="stat-value accent-orange">${streak}d</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Completion</div>
+    <div class="stat-value accent-green">${completionRate}</div>
+  </div>
+</div>
+
+<div class="section-label">All Time</div>
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Time</div>
+    <div class="stat-value">${totalTimeDisplay}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Sessions</div>
+    <div class="stat-value">${stats ? stats.totalSessions : 0}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Laps</div>
+    <div class="stat-value">${stats ? stats.totalLaps : 0}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Goals Achieved</div>
+    <div class="stat-value accent-green">${achievedGoals}</div>
+  </div>
+</div>
+
+<div class="section-label">By Activity</div>
+<table>
+  <thead>
+    <tr>
+      <th>Activity</th>
+      <th style="text-align:right;">Time</th>
+      <th style="text-align:right;">Sessions</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${topActivitiesRows}
+  </tbody>
+</table>
+
+<div class="footer">Chroniqo · Time Tracking</div>
+</body>
+</html>`;
+
+      console.log('[InsightsScreen] Generating PDF from stats HTML');
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      console.log(`[InsightsScreen] PDF generated: ${uri}`);
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Share Chroniqo Stats' });
+        console.log('[InsightsScreen] PDF shared successfully');
+      } else {
+        Alert.alert('Sharing not available', 'Sharing is not supported on this device.');
+      }
+    } catch (e) {
+      console.warn('[InsightsScreen] Share failed:', e);
+      Alert.alert('Share Failed', 'Could not generate the stats PDF. Please try again.');
+    }
   };
 
   const sectionLabel = {

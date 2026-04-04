@@ -50,6 +50,18 @@ export async function getPlannedSessionsForDate(date: string): Promise<PlannedSe
   return all.filter(p => p.date === date);
 }
 
+export async function markPlannedSessionDone(id: string): Promise<void> {
+  try {
+    const all = await getPlannedSessions();
+    const idx = all.findIndex(p => p.id === id);
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], status: 'done' };
+      await AsyncStorage.setItem(KEY, JSON.stringify(all));
+      console.log(`[planned-sessions-storage] markPlannedSessionDone: id=${id}`);
+    }
+  } catch {}
+}
+
 export function todayDateString(): string {
   const d = new Date();
   const y = d.getFullYear();

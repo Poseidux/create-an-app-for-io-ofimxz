@@ -227,10 +227,11 @@ function NumberInput({
 
 interface RunningTimerViewProps {
   config: TimerConfig;
+  plannedId?: string;
   onClose: () => void;
 }
 
-function RunningTimerView({ config, onClose }: RunningTimerViewProps) {
+function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps) {
   const C = useColors();
   const timerColor = config.color ?? '#fb923c';
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
@@ -278,7 +279,28 @@ function RunningTimerView({ config, onClose }: RunningTimerViewProps) {
     }
     await markGoalAchieved(config.id).catch(() => {});
     await notifyTimerComplete(config.name).catch(() => {});
-  }, [config.id, config.name]);
+    // Mark the specific planned session done if one was passed
+    if (plannedId) {
+      try {
+        const { markPlannedSessionDone } = await import('@/utils/planned-sessions-storage');
+        console.log(`[RunningTimerView] Marking planned session done via plannedId: ${plannedId}`);
+        await markPlannedSessionDone(plannedId);
+      } catch {}
+    } else {
+      // Fallback: scan today's planned sessions for this timer
+      try {
+        const { getPlannedSessions, savePlannedSession, todayDateString } = await import('@/utils/planned-sessions-storage');
+        const today = todayDateString();
+        const all = await getPlannedSessions();
+        for (const p of all) {
+          if (p.date === today && p.itemId === config.id && (p.status === 'pending' || p.status === 'in_progress')) {
+            console.log(`[RunningTimerView] Marking planned session done (fallback scan): id=${p.id}`);
+            await savePlannedSession({ ...p, status: 'done' });
+          }
+        }
+      } catch {}
+    }
+  }, [config.id, config.name, plannedId]);
 
   const tick = useCallback(() => {
     if (!isRunningRef.current || isCompleteRef.current) return;
@@ -605,27 +627,31 @@ function RunningTimerView({ config, onClose }: RunningTimerViewProps) {
 export default function TimerModal() {
   const C = useColors();
   const router = useRouter();
-  const { edit, autoStart } = useLocalSearchParams<{ edit?: string; autoStart?: string }>();
+  const { edit, autoStart, id: idParam, plannedId } = useLocalSearchParams<{ edit?: string; autoStart?: string; id?: string; plannedId?: string }>();
   const { isSubscribed } = useSubscription();
 
-  // autoStart contains the timer config ID to load and immediately run
+  // autoStart=true + id=<timerId> means load and immediately run that timer
+  // Legacy: autoStart=<timerId> (old format) also supported
+  const autoStartTimerId = autoStart === 'true' ? (idParam ?? null) : (autoStart ?? null);
+  const isAutoStart = Boolean(autoStartTimerId);
+
   const [autoStartConfig, setAutoStartConfig] = useState<TimerConfig | null>(null);
-  const [autoStartLoading, setAutoStartLoading] = useState(Boolean(autoStart));
+  const [autoStartLoading, setAutoStartLoading] = useState(isAutoStart);
 
   useEffect(() => {
-    if (!autoStart) return;
-    console.log(`[TimerModal] autoStart mode: loading config id=${autoStart}`);
+    if (!autoStartTimerId) return;
+    console.log(`[TimerModal] autoStart mode: loading config id=${autoStartTimerId}`);
     getTimerConfigs().then(configs => {
-      const cfg = configs.find(c => c.id === autoStart);
+      const cfg = configs.find(c => c.id === autoStartTimerId);
       if (cfg) {
         console.log(`[TimerModal] autoStart config found: name="${cfg.name}"`);
         setAutoStartConfig(cfg);
       } else {
-        console.warn(`[TimerModal] autoStart config not found for id=${autoStart}`);
+        console.warn(`[TimerModal] autoStart config not found for id=${autoStartTimerId}`);
       }
       setAutoStartLoading(false);
     });
-  }, [autoStart]);
+  }, [autoStartTimerId]);
 
   const [mode, setMode] = useState<TimerMode>('countdown');
   const [name, setName] = useState('');
@@ -861,7 +887,7 @@ export default function TimerModal() {
   };
 
   // ── If autoStart mode, show running view ──────────────────────────────────
-  if (autoStart) {
+  if (isAutoStart) {
     if (autoStartLoading) {
       return (
         <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
@@ -873,6 +899,7 @@ export default function TimerModal() {
       return (
         <RunningTimerView
           config={autoStartConfig}
+          plannedId={plannedId}
           onClose={() => {
             console.log('[TimerModal] Running view closed');
             router.back();
@@ -1526,7 +1553,7 @@ export default function TimerModal() {
           </View>
 
           {/* ── Notes Section ──────────────────────────────────────────────── */}
-          {isEditing && (
+          {(isEditing || !isEditing) && (
             <>
               <Text style={sectionLabel}>Notes</Text>
               <View

@@ -522,6 +522,16 @@ export default function StopwatchModal() {
         await saveGoal(goal);
       }
 
+      // Save creation-time note if provided
+      const noteTrimmed = noteText.trim();
+      if (noteTrimmed) {
+        console.log(`[StopwatchModal] Saving creation note for id=${stopwatchId}`);
+        // Note is stored in stopwatch via updateNote after context ADD settles
+        // We store it in AsyncStorage keyed by id so it can be loaded on next open
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        await AsyncStorage.setItem(`notes_stopwatch_${stopwatchId}`, noteTrimmed).catch(() => {});
+      }
+
       router.back();
       return;
     }
@@ -606,7 +616,7 @@ export default function StopwatchModal() {
       timestamp: new Date().toISOString(),
     };
     console.log(`[StopwatchModal] Lap recorded: lapNumber=${lap.lapNumber}, lapTime=${lapTime}ms`);
-    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     addLap(edit, lap);
   }, [existing, edit, addLap]);
 
@@ -648,10 +658,13 @@ export default function StopwatchModal() {
         if (achieved) {
           console.log(`[StopwatchModal] Goal achieved for id=${edit}`);
           await markGoalAchieved(edit);
+          if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else {
           console.log(`[StopwatchModal] Goal missed for id=${edit}`);
           await markGoalMissed(edit);
         }
+      } else {
+        if (Platform.OS === 'ios') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }
 
@@ -1253,6 +1266,52 @@ export default function StopwatchModal() {
               />
             ))}
           </View>
+
+          {/* Notes field — create mode only */}
+          {!isEditing && (
+            <>
+              <Text style={sectionLabel}>Notes</Text>
+              <View
+                style={{
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  marginBottom: 8,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+                }}
+              >
+                <TextInput
+                  value={noteText}
+                  onChangeText={(t) => {
+                    setNoteText(t);
+                  }}
+                  onBlur={() => {
+                    if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    console.log('[StopwatchModal] Create mode note blur — will save on submit');
+                  }}
+                  placeholder="Add a note (optional)…"
+                  placeholderTextColor={C.placeholder}
+                  multiline
+                  style={{
+                    fontSize: 14,
+                    color: C.text,
+                    minHeight: 60,
+                    maxHeight: 120,
+                    lineHeight: 20,
+                    padding: 0,
+                    margin: 0,
+                    textAlignVertical: 'top',
+                  }}
+                />
+              </View>
+              <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
+                Optional note saved with this stopwatch.
+              </Text>
+            </>
+          )}
 
           {/* Goal field — create mode only */}
           {!isEditing && (
