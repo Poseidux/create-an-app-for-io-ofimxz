@@ -28,7 +28,11 @@ import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/ti
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Timer, Repeat, Zap, Check, Pause, Play, RotateCcw } from 'lucide-react-native';
-import { notifyTimerComplete } from '@/utils/completion-notifications';
+import {
+  notifyTimerComplete,
+  scheduleTimerNotification,
+  cancelTimerNotification,
+} from '@/utils/completion-notifications';
 
 function timerNoteKey(id: string): string {
   return `notes_timer_${id}`;
@@ -281,11 +285,9 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    if (Platform.OS === 'ios') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
     await markGoalAchieved(config.id).catch(() => {});
-    await notifyTimerComplete(config.name).catch(() => {});
+    // Cancel the OS-scheduled notification and fire haptics (notification already fired or fires now)
+    await notifyTimerComplete(config.id, config.name).catch(() => {});
     // Mark the specific planned session done if one was passed
     if (plannedId) {
       try {
@@ -365,6 +367,10 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     setIsRunning(true);
     startedAtRef.current = Date.now();
     isRunningRef.current = true;
+    // Schedule OS-level notification so it fires even if app is backgrounded/locked
+    const secondsRemaining = Math.ceil(totalMs / 1000);
+    console.log(`[RunningTimerView] Scheduling OS notification on start: ${secondsRemaining}s`);
+    scheduleTimerNotification(config.id, config.name, secondsRemaining).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -384,6 +390,33 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     };
   }, [isRunning, isComplete, tick]);
 
+  // Compute total remaining ms across all remaining rounds/phases for interval/HIIT
+  const computeTotalRemainingMs = useCallback((
+    curRemainingMs: number,
+    curPhase: 'work' | 'rest' | 'countdown',
+    curRound: number,
+  ): number => {
+    if (config.mode === 'countdown') {
+      return curRemainingMs;
+    }
+    // interval / hiit: sum up remaining time in current phase + all future phases
+    const workMs = config.workMs ?? 60000;
+    const restMs = config.restMs ?? 0;
+    const rounds = config.rounds ?? 1;
+    let total = curRemainingMs;
+    if (curPhase === 'work') {
+      // rest for this round (if any) + remaining rounds
+      if (restMs > 0) total += restMs;
+      const remainingRounds = rounds - curRound;
+      total += remainingRounds * (workMs + (restMs > 0 ? restMs : 0));
+    } else {
+      // rest phase: remaining rounds after this one
+      const remainingRounds = rounds - curRound;
+      total += remainingRounds * (workMs + (restMs > 0 ? restMs : 0));
+    }
+    return total;
+  }, [config]);
+
   const handlePause = () => {
     console.log(`[RunningTimerView] Pause timer: ${config.name}`);
     if (Platform.OS === 'ios') {
@@ -391,6 +424,8 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     }
     setIsRunning(false);
     startedAtRef.current = null;
+    // Cancel the OS notification — it would fire at the wrong time while paused
+    cancelTimerNotification(config.id).catch(() => {});
   };
 
   const handleResume = () => {
@@ -400,6 +435,11 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     }
     setIsRunning(true);
     startedAtRef.current = Date.now();
+    // Reschedule OS notification with the remaining time
+    const totalRemainingMs = computeTotalRemainingMs(remainingRef.current, phaseRef.current, roundRef.current);
+    const secondsRemaining = Math.ceil(totalRemainingMs / 1000);
+    console.log(`[RunningTimerView] Rescheduling notification on resume: ${secondsRemaining}s`);
+    scheduleTimerNotification(config.id, config.name, secondsRemaining).catch(() => {});
   };
 
   const handleReset = () => {
@@ -410,6 +450,8 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     setPhase(config.mode === 'countdown' ? 'countdown' : 'work');
     setCurrentRound(1);
     startedAtRef.current = null;
+    // Cancel the OS notification — timer is being reset
+    cancelTimerNotification(config.id).catch(() => {});
   };
 
   const progressPercent = totalMs > 0 ? Math.max(0, Math.min(100, ((totalMs - remainingMs) / totalMs) * 100)) : 0;
