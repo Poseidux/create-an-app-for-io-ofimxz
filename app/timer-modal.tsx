@@ -9,9 +9,10 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
 import { TimerConfig, TimerMode, getTimerConfigs, saveTimerConfig } from '@/utils/timer-storage';
 import * as Haptics from 'expo-haptics';
@@ -126,8 +127,8 @@ function ColorSwatch({
 // ─── Number Input ─────────────────────────────────────────────────────────────
 
 function NumberInput({
-  label, value, onChange, min = 0, max = 999, width = 72,
-}: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; width?: number }) {
+  label, value, onChange, min = 0, max = 999, colWidth,
+}: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; colWidth?: number }) {
   const C = useColors();
   const [text, setText] = useState(String(value));
 
@@ -151,74 +152,73 @@ function NumberInput({
     setText(String(next));
   };
 
+  // colWidth drives the overall column width; input fills it minus button space
+  const inputWidth = colWidth ? Math.max(36, colWidth - 72) : 48;
+
   return (
-    <View style={{ alignItems: 'center', gap: 6 }}>
-      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 15 }}>
+    <View style={{ alignItems: 'center', gap: 4, width: colWidth }}>
+      <Text
+        style={{ fontSize: 10, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 14 }}
+        numberOfLines={1}
+      >
         {label}
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Pressable
-          onPress={handleDecrement}
-          style={({ pressed }) => ({
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 18, fontWeight: '300', color: C.textSecondary, lineHeight: 22 }}>
-            −
-          </Text>
-        </Pressable>
-        <View
+      <Pressable
+        onPress={handleIncrement}
+        style={({ pressed }) => ({
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 20, fontWeight: '300', color: C.textSecondary, lineHeight: 24 }}>+</Text>
+      </Pressable>
+      <View
+        style={{
+          backgroundColor: C.surfaceSecondary,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: C.border,
+          width: inputWidth,
+          alignItems: 'center',
+        }}
+      >
+        <TextInput
+          value={text}
+          onChangeText={handleChange}
+          keyboardType="number-pad"
           style={{
-            backgroundColor: C.surfaceSecondary,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: C.border,
-            boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
-            width,
-            alignItems: 'center',
+            fontSize: 22,
+            fontWeight: '700',
+            color: C.text,
+            textAlign: 'center',
+            paddingVertical: 8,
+            paddingHorizontal: 4,
+            width: '100%',
+            fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+            fontVariant: ['tabular-nums'],
           }}
-        >
-          <TextInput
-            value={text}
-            onChangeText={handleChange}
-            keyboardType="number-pad"
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: C.text,
-              textAlign: 'center',
-              paddingVertical: 10,
-              paddingHorizontal: 8,
-              width: '100%',
-              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-              fontVariant: ['tabular-nums'],
-            }}
-            maxLength={3}
-          />
-        </View>
-        <Pressable
-          onPress={handleIncrement}
-          style={({ pressed }) => ({
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 18, fontWeight: '300', color: C.textSecondary, lineHeight: 22 }}>
-            +
-          </Text>
-        </Pressable>
+          maxLength={3}
+        />
       </View>
+      <Pressable
+        onPress={handleDecrement}
+        style={({ pressed }) => ({
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 20, fontWeight: '300', color: C.textSecondary, lineHeight: 24 }}>−</Text>
+      </Pressable>
     </View>
   );
 }
@@ -233,8 +233,15 @@ interface RunningTimerViewProps {
 
 function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps) {
   const C = useColors();
+  const { width, height } = useWindowDimensions();
+  const { bottom: safeBottom } = useSafeAreaInsets();
   const timerColor = config.color ?? '#fb923c';
   const timerFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+  // Responsive sizing
+  const countdownFontSize = Math.min(width * 0.22, 88);
+  const countdownLineHeight = countdownFontSize * 1.1;
+  const isCompact = height < 700;
 
   const totalMs =
     config.mode === 'countdown'
@@ -415,6 +422,10 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
   const statusColor = isComplete ? '#22c55e' : isRunning ? timerColor : '#fb923c';
   const statusBg = isComplete ? 'rgba(34,197,94,0.12)' : isRunning ? `${timerColor}18` : 'rgba(251,146,60,0.12)';
 
+  const statusBadgeMargin = isCompact ? 16 : 32;
+  const countdownMargin = isCompact ? 16 : 24;
+  const phaseMargin = isCompact ? 24 : 48;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.background }}>
@@ -440,108 +451,116 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
               Close
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: C.text, letterSpacing: -0.3, lineHeight: 22 }}>
+          <Text
+            style={{ fontSize: 17, fontWeight: '600', color: C.text, letterSpacing: -0.3, lineHeight: 22, flex: 1, textAlign: 'center', marginHorizontal: 8 }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {config.name}
           </Text>
           <View style={{ width: 60 }} />
         </View>
       </SafeAreaView>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        {/* Status badge */}
-        <View
-          style={{
-            paddingHorizontal: 14,
-            paddingVertical: 5,
-            borderRadius: 20,
-            backgroundColor: statusBg,
-            marginBottom: 32,
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: statusColor, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-            {statusText}
-          </Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: safeBottom + 24 }}>
+        {/* Top spacer + status badge */}
+        <View style={{ alignItems: 'center', marginTop: statusBadgeMargin }}>
+          <View
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 5,
+              borderRadius: 20,
+              backgroundColor: statusBg,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: statusColor, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              {statusText}
+            </Text>
+          </View>
         </View>
 
         {/* Countdown display */}
         <View
           style={{
             alignItems: 'center',
-            marginBottom: 24,
             boxShadow: isRunning ? `0 0 60px ${timerColor}30` : undefined,
             borderRadius: 16,
           }}
         >
           <Text
             style={{
-              fontSize: 80,
+              fontSize: countdownFontSize,
               fontWeight: '800',
               fontFamily: timerFont,
               color: isComplete ? '#22c55e' : isRunning ? timerColor : C.text,
               fontVariant: ['tabular-nums'],
               letterSpacing: -3,
-              lineHeight: 88,
+              lineHeight: countdownLineHeight,
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             {isComplete ? '00:00' : remainingDisplay}
           </Text>
         </View>
 
-        {/* Progress bar */}
-        <View
-          style={{
-            width: '100%',
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: `${timerColor}28`,
-            marginBottom: 16,
-            overflow: 'hidden',
-          }}
-        >
+        {/* Progress bar + phase/round labels */}
+        <View style={{ width: '100%', alignItems: 'center', gap: isCompact ? 12 : 16 }}>
           <View
             style={{
+              width: '100%',
               height: 4,
               borderRadius: 2,
-              backgroundColor: isComplete ? '#22c55e' : timerColor,
-              width: `${isComplete ? 100 : progressPercent}%`,
+              backgroundColor: `${timerColor}28`,
+              overflow: 'hidden',
             }}
-          />
-        </View>
-
-        {/* Phase + round labels */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 48 }}>
-          {phaseLabel !== null && (
+          >
             <View
               style={{
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 8,
-                backgroundColor: phase === 'work' ? `${timerColor}26` : 'rgba(251,146,60,0.15)',
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: isComplete ? '#22c55e' : timerColor,
+                width: `${isComplete ? 100 : progressPercent}%`,
               }}
-            >
-              <Text
+            />
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {phaseLabel !== null && (
+              <View
                 style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: phase === 'work' ? timerColor : '#fb923c',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: phase === 'work' ? `${timerColor}26` : 'rgba(251,146,60,0.15)',
                 }}
               >
-                {phaseLabel}
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: phase === 'work' ? timerColor : '#fb923c',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {phaseLabel}
+                </Text>
+              </View>
+            )}
+            {roundsLabel !== null && (
+              <Text style={{ fontSize: 13, color: C.textSecondary, fontWeight: '500' }} numberOfLines={1}>
+                {roundsLabel}
               </Text>
-            </View>
-          )}
-          {roundsLabel !== null && (
-            <Text style={{ fontSize: 13, color: C.textSecondary, fontWeight: '500' }}>
-              {roundsLabel}
-            </Text>
-          )}
+            )}
+          </View>
         </View>
 
         {/* Controls */}
         {!isComplete ? (
-          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center', justifyContent: 'center' }}>
             <Pressable
               onPress={handleReset}
               style={({ pressed }) => ({
@@ -627,6 +646,7 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
 export default function TimerModal() {
   const C = useColors();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const { edit, autoStart, id: idParam, plannedId } = useLocalSearchParams<{ edit?: string; autoStart?: string; id?: string; plannedId?: string }>();
   const { isSubscribed } = useSubscription();
 
@@ -910,6 +930,12 @@ export default function TimerModal() {
     // Config not found — fall back to create form
   }
 
+  // 4 columns for countdown (Days, Hours, Minutes, Seconds)
+  // 40px horizontal padding on each side = 80px total, plus small gaps
+  const cdColWidth = Math.floor((screenWidth - 80) / 4);
+  // 2 columns for interval/hiit work/rest rows
+  const ivColWidth = Math.floor((screenWidth - 80) / 2);
+
   const canSave = name.trim().length > 0;
   const canAddCat = newCatName.trim().length > 0;
   const isEditing = Boolean(edit);
@@ -1178,17 +1204,14 @@ export default function TimerModal() {
                   marginBottom: durationError ? 4 : 28,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
+                  justifyContent: 'space-evenly',
+                  overflow: 'hidden',
                 }}
               >
-                <NumberInput label="Days" value={cdDays} onChange={setCdDays} max={99} width={56} />
-                <Text style={{ fontSize: 16, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 22 }}>d</Text>
-                <NumberInput label="Hours" value={cdHours} onChange={setCdHours} max={23} width={56} />
-                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 30 }}>:</Text>
-                <NumberInput label="Minutes" value={cdMinutes} onChange={setCdMinutes} max={59} width={56} />
-                <Text style={{ fontSize: 24, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 30 }}>:</Text>
-                <NumberInput label="Seconds" value={cdSeconds} onChange={setCdSeconds} max={59} width={56} />
+                <NumberInput label="Days" value={cdDays} onChange={setCdDays} max={99} colWidth={cdColWidth} />
+                <NumberInput label="Hours" value={cdHours} onChange={setCdHours} max={23} colWidth={cdColWidth} />
+                <NumberInput label="Min" value={cdMinutes} onChange={setCdMinutes} max={59} colWidth={cdColWidth} />
+                <NumberInput label="Sec" value={cdSeconds} onChange={setCdSeconds} max={59} colWidth={cdColWidth} />
               </View>
               {durationError !== '' && (
                 <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
@@ -1248,13 +1271,12 @@ export default function TimerModal() {
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 16,
+                  justifyContent: 'space-evenly',
+                  overflow: 'hidden',
                 }}
               >
-                <NumberInput label="Minutes" value={ivWorkMin} onChange={setIvWorkMin} max={99} />
-                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
-                <NumberInput label="Seconds" value={ivWorkSec} onChange={setIvWorkSec} max={59} />
+                <NumberInput label="Minutes" value={ivWorkMin} onChange={setIvWorkMin} max={99} colWidth={ivColWidth} />
+                <NumberInput label="Seconds" value={ivWorkSec} onChange={setIvWorkSec} max={59} colWidth={ivColWidth} />
               </View>
 
               <Text style={sectionLabel}>Rest Time</Text>
@@ -1264,13 +1286,12 @@ export default function TimerModal() {
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 16,
+                  justifyContent: 'space-evenly',
+                  overflow: 'hidden',
                 }}
               >
-                <NumberInput label="Minutes" value={ivRestMin} onChange={setIvRestMin} max={99} />
-                <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
-                <NumberInput label="Seconds" value={ivRestSec} onChange={setIvRestSec} max={59} />
+                <NumberInput label="Minutes" value={ivRestMin} onChange={setIvRestMin} max={99} colWidth={ivColWidth} />
+                <NumberInput label="Seconds" value={ivRestSec} onChange={setIvRestSec} max={59} colWidth={ivColWidth} />
               </View>
 
               <Text style={sectionLabel}>Rounds</Text>
@@ -1283,7 +1304,7 @@ export default function TimerModal() {
                   justifyContent: 'center',
                 }}
               >
-                <NumberInput label="Rounds" value={ivRounds} onChange={setIvRounds} min={1} max={99} />
+                <NumberInput label="Rounds" value={ivRounds} onChange={setIvRounds} min={1} max={99} colWidth={ivColWidth} />
               </View>
               {durationError !== '' && (
                 <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
@@ -1391,13 +1412,12 @@ export default function TimerModal() {
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 16,
+                      justifyContent: 'space-evenly',
+                      overflow: 'hidden',
                     }}
                   >
-                    <NumberInput label="Minutes" value={hiitWorkMin} onChange={setHiitWorkMin} max={99} />
-                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
-                    <NumberInput label="Seconds" value={hiitWorkSec} onChange={setHiitWorkSec} max={59} />
+                    <NumberInput label="Minutes" value={hiitWorkMin} onChange={setHiitWorkMin} max={99} colWidth={ivColWidth} />
+                    <NumberInput label="Seconds" value={hiitWorkSec} onChange={setHiitWorkSec} max={59} colWidth={ivColWidth} />
                   </View>
 
                   <Text style={sectionLabel}>Rest Time</Text>
@@ -1407,13 +1427,12 @@ export default function TimerModal() {
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 16,
+                      justifyContent: 'space-evenly',
+                      overflow: 'hidden',
                     }}
                   >
-                    <NumberInput label="Minutes" value={hiitRestMin} onChange={setHiitRestMin} max={99} />
-                    <Text style={{ fontSize: 28, fontWeight: '700', color: C.textSecondary, marginTop: 16, lineHeight: 34 }}>:</Text>
-                    <NumberInput label="Seconds" value={hiitRestSec} onChange={setHiitRestSec} max={59} />
+                    <NumberInput label="Minutes" value={hiitRestMin} onChange={setHiitRestMin} max={99} colWidth={ivColWidth} />
+                    <NumberInput label="Seconds" value={hiitRestSec} onChange={setHiitRestSec} max={59} colWidth={ivColWidth} />
                   </View>
                 </>
               )}
@@ -1428,7 +1447,7 @@ export default function TimerModal() {
                   justifyContent: 'center',
                 }}
               >
-                <NumberInput label="Rounds" value={hiitRounds} onChange={setHiitRounds} min={1} max={99} />
+                <NumberInput label="Rounds" value={hiitRounds} onChange={setHiitRounds} min={1} max={99} colWidth={ivColWidth} />
               </View>
               {durationError !== '' && (
                 <Text style={{ fontSize: 12, color: C.danger, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>

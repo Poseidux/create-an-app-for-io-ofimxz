@@ -2,7 +2,7 @@
   "expo": {
     "name": "Chroniqo Stopwatches",
     "slug": "chroniqo-stopwatches",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/9217b728-5aad-427c-8a0f-459f53b19344.png",
     "userInterfaceStyle": "automatic",
@@ -14,11 +14,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.poseiduxfitness.chroniqo",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "remote-notification"
-        ],
+        ]
       },
       "splash": {
         "image": "./assets/images/9217b728-5aad-427c-8a0f-459f53b19344.png",
@@ -38,6 +39,7 @@
         "backgroundColor": "#3a3a3a"
       },
       "package": "com.poseiduxfitness.chroniqo",
+      "versionCode": 2,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
@@ -69,7 +71,6 @@
       ],
       "expo-font",
       "expo-router",
-      "expo-web-browser",
       "expo-secure-store"
     ],
     "scheme": "chroniqostopwatches",

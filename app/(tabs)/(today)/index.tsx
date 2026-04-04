@@ -499,6 +499,9 @@ export default function TodayScreen() {
   const [goals, setGoals] = useState<ItemGoal[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [plannedSessions, setPlannedSessions] = useState<PlannedSession[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [planTotal, setPlanTotal] = useState(0);
+  const [planDone, setPlanDone] = useState(0);
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -565,20 +568,28 @@ export default function TodayScreen() {
 
         const daySet = new Set<string>();
         for (const s of sess) { daySet.add(s.startedAt.slice(0, 10)); }
-        let streak = 0;
+        let computedStreak = 0;
         const todayDate = new Date();
         for (let i = 0; i < 365; i++) {
           const d = new Date(todayDate);
           d.setDate(todayDate.getDate() - i);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          if (daySet.has(key)) { streak++; } else { break; }
+          if (daySet.has(key)) { computedStreak++; } else { break; }
         }
+        setStreak(computedStreak);
+
+        // Plan status for today
+        const todayStr2 = todayDateString();
+        const todayPlanned = planned.filter(p => p.date === todayStr2);
+        const donePlanned = todayPlanned.filter(p => p.status === 'done').length;
+        setPlanTotal(todayPlanned.length);
+        setPlanDone(donePlanned);
 
         pushWidgetData({
           todaySessions: todaySessionsCount,
           todayTimeMs,
           activeGoalName: activeGoal?.goalName ?? activeGoal?.itemName,
-          streak,
+          streak: computedStreak,
           updatedAt: new Date().toISOString(),
         }).catch(() => {});
       });
@@ -641,6 +652,20 @@ export default function TodayScreen() {
 
   const greetingText = getGreeting(profileName);
   const todayDateText = formatTodayDate();
+
+  // Hero dynamic content
+  const streakLabel = streak > 0 ? `${streak} day streak` : null;
+  const motivationalText =
+    streak === 0 ? 'Start your first session today' :
+    streak <= 2 ? 'Building momentum' :
+    streak <= 6 ? 'Great consistency' :
+    streak <= 13 ? 'One week strong' :
+    'Unstoppable';
+  const planSummaryText =
+    planTotal === 0 ? 'No sessions planned yet' :
+    planDone === planTotal ? 'All sessions complete' :
+    planDone === 0 ? `${planTotal} session${planTotal === 1 ? '' : 's'} planned today` :
+    `${planDone} of ${planTotal} sessions done today`;
 
   const bottomPad = insets.bottom + 100;
 
@@ -875,6 +900,44 @@ export default function TodayScreen() {
                 }}
               >
                 {todayDateText}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+                {streakLabel !== null && (
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      backgroundColor: C.primaryMuted,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: C.primary }}>
+                      {streakLabel}
+                    </Text>
+                  </View>
+                )}
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 8,
+                    backgroundColor: C.surfaceSecondary,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: C.textSecondary }}>
+                    {planSummaryText}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: C.textTertiary,
+                  marginTop: 6,
+                  fontStyle: 'italic',
+                }}
+              >
+                {motivationalText}
               </Text>
             </View>
             {/* Plan button */}
