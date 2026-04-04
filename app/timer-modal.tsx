@@ -23,7 +23,6 @@ import {
 } from '@/utils/goal-storage';
 import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/timer-category-storage';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { notifyTimerComplete } from '@/utils/completion-notifications';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Timer, Repeat, Zap, Check } from 'lucide-react-native';
 
@@ -69,6 +68,14 @@ function formatMsShort(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${pad2(m)}:${pad2(s)}`;
+}
+
+function getContrastColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
 }
 
 // ─── Color Swatch ─────────────────────────────────────────────────────────────
@@ -418,7 +425,6 @@ export default function TimerModal() {
     borderWidth: 1,
     borderColor: C.border,
     borderTopColor: 'rgba(255,255,255,0.10)',
-    borderTopWidth: 1,
     padding: 20,
     boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.35)',
   };
@@ -426,6 +432,7 @@ export default function TimerModal() {
   const saveButtonBg = canSave ? color : C.surfaceSecondary;
   const saveButtonShadow = canSave ? `0 0 32px ${color}50` : undefined;
   const saveButtonTextColor = canSave ? '#000' : C.textSecondary;
+  const checkmarkColor = getContrastColor(color);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -533,24 +540,22 @@ export default function TimerModal() {
               borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: C.border,
-              paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
-              overflow: 'hidden',
+              flexDirection: 'row',
+              alignItems: 'center',
             }}
           >
             {/* Left accent bar */}
             <View
               style={{
-                position: 'absolute',
-                left: 0,
-                top: '50%',
-                marginTop: -12,
                 width: 3,
                 height: 24,
                 borderRadius: 2,
                 backgroundColor: color,
+                marginLeft: 0,
+                flexShrink: 0,
               }}
             />
             <TextInput
@@ -561,10 +566,11 @@ export default function TimerModal() {
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
               style={{
+                flex: 1,
                 fontSize: 18,
                 fontWeight: '600',
                 color: C.text,
-                paddingHorizontal: 8,
+                paddingHorizontal: 12,
                 paddingVertical: 4,
                 minHeight: 44,
                 margin: 0,
@@ -889,7 +895,7 @@ export default function TimerModal() {
                 boxShadow: `0 0 0 3px ${color}40, 0 2px 8px rgba(0,0,0,0.3)`,
               }}
             >
-              <Check size={18} color="#000" strokeWidth={3} />
+              <Check size={18} color={checkmarkColor} strokeWidth={3} />
             </View>
             {PALETTE.map(swatch => (
               <ColorSwatch

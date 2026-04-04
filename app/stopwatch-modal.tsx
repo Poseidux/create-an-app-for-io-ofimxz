@@ -107,9 +107,7 @@ function ColorSwatch({
         borderWidth: isSelected ? 3 : isWhite ? 1 : 0,
         borderColor: isSelected ? '#007AFF' : isWhite ? '#C6C6C8' : 'transparent',
         boxShadow: isSelected
-          ? `0 0 0 2px ${hex === '#FFFFFF' ? '#C6C6C8' : hex}`
-          : isSelected
-          ? `0 0 12px ${hex}60`
+          ? `0 0 0 2px ${hex === '#FFFFFF' ? '#C6C6C8' : hex}, 0 0 12px ${hex}60`
           : '0 1px 4px rgba(0,0,0,0.3)',
       }}
       scaleValue={0.88}
@@ -369,7 +367,6 @@ function HeroTimerCard({
           borderRadius: 18,
           borderWidth: 1,
           borderColor,
-          overflow: 'hidden',
           // Hero card surface — slightly lighter than supporting cards
           backgroundColor: 'rgba(255,255,255,0.08)',
           // Layered shadow: tight ambient + wide accent glow
@@ -492,7 +489,7 @@ export default function StopwatchModal() {
     if (!trimmed) return;
     const cat = selectedCategoryId === 'all' ? undefined : selectedCategoryId;
 
-    let stopwatchId: string;
+    let stopwatchId: string = '';
     if (isEditing && edit) {
       console.log(`[StopwatchModal] Save rename: id=${edit}, name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       renameStopwatch(edit, trimmed, selectedColor, cat);
@@ -640,7 +637,7 @@ export default function StopwatchModal() {
     }
 
     resetStopwatch(edit);
-  }, [existing, edit, resetStopwatch]);
+  }, [existing, edit, resetStopwatch, categories]);
 
   const handleLapLongPress = useCallback((lap: Lap) => {
     if (!edit) return;
@@ -919,7 +916,7 @@ export default function StopwatchModal() {
                     }}
                   >
                     <Text style={{ fontSize: 15, fontWeight: '700', color: '#FF3B30', lineHeight: 20 }}>
-                      Reset &amp; Save
+                      Reset & Save
                     </Text>
                   </AnimatedPressable>
                 </View>
@@ -1040,24 +1037,22 @@ export default function StopwatchModal() {
               borderRadius: 14,
               borderWidth: 1,
               borderColor: C.border,
-              paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
-              overflow: 'hidden',
+              flexDirection: 'row',
+              alignItems: 'center',
             }}
           >
             {/* Left accent bar */}
             <View
               style={{
-                position: 'absolute',
-                left: 0,
-                top: '50%',
-                marginTop: -12,
                 width: 3,
                 height: 24,
                 borderRadius: 2,
                 backgroundColor: swColor,
+                marginLeft: 0,
+                flexShrink: 0,
               }}
             />
             <TextInput
@@ -1069,10 +1064,11 @@ export default function StopwatchModal() {
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
               style={{
+                flex: 1,
                 fontSize: 18,
                 fontWeight: '600',
                 color: C.text,
-                paddingHorizontal: 8,
+                paddingHorizontal: 12,
                 paddingVertical: 4,
                 minHeight: 44,
                 margin: 0,
