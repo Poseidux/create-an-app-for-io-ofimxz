@@ -2,7 +2,6 @@
  * NotificationContext — native implementation.
  *
  * Manages local notification permission state using expo-notifications.
- * No remote push / OneSignal dependency.
  */
 
 import React, {
@@ -97,7 +96,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   }, []);
 
-  // sendTag / deleteTag are no-ops without OneSignal — kept for API compatibility
+  // sendTag / deleteTag are no-ops — kept for API compatibility
   const sendTag = useCallback((_key: string, _value: string) => {}, []);
   const deleteTag = useCallback((_key: string) => {}, []);
 
