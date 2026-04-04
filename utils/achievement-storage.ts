@@ -54,7 +54,7 @@ export async function checkAndUnlockAchievements(params: {
   beatGoal?: boolean;
 }): Promise<Achievement[]> {
   const newlyUnlocked: Achievement[] = [];
-  const checks: Array<[string, boolean]> = [
+  const checks: [string, boolean][] = [
     ['first_session', params.totalSessions >= 1],
     ['sessions_10', params.totalSessions >= 10],
     ['sessions_50', params.totalSessions >= 50],

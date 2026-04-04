@@ -371,6 +371,7 @@ function RunningTimerView({ config, plannedId, onClose }: RunningTimerViewProps)
     const secondsRemaining = Math.ceil(totalMs / 1000);
     console.log(`[RunningTimerView] Scheduling OS notification on start: ${secondsRemaining}s`);
     scheduleTimerNotification(config.id, config.name, secondsRemaining).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

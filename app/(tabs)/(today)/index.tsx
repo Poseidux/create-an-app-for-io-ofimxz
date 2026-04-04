@@ -178,6 +178,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
       Animated.timing(opacity, { toValue: 1, duration: 320, delay: index * 55, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 320, delay: index * 55, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -593,7 +594,8 @@ export default function TodayScreen() {
           updatedAt: new Date().toISOString(),
         }).catch(() => {});
       });
-    }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pushWidgetData])
   );
 
   const anyRunning = stopwatches.some(sw => sw.isRunning);

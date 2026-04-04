@@ -6,6 +6,6 @@ export default function HomeRedirectIOS() {
   const router = useRouter();
   useEffect(() => {
     router.replace('/(tabs)/(today)');
-  }, []);
+  }, [router]);
   return null;
 }

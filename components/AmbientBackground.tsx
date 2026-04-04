@@ -81,6 +81,7 @@ function Orb({
         }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -169,6 +170,7 @@ function AccentOrb({
         }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

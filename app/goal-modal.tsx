@@ -5,6 +5,6 @@ export default function GoalModal() {
   const router = useRouter();
   useEffect(() => {
     router.back();
-  }, []);
+  }, [router]);
   return null;
 }

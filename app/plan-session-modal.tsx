@@ -114,7 +114,7 @@ export default function PlanSessionModal() {
     setShowCustomInput(false);
   }, [customDateInput]);
 
-  const currentItems: Array<{ id: string; name: string; color: string; emoji?: string }> =
+  const currentItems: { id: string; name: string; color: string; emoji?: string }[] =
     activeTab === 'stopwatch'
       ? stopwatches.map(sw => ({ id: sw.id, name: sw.name, color: sw.color ?? '#22c55e' }))
       : timers.map(t => ({ id: t.id, name: t.name, color: t.color ?? '#fb923c' }));
@@ -156,7 +156,7 @@ export default function PlanSessionModal() {
   const dateLabel = formatDateLabel(selectedDate);
   const saveLabel = `Add to ${dateLabel}`;
 
-  const tabs: Array<{ key: TabType; label: string }> = [
+  const tabs: { key: TabType; label: string }[] = [
     { key: 'stopwatch', label: 'Stopwatch' },
     { key: 'timer', label: 'Timer' },
   ];

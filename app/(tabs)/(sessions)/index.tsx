@@ -155,6 +155,7 @@ function StopwatchCard({ sw, index, total, goal, onLongPress, tick: _tick, onPla
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, delay: index * 60, useNativeDriver: true }),
       Animated.timing(translateAnim, { toValue: 0, duration: 300, delay: index * 60, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const elapsedMs = getElapsedMs(sw);

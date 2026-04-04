@@ -26,7 +26,7 @@ const WidgetContext = createContext<WidgetContextType | null>(null);
 function reloadNativeWidget() {
   if (Platform.OS !== 'ios') return;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
     const { ExtensionStorage } = require('@bacons/apple-targets');
     ExtensionStorage.reloadWidget();
   } catch {
@@ -46,7 +46,7 @@ export function WidgetProvider({ children }: { children: React.ReactNode }) {
       // Also try to write to ExtensionStorage for iOS widget access
       if (Platform.OS === 'ios') {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
           const { ExtensionStorage } = require('@bacons/apple-targets');
           await ExtensionStorage.setItem(WIDGET_DATA_KEY, JSON.stringify(data));
           ExtensionStorage.reloadWidget();

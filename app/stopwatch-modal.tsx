@@ -338,6 +338,7 @@ function HeroTimerCard({
         }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Interpolate border color from accent with animated opacity
@@ -456,6 +457,7 @@ export default function StopwatchModal() {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     }
     return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, existing?.isRunning]);
 
   useEffect(() => {
@@ -478,6 +480,7 @@ export default function StopwatchModal() {
       }
       console.log(`[StopwatchModal] Existing goal loaded: type=${goal.goalType}`);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit]);
 
   const handleCancel = () => {
