@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
 import { TimerConfig, TimerMode, getTimerConfigs, saveTimerConfig } from '@/utils/timer-storage';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ItemGoal,
   getGoalForItem,
@@ -25,6 +26,10 @@ import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/ti
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Timer, Repeat, Zap, Check } from 'lucide-react-native';
+
+function timerNoteKey(id: string): string {
+  return `notes_timer_${id}`;
+}
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -244,6 +249,8 @@ export default function TimerModal() {
   const [goalEnabled, setGoalEnabled] = useState(false);
   const [goalName, setGoalName] = useState('');
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
+  const [creationGoalText, setCreationGoalText] = useState('');
+  const [timerNote, setTimerNote] = useState('');
 
   useEffect(() => {
     loadTimerCategories().then(setTimerCategories);
@@ -297,6 +304,17 @@ export default function TimerModal() {
       setGoalName(goal.goalName ?? '');
       console.log(`[TimerModal] Existing goal loaded: type=${goal.goalType}`);
     });
+  }, [edit]);
+
+  useEffect(() => {
+    if (!edit) return;
+    console.log(`[TimerModal] Loading note for timerId=${edit}`);
+    AsyncStorage.getItem(timerNoteKey(edit)).then(val => {
+      if (val !== null) {
+        setTimerNote(val);
+        console.log(`[TimerModal] Note loaded for timerId=${edit}`);
+      }
+    }).catch(() => {});
   }, [edit]);
 
   const applyHiitPreset = (idx: number) => {
@@ -354,6 +372,35 @@ export default function TimerModal() {
     console.log(`[TimerModal] Saving timer config: id=${id}, name="${trimmed}", mode=${mode}, category=${category}`);
     if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await saveTimerConfig(config);
+
+    // Save note to AsyncStorage
+    const noteTrimmed = timerNote.trim();
+    if (noteTrimmed || edit) {
+      console.log(`[TimerModal] Saving note for timerId=${id}`);
+      await AsyncStorage.setItem(timerNoteKey(id), noteTrimmed).catch(() => {});
+    }
+
+    // Save creation-time goal text if in create mode
+    if (!edit) {
+      const creationGoalTrimmed = creationGoalText.trim();
+      if (creationGoalTrimmed) {
+        const goalType = mode === 'countdown' ? 'complete_countdown' : 'complete_all_rounds';
+        const creationGoal: ItemGoal = {
+          id: Math.random().toString(36).slice(2),
+          itemId: id,
+          itemName: trimmed,
+          itemKind: 'timer',
+          goalType,
+          goalName: creationGoalTrimmed,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+        console.log(`[TimerModal] Saving creation goal: "${creationGoalTrimmed}" for id=${id}`);
+        await saveGoal(creationGoal);
+        router.back();
+        return;
+      }
+    }
 
     if (goalEnabled) {
       const goalType = mode === 'countdown' ? 'complete_countdown' : 'complete_all_rounds';
@@ -995,127 +1042,232 @@ export default function TimerModal() {
             </AnimatedPressable>
           </View>
 
-          {/* ── Goal Section ───────────────────────────────────────────────── */}
-          <Text style={sectionLabel}>Goal</Text>
-          <View
-            style={{
-              backgroundColor: C.surface,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: goalEnabled ? `${C.primary}40` : C.border,
-              overflow: 'hidden',
-              marginBottom: 8,
-              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
-            }}
-          >
-            {/* Toggle row */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                minHeight: 52,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, lineHeight: 21 }}>
-                  Add Goal
-                </Text>
-                <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
-                  Track completion of this timer
-                </Text>
-              </View>
-              <Switch
-                value={goalEnabled}
-                onValueChange={(v) => {
-                  console.log(`[TimerModal] Goal toggle: ${v}`);
-                  setGoalEnabled(v);
+          {/* ── Notes Section ──────────────────────────────────────────────── */}
+          {isEditing && (
+            <>
+              <Text style={sectionLabel}>Notes</Text>
+              <View
+                style={{
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  marginBottom: 28,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
                 }}
-                trackColor={{ false: C.border, true: C.primary }}
-                thumbColor="#fff"
-              />
-            </View>
+              >
+                <TextInput
+                  value={timerNote}
+                  onChangeText={(t) => {
+                    setTimerNote(t);
+                  }}
+                  onBlur={() => {
+                    if (edit) {
+                      console.log(`[TimerModal] Note saved via blur for timerId=${edit}`);
+                      AsyncStorage.setItem(timerNoteKey(edit), timerNote.trim()).catch(() => {});
+                    }
+                  }}
+                  placeholder="Add a note for this timer…"
+                  placeholderTextColor={C.placeholder}
+                  multiline
+                  style={{
+                    fontSize: 14,
+                    color: C.text,
+                    minHeight: 60,
+                    maxHeight: 120,
+                    lineHeight: 20,
+                    padding: 0,
+                    margin: 0,
+                    textAlignVertical: 'top',
+                  }}
+                />
+              </View>
+            </>
+          )}
 
-            {goalEnabled && (
-              <>
-                <View style={{ height: 1, backgroundColor: C.divider }} />
-                <View style={{ padding: 14, gap: 12 }}>
-                  {/* Goal name input */}
-                  <View>
-                    <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 8, lineHeight: 17 }}>
-                      Goal Name (optional)
+          {/* ── Creation Goal Field ─────────────────────────────────────────── */}
+          {!isEditing && (
+            <>
+              <Text style={sectionLabel}>Goal</Text>
+              <View
+                style={{
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  paddingVertical: 14,
+                  marginBottom: 8,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: 3,
+                    height: 24,
+                    borderRadius: 2,
+                    backgroundColor: color,
+                    marginLeft: 0,
+                    flexShrink: 0,
+                  }}
+                />
+                <TextInput
+                  value={creationGoalText}
+                  onChangeText={(t) => {
+                    console.log('[TimerModal] Creation goal text changed');
+                    setCreationGoalText(t);
+                  }}
+                  placeholder="Goal (optional)"
+                  placeholderTextColor={C.placeholder}
+                  returnKeyType="done"
+                  style={{
+                    flex: 1,
+                    fontSize: 16,
+                    fontWeight: '500',
+                    color: C.text,
+                    paddingHorizontal: 12,
+                    paddingVertical: 4,
+                    minHeight: 44,
+                    margin: 0,
+                    lineHeight: 22,
+                  }}
+                />
+              </View>
+              <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
+                Optionally describe what you want to achieve with this timer.
+              </Text>
+            </>
+          )}
+
+          {/* ── Goal Section (edit mode) ────────────────────────────────────── */}
+          {isEditing && (
+            <>
+              <View
+                style={{
+                  backgroundColor: C.surface,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: goalEnabled ? `${C.primary}40` : C.border,
+                  overflow: 'hidden',
+                  marginBottom: 8,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
+                }}
+              >
+                {/* Toggle row */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    minHeight: 52,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: C.text, lineHeight: 21 }}>
+                      Add Goal
                     </Text>
-                    <View
-                      style={{
-                        backgroundColor: C.surfaceSecondary,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        borderColor: C.border,
-                        paddingHorizontal: 12,
-                        paddingVertical: Platform.OS === 'ios' ? 8 : 4,
-                        boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
-                      }}
-                    >
-                      <TextInput
-                        value={goalName}
-                        onChangeText={setGoalName}
-                        placeholder="e.g. Complete Tabata"
-                        placeholderTextColor={C.placeholder}
-                        returnKeyType="done"
-                        style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
-                      />
-                    </View>
+                    <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
+                      Track completion of this timer
+                    </Text>
                   </View>
-
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: 12,
-                      borderRadius: 12,
-                      backgroundColor: `${C.primary}14`,
-                      borderWidth: 1,
-                      borderColor: `${C.primary}40`,
+                  <Switch
+                    value={goalEnabled}
+                    onValueChange={(v) => {
+                      console.log(`[TimerModal] Goal toggle: ${v}`);
+                      setGoalEnabled(v);
                     }}
-                  >
-                    <View
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 9,
-                        borderWidth: 2,
-                        borderColor: C.primary,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                {goalEnabled && (
+                  <>
+                    <View style={{ height: 1, backgroundColor: C.divider }} />
+                    <View style={{ padding: 14, gap: 12 }}>
+                      {/* Goal name input */}
+                      <View>
+                        <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600', marginBottom: 8, lineHeight: 17 }}>
+                          Goal Name (optional)
+                        </Text>
+                        <View
+                          style={{
+                            backgroundColor: C.surfaceSecondary,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: C.border,
+                            paddingHorizontal: 12,
+                            paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+                            boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+                          }}
+                        >
+                          <TextInput
+                            value={goalName}
+                            onChangeText={setGoalName}
+                            placeholder="e.g. Complete Tabata"
+                            placeholderTextColor={C.placeholder}
+                            returnKeyType="done"
+                            style={{ fontSize: 14, color: C.text, padding: 0, margin: 0, lineHeight: 20 }}
+                          />
+                        </View>
+                      </View>
+
                       <View
                         style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: C.primary,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: 12,
+                          borderRadius: 12,
+                          backgroundColor: `${C.primary}14`,
+                          borderWidth: 1,
+                          borderColor: `${C.primary}40`,
                         }}
-                      />
+                      >
+                        <View
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 9,
+                            borderWidth: 2,
+                            borderColor: C.primary,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: C.primary,
+                            }}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary, lineHeight: 20 }}>
+                            {goalTypeLabel}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
+                            {goalDescription}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: C.primary, lineHeight: 20 }}>
-                        {goalTypeLabel}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, lineHeight: 17 }}>
-                        {goalDescription}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </>
-            )}
-          </View>
-          <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
-            Goal status is checked when the timer completes or is stopped.
-          </Text>
+                  </>
+                )}
+              </View>
+              <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
+                Goal status is checked when the timer completes or is stopped.
+              </Text>
+            </>
+          )}
 
           {/* ── Primary Save CTA ───────────────────────────────────────────── */}
           <AnimatedPressable

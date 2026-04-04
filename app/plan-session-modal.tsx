@@ -15,7 +15,7 @@ import { X, Check } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import { loadStopwatches } from '@/utils/stopwatch-storage';
 import { getTimerConfigs, TimerConfig } from '@/utils/timer-storage';
-import { getRoutines, Routine } from '@/utils/routine-storage';
+
 import {
   PlannedItemType,
   PlannedSession,
@@ -44,7 +44,7 @@ function formatDateLabel(date: string): string {
   return date;
 }
 
-type TabType = PlannedItemType;
+type TabType = 'stopwatch' | 'timer';
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
@@ -64,9 +64,9 @@ export default function PlanSessionModal() {
   const [selectedDate, setSelectedDate] = useState<string>(params.date ?? today);
   const [customDateInput, setCustomDateInput] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>(
-    (params.itemType as TabType) ?? 'stopwatch'
-  );
+  const initialTab: TabType =
+    params.itemType === 'timer' ? 'timer' : 'stopwatch';
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(
     params.itemId ?? null
   );
@@ -74,18 +74,16 @@ export default function PlanSessionModal() {
 
   const [stopwatches, setStopwatches] = useState<Stopwatch[]>([]);
   const [timers, setTimers] = useState<TimerConfig[]>([]);
-  const [routines, setRoutines] = useState<Routine[]>([]);
 
   useEffect(() => {
-    console.log('[PlanSessionModal] Loading stopwatches, timers, routines');
-    Promise.all([loadStopwatches(), getTimerConfigs(), getRoutines()]).then(
-      ([sws, tms, rts]) => {
+    console.log('[PlanSessionModal] Loading stopwatches, timers');
+    Promise.all([loadStopwatches(), getTimerConfigs()]).then(
+      ([sws, tms]) => {
         console.log(
-          `[PlanSessionModal] Loaded: ${sws.length} stopwatches, ${tms.length} timers, ${rts.length} routines`
+          `[PlanSessionModal] Loaded: ${sws.length} stopwatches, ${tms.length} timers`
         );
         setStopwatches(sws);
         setTimers(tms);
-        setRoutines(rts);
       }
     );
   }, []);
@@ -119,9 +117,7 @@ export default function PlanSessionModal() {
   const currentItems: Array<{ id: string; name: string; color: string; emoji?: string }> =
     activeTab === 'stopwatch'
       ? stopwatches.map(sw => ({ id: sw.id, name: sw.name, color: sw.color ?? '#22c55e' }))
-      : activeTab === 'timer'
-      ? timers.map(t => ({ id: t.id, name: t.name, color: t.color ?? '#fb923c' }))
-      : routines.map(r => ({ id: r.id, name: r.name, color: r.color, emoji: r.emoji }));
+      : timers.map(t => ({ id: t.id, name: t.name, color: t.color ?? '#fb923c' }));
 
   const selectedItem = currentItems.find(i => i.id === selectedItemId) ?? null;
 
@@ -163,7 +159,6 @@ export default function PlanSessionModal() {
   const tabs: Array<{ key: TabType; label: string }> = [
     { key: 'stopwatch', label: 'Stopwatch' },
     { key: 'timer', label: 'Timer' },
-    { key: 'routine', label: 'Routine' },
   ];
 
   const sectionLabel = {
@@ -362,9 +357,7 @@ export default function PlanSessionModal() {
             <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 }}>
               {activeTab === 'stopwatch'
                 ? 'No stopwatches yet. Create one in the Sessions tab.'
-                : activeTab === 'timer'
-                ? 'No timers yet. Create one in the Sessions tab.'
-                : 'No routines yet. Create one in the Today tab.'}
+                : 'No timers yet. Create one in the Sessions tab.'}
             </Text>
           </View>
         ) : (

@@ -439,6 +439,7 @@ export default function StopwatchModal() {
   const [existingGoal, setExistingGoal] = useState<ItemGoal | null>(null);
 
   const [noteText, setNoteText] = useState(existing?.note ?? '');
+  const [creationGoalText, setCreationGoalText] = useState('');
 
   useEffect(() => {
     setNoteText(existing?.note ?? '');
@@ -500,9 +501,27 @@ export default function StopwatchModal() {
         router.push('/paywall');
         return;
       }
-      console.log(`[StopwatchModal] Create stopwatch: name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       stopwatchId = Math.random().toString(36).slice(2);
+      console.log(`[StopwatchModal] Create stopwatch: id=${stopwatchId}, name="${trimmed}", color="${selectedColor}", category="${cat}"`);
       addStopwatch(trimmed, selectedColor, cat);
+
+      // Save creation-time goal if provided
+      const goalTrimmed = creationGoalText.trim();
+      if (goalTrimmed) {
+        const goal: ItemGoal = {
+          id: Math.random().toString(36).slice(2),
+          itemId: stopwatchId,
+          itemName: trimmed,
+          itemKind: 'stopwatch',
+          goalType: 'target_duration',
+          goalName: goalTrimmed,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+        console.log(`[StopwatchModal] Saving creation goal: "${goalTrimmed}" for id=${stopwatchId}`);
+        await saveGoal(goal);
+      }
+
       router.back();
       return;
     }
@@ -1235,13 +1254,59 @@ export default function StopwatchModal() {
             ))}
           </View>
 
-          {/* Goal hint — create mode only */}
+          {/* Goal field — create mode only */}
           {!isEditing && (
-            <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
-              <Text style={{ fontSize: 12, color: C.textSecondary, textAlign: 'center', lineHeight: 17 }}>
-                Goals can be set after creating the stopwatch by long-pressing it
+            <>
+              <Text style={sectionLabel}>Goal</Text>
+              <View
+                style={{
+                  backgroundColor: C.surfaceSecondary,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  paddingVertical: 14,
+                  marginBottom: 8,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: 3,
+                    height: 24,
+                    borderRadius: 2,
+                    backgroundColor: swColor,
+                    marginLeft: 0,
+                    flexShrink: 0,
+                  }}
+                />
+                <TextInput
+                  value={creationGoalText}
+                  onChangeText={(t) => {
+                    console.log('[StopwatchModal] Creation goal text changed');
+                    setCreationGoalText(t);
+                  }}
+                  placeholder="Goal (optional)"
+                  placeholderTextColor={C.placeholder}
+                  returnKeyType="done"
+                  style={{
+                    flex: 1,
+                    fontSize: 16,
+                    fontWeight: '500',
+                    color: C.text,
+                    paddingHorizontal: 12,
+                    paddingVertical: 4,
+                    minHeight: 44,
+                    margin: 0,
+                    lineHeight: 22,
+                  }}
+                />
+              </View>
+              <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
+                Optionally describe what you want to achieve with this stopwatch.
               </Text>
-            </View>
+            </>
           )}
 
           {/* Goal section (edit mode only) */}
