@@ -141,15 +141,25 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
   const C = useColors();
   const lapTimeDisplay = formatTime(lap.lapTime);
   const splitTimeDisplay = formatTime(lap.splitTime);
+  const timerFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
   const rowBg = isFastest
-    ? 'rgba(52,199,89,0.10)'
+    ? 'rgba(52,199,89,0.12)'
     : isSlowest
     ? 'rgba(255,59,48,0.10)'
+    : 'rgba(255,255,255,0.04)';
+
+  const rowBorderColor = isFastest
+    ? 'rgba(52,199,89,0.25)'
+    : isSlowest
+    ? 'rgba(255,59,48,0.22)'
     : 'transparent';
 
   const lapTimeColor = isFastest ? '#34C759' : isSlowest ? '#FF3B30' : C.text;
-  const timerFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
+  const badgeLabel = isFastest ? 'BEST' : isSlowest ? 'SLOW' : null;
+  const badgeBg = isFastest ? 'rgba(52,199,89,0.20)' : 'rgba(255,59,48,0.18)';
+  const badgeColor = isFastest ? '#34C759' : '#FF3B30';
 
   return (
     <Pressable
@@ -161,44 +171,74 @@ function LapRow({ lap, isFastest, isSlowest, onLongPress }: LapRowProps) {
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         backgroundColor: pressed ? C.surfaceSecondary : rowBg,
-        borderRadius: 8,
-        marginBottom: 2,
+        borderRadius: 12,
+        borderCurve: 'continuous',
+        borderWidth: isFastest || isSlowest ? 1 : 0,
+        borderColor: rowBorderColor,
+        marginBottom: 3,
       })}
     >
-      <View style={{ width: 32 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: C.textSecondary, lineHeight: 18 }}>
+      {/* Lap number */}
+      <View style={{ width: 28 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: C.textSecondary }}>
           {String(lap.lapNumber)}
         </Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: '600',
-            fontFamily: timerFont,
-            color: lapTimeColor,
-            fontVariant: ['tabular-nums'],
-            lineHeight: 20,
-          }}
-        >
-          {lapTimeDisplay}
-        </Text>
+
+      {/* Lap time + badge + note */}
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              fontFamily: timerFont,
+              color: lapTimeColor,
+              fontVariant: ['tabular-nums'],
+            }}
+          >
+            {lapTimeDisplay}
+          </Text>
+          {badgeLabel !== null && (
+            <View
+              style={{
+                backgroundColor: badgeBg,
+                borderRadius: 6,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontWeight: '800',
+                  color: badgeColor,
+                  letterSpacing: 0.5,
+                }}
+              >
+                {badgeLabel}
+              </Text>
+            </View>
+          )}
+        </View>
         {lap.note ? (
-          <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 1, lineHeight: 15 }}>
+          <Text style={{ fontSize: 11, color: C.textSecondary, marginTop: 3, fontStyle: 'italic' }}>
             {lap.note}
           </Text>
         ) : null}
       </View>
+
+      {/* Split time */}
       <Text
         style={{
-          fontSize: 12,
+          fontSize: 13,
+          fontWeight: '500',
           fontFamily: timerFont,
           color: C.textSecondary,
           fontVariant: ['tabular-nums'],
-          lineHeight: 17,
         }}
       >
         {splitTimeDisplay}
@@ -636,7 +676,7 @@ export default function StopwatchModal() {
     paddingHorizontal: 4,
     marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 2.0,
+    letterSpacing: 2.5,
     lineHeight: 17,
   };
 
@@ -647,6 +687,21 @@ export default function StopwatchModal() {
 
   const goalTimeMs = (goalHours * 3600 + goalMinutes * 60 + goalSeconds) * 1000;
   const goalTimeValid = goalTimeMs > 0;
+
+  // Status badge derived values
+  const isRunning = existing?.isRunning ?? false;
+  const hasTimed = elapsedMs > 0;
+  const statusBadgeVisible = isRunning || (!isRunning && hasTimed);
+  const statusBadgeText = isRunning ? '● RUNNING' : '⏸ PAUSED';
+  const statusBadgeBg = isRunning ? `${swColor}20` : 'rgba(255,165,0,0.15)';
+  const statusBadgeBorder = isRunning ? `${swColor}50` : 'rgba(255,165,0,0.4)';
+  const statusBadgeColor = isRunning ? swColor : '#FFA500';
+
+  // Lap count text
+  const lapCountText = laps.length === 1 ? '1 lap' : `${laps.length} laps`;
+
+  // Best lap display for summary
+  const bestLapDisplay = fastestLap ? formatTime(fastestLap.lapTime) : '';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -710,136 +765,271 @@ export default function StopwatchModal() {
           {/* Live timer + lap controls (edit mode only) */}
           {isEditing && existing && (
             <HeroTimerCard accentColor={swColor}>
-            <View
-              style={{
-                padding: 20,
-                alignItems: 'center',
-              }}
-            >
-              <Text
+              <View
                 style={{
-                  fontSize: 60,
-                  fontWeight: '800',
-                  fontFamily: timerFont,
-                  color: existing.isRunning ? swColor : C.text,
-                  fontVariant: ['tabular-nums'],
-                  letterSpacing: -2.5,
-                  marginBottom: 8,
-                  lineHeight: 68,
+                  paddingHorizontal: 20,
+                  paddingTop: 20,
+                  paddingBottom: 20,
+                  alignItems: 'center',
                 }}
               >
-                {timerDisplay}
-              </Text>
-
-              <TextInput
-                value={noteText}
-                onChangeText={setNoteText}
-                onBlur={() => {
-                  if (edit) {
-                    console.log(`[StopwatchModal] Note saved via blur: "${noteText}"`);
-                    updateNote(edit, noteText);
-                  }
-                }}
-                placeholder="Add note…"
-                placeholderTextColor={C.placeholder}
-                multiline
-                style={{
-                  fontSize: 13,
-                  color: C.text,
-                  backgroundColor: C.surfaceSecondary,
-                  borderRadius: 10,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  marginBottom: 16,
-                  minHeight: 36,
-                  maxHeight: 72,
-                  width: '100%',
-                  lineHeight: 19,
-                }}
-              />
-
-              <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-                <AnimatedPressable
-                  onPress={handleLap}
-                  disabled={!existing.isRunning}
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: existing.isRunning ? `${swColor}18` : C.surfaceSecondary,
-                    borderRadius: 12,
-                    paddingVertical: 12,
-                    borderWidth: 1,
-                    borderColor: existing.isRunning ? `${swColor}30` : C.border,
-                    opacity: !existing.isRunning ? 0.4 : 1,
-                  }}
-                >
-                  <Flag size={14} color={existing.isRunning ? swColor : C.textSecondary} />
-                  <Text
+                {/* Status badge */}
+                {statusBadgeVisible && (
+                  <View
                     style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: existing.isRunning ? swColor : C.textSecondary,
-                      lineHeight: 20,
+                      backgroundColor: statusBadgeBg,
+                      borderColor: statusBadgeBorder,
+                      borderWidth: 1,
+                      borderRadius: 20,
+                      paddingHorizontal: 12,
+                      paddingVertical: 4,
+                      marginBottom: 8,
                     }}
                   >
-                    Lap
-                  </Text>
-                </AnimatedPressable>
-
-                <AnimatedPressable
-                  onPress={handleReset}
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: C.dangerMuted,
-                    borderRadius: 12,
-                    paddingVertical: 12,
-                    borderWidth: 1,
-                    borderColor: `${C.danger}30`,
-                  }}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: C.danger, lineHeight: 20 }}>
-                    Reset &amp; Save
-                  </Text>
-                </AnimatedPressable>
-              </View>
-
-              {laps.length > 0 && (
-                <View style={{ width: '100%', marginTop: 16 }}>
-                  <View style={{ height: 1, backgroundColor: C.divider, marginBottom: 10 }} />
-                  <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 6 }}>
-                    <View style={{ width: 32 }}>
-                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
-                        #
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
-                        Lap Time
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', lineHeight: 15 }}>
-                      Split
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: statusBadgeColor,
+                        letterSpacing: 1.5,
+                      }}
+                    >
+                      {statusBadgeText}
                     </Text>
                   </View>
-                  {[...laps].reverse().map(lap => (
-                    <LapRow
-                      key={lap.id}
-                      lap={lap}
-                      isFastest={fastestLap?.id === lap.id}
-                      isSlowest={slowestLap?.id === lap.id}
-                      onLongPress={() => handleLapLongPress(lap)}
-                    />
-                  ))}
+                )}
+
+                {/* Main elapsed time */}
+                <View
+                  style={
+                    isRunning
+                      ? {
+                          boxShadow: `0 0 30px ${swColor}40`,
+                          borderRadius: 8,
+                        }
+                      : undefined
+                  }
+                >
+                  <Text
+                    style={{
+                      fontSize: 72,
+                      fontWeight: '800',
+                      fontFamily: timerFont,
+                      color: isRunning ? swColor : C.text,
+                      fontVariant: ['tabular-nums'],
+                      letterSpacing: -3.0,
+                      lineHeight: 80,
+                    }}
+                  >
+                    {timerDisplay}
+                  </Text>
                 </View>
-              )}
-            </View>
+
+                {/* Lap count indicator */}
+                {laps.length > 0 ? (
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: C.textSecondary,
+                      marginTop: 4,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {lapCountText}
+                  </Text>
+                ) : (
+                  <View style={{ marginBottom: 16 }} />
+                )}
+
+                {/* Note input */}
+                <TextInput
+                  value={noteText}
+                  onChangeText={setNoteText}
+                  onBlur={() => {
+                    if (edit) {
+                      console.log(`[StopwatchModal] Note saved via blur: "${noteText}"`);
+                      updateNote(edit, noteText);
+                    }
+                  }}
+                  placeholder="Add note…"
+                  placeholderTextColor={C.placeholder}
+                  multiline
+                  style={{
+                    fontSize: 13,
+                    color: C.text,
+                    backgroundColor: C.surfaceSecondary,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    marginBottom: 16,
+                    minHeight: 36,
+                    maxHeight: 72,
+                    width: '100%',
+                    lineHeight: 19,
+                  }}
+                />
+
+                {/* Lap + Reset buttons */}
+                <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+                  <AnimatedPressable
+                    onPress={handleLap}
+                    disabled={!existing.isRunning}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: existing.isRunning ? `${swColor}15` : C.surfaceSecondary,
+                      borderRadius: 14,
+                      borderCurve: 'continuous',
+                      paddingVertical: 14,
+                      borderWidth: 1,
+                      borderColor: existing.isRunning ? `${swColor}35` : C.border,
+                      opacity: !existing.isRunning ? 0.3 : 1,
+                    }}
+                  >
+                    <Flag size={15} color={existing.isRunning ? swColor : C.textSecondary} />
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: existing.isRunning ? swColor : C.textSecondary,
+                        lineHeight: 20,
+                      }}
+                    >
+                      Lap
+                    </Text>
+                  </AnimatedPressable>
+
+                  <AnimatedPressable
+                    onPress={handleReset}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(255,59,48,0.12)',
+                      borderRadius: 14,
+                      borderCurve: 'continuous',
+                      paddingVertical: 14,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,59,48,0.30)',
+                    }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#FF3B30', lineHeight: 20 }}>
+                      Reset &amp; Save
+                    </Text>
+                  </AnimatedPressable>
+                </View>
+
+                {/* Lap history */}
+                {laps.length > 0 && (
+                  <View style={{ width: '100%', marginTop: 16 }}>
+                    {/* Divider */}
+                    <View
+                      style={{
+                        height: 1,
+                        backgroundColor: C.divider,
+                        marginVertical: 14,
+                        opacity: 0.6,
+                      }}
+                    />
+
+                    {/* Lap summary (when >= 2 laps) */}
+                    {laps.length >= 2 && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          paddingHorizontal: 4,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: C.text }}>
+                          {laps.length}
+                          {' Laps'}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: '600',
+                            color: '#34C759',
+                            fontFamily: timerFont,
+                            fontVariant: ['tabular-nums'],
+                          }}
+                        >
+                          {'Best: '}
+                          {bestLapDisplay}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Header row */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        backgroundColor: 'rgba(255,255,255,0.04)',
+                        borderRadius: 10,
+                        borderCurve: 'continuous',
+                        marginBottom: 6,
+                      }}
+                    >
+                      <View style={{ width: 28 }}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: C.textTertiary,
+                            letterSpacing: 1.5,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          #
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: C.textTertiary,
+                            letterSpacing: 1.5,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          LAP TIME
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: C.textTertiary,
+                          letterSpacing: 1.5,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        SPLIT
+                      </Text>
+                    </View>
+
+                    {/* Lap rows */}
+                    {[...laps].reverse().map(lap => (
+                      <LapRow
+                        key={lap.id}
+                        lap={lap}
+                        isFastest={fastestLap?.id === lap.id}
+                        isSlowest={slowestLap?.id === lap.id}
+                        onLongPress={() => handleLapLongPress(lap)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
             </HeroTimerCard>
           )}
 
@@ -854,20 +1044,35 @@ export default function StopwatchModal() {
               paddingVertical: 14,
               marginBottom: 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+              overflow: 'hidden',
             }}
           >
+            {/* Left accent bar */}
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: '50%',
+                marginTop: -12,
+                width: 3,
+                height: 24,
+                borderRadius: 2,
+                backgroundColor: swColor,
+              }}
+            />
             <TextInput
               autoFocus={!isEditing}
               value={name}
               onChangeText={setName}
-              placeholder="Stopwatch name"
+              placeholder="Name this stopwatch..."
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
               style={{
-                fontSize: 17,
+                fontSize: 18,
+                fontWeight: '600',
                 color: C.text,
-                paddingHorizontal: 4,
+                paddingHorizontal: 8,
                 paddingVertical: 4,
                 minHeight: 44,
                 margin: 0,
@@ -973,8 +1178,32 @@ export default function StopwatchModal() {
               gap: 12,
               paddingHorizontal: 4,
               marginBottom: 24,
+              alignItems: 'center',
             }}
           >
+            {/* Current selection preview swatch */}
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: selectedColor,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 3,
+                borderColor: '#007AFF',
+                boxShadow: `0 0 0 2px ${selectedColor === '#FFFFFF' ? '#C6C6C8' : selectedColor}, 0 0 16px ${selectedColor}60`,
+              }}
+            >
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: selectedColor === '#FFFFFF' ? '#007AFF' : '#ffffff',
+                }}
+              />
+            </View>
             {PALETTE_PRIMARY.map((swatch) => (
               <ColorSwatch
                 key={swatch.hex}
@@ -1028,7 +1257,7 @@ export default function StopwatchModal() {
                   backgroundColor: C.surface,
                   borderRadius: 16,
                   borderWidth: 1,
-                  borderColor: C.border,
+                  borderColor: goalEnabled ? `${C.primary}40` : C.border,
                   overflow: 'hidden',
                   marginBottom: 8,
                   boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',

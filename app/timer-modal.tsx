@@ -25,6 +25,7 @@ import { loadTimerCategories, addTimerCategory, TimerCategory } from '@/utils/ti
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { notifyTimerComplete } from '@/utils/completion-notifications';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { Timer, Repeat, Zap, Check } from 'lucide-react-native';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,26 @@ const HIIT_PRESETS = [
   { label: 'Power',  workMs: 40000, restMs: 20000, rounds: 5 },
   { label: 'Custom', workMs: 0,     restMs: 0,     rounds: 0 },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function formatCountdownHero(days: number, hours: number, minutes: number, seconds: number): string {
+  if (days > 0) {
+    return `${days}d ${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+  }
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+}
+
+function formatMsShort(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${pad2(m)}:${pad2(s)}`;
+}
 
 // ─── Color Swatch ─────────────────────────────────────────────────────────────
 
@@ -95,39 +116,85 @@ function NumberInput({
     if (!isNaN(n) && n >= min && n <= max) onChange(n);
   };
 
+  const handleDecrement = () => {
+    const next = Math.max(min, value - 1);
+    onChange(next);
+    setText(String(next));
+  };
+
+  const handleIncrement = () => {
+    const next = Math.min(max, value + 1);
+    onChange(next);
+    setText(String(next));
+  };
+
   return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
+    <View style={{ alignItems: 'center', gap: 6 }}>
       <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 15 }}>
         {label}
       </Text>
-      <View
-        style={{
-          backgroundColor: C.surfaceSecondary,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: C.border,
-          boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
-          width,
-          alignItems: 'center',
-        }}
-      >
-        <TextInput
-          value={text}
-          onChangeText={handleChange}
-          keyboardType="number-pad"
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Pressable
+          onPress={handleDecrement}
+          style={({ pressed }) => ({
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '300', color: C.textSecondary, lineHeight: 22 }}>
+            −
+          </Text>
+        </Pressable>
+        <View
           style={{
-            fontSize: 20,
-            fontWeight: '700',
-            color: C.text,
-            textAlign: 'center',
-            paddingVertical: 10,
-            paddingHorizontal: 8,
-            width: '100%',
-            fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-            fontVariant: ['tabular-nums'],
+            backgroundColor: C.surfaceSecondary,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: C.border,
+            boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+            width,
+            alignItems: 'center',
           }}
-          maxLength={3}
-        />
+        >
+          <TextInput
+            value={text}
+            onChangeText={handleChange}
+            keyboardType="number-pad"
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: C.text,
+              textAlign: 'center',
+              paddingVertical: 10,
+              paddingHorizontal: 8,
+              width: '100%',
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+              fontVariant: ['tabular-nums'],
+            }}
+            maxLength={3}
+          />
+        </View>
+        <Pressable
+          onPress={handleIncrement}
+          style={({ pressed }) => ({
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '300', color: C.textSecondary, lineHeight: 22 }}>
+            +
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -315,26 +382,50 @@ export default function TimerModal() {
     paddingHorizontal: 4,
     marginBottom: 10,
     textTransform: 'uppercase' as const,
-    letterSpacing: 2.0,
+    letterSpacing: 2.5,
     lineHeight: 17,
   };
 
-  const MODES: { value: TimerMode; label: string }[] = [
-    { value: 'countdown', label: 'Countdown' },
-    { value: 'interval', label: 'Interval' },
-    { value: 'hiit', label: 'HIIT' },
+  const MODES: { value: TimerMode; label: string; Icon: React.ComponentType<{ size: number; color: string }> }[] = [
+    { value: 'countdown', label: 'Countdown', Icon: Timer },
+    { value: 'interval',  label: 'Interval',  Icon: Repeat },
+    { value: 'hiit',      label: 'HIIT',      Icon: Zap },
   ];
 
   const goalTypeLabel = mode === 'countdown' ? 'Complete countdown' : 'Complete all rounds';
   const goalDescription = 'Goal achieved when the timer finishes naturally without being stopped early.';
 
-  const durationCardStyle = {
-    backgroundColor: C.surface,
+  // ── Derived hero display values ──────────────────────────────────────────────
+  const heroCountdown = formatCountdownHero(cdDays, cdHours, cdMinutes, cdSeconds);
+
+  const ivWorkMs = (ivWorkMin * 60 + ivWorkSec) * 1000;
+  const ivRestMs = (ivRestMin * 60 + ivRestSec) * 1000;
+  const ivWorkDisplay = formatMsShort(ivWorkMs);
+  const ivRestDisplay = formatMsShort(ivRestMs);
+  const ivSummary = `${ivWorkDisplay} work · ${ivRestDisplay} rest · ${ivRounds} rounds`;
+
+  const hiitWorkMs = (hiitWorkMin * 60 + hiitWorkSec) * 1000;
+  const hiitRestMs = (hiitRestMin * 60 + hiitRestSec) * 1000;
+  const hiitWorkDisplay = formatMsShort(hiitWorkMs);
+  const hiitRestDisplay = formatMsShort(hiitRestMs);
+  const hiitPresetName = hiitPreset === 3 ? 'Custom' : HIIT_PRESETS[hiitPreset].label;
+  const hiitSummary = `${hiitWorkDisplay} work · ${hiitRestDisplay} rest · ${hiitRounds} rounds`;
+
+  const refinedCard = {
+    backgroundColor: C.surfaceSecondary,
     borderRadius: 16,
+    borderCurve: 'continuous' as const,
     borderWidth: 1,
     borderColor: C.border,
-    boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
+    borderTopColor: 'rgba(255,255,255,0.10)',
+    borderTopWidth: 1,
+    padding: 20,
+    boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.35)',
   };
+
+  const saveButtonBg = canSave ? color : C.surfaceSecondary;
+  const saveButtonShadow = canSave ? `0 0 32px ${color}50` : undefined;
+  const saveButtonTextColor = canSave ? '#000' : C.textSecondary;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -386,18 +477,22 @@ export default function TimerModal() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}
         >
-          {/* Mode Segmented Control */}
+          {/* ── Mode Segmented Control ─────────────────────────────────────── */}
           <View
             style={{
               flexDirection: 'row',
-              backgroundColor: C.surfaceSecondary,
-              borderRadius: 12,
-              padding: 3,
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              borderRadius: 14,
+              borderCurve: 'continuous',
+              padding: 4,
               marginBottom: 24,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
           >
             {MODES.map(m => {
               const isActive = mode === m.value;
+              const iconColor = isActive ? C.text : C.textSecondary;
               return (
                 <Pressable
                   key={m.value}
@@ -408,16 +503,21 @@ export default function TimerModal() {
                   style={({ pressed }) => ({
                     flex: 1,
                     paddingVertical: 9,
-                    borderRadius: 10,
+                    borderRadius: 11,
+                    borderCurve: 'continuous',
+                    flexDirection: 'row',
                     alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
                     backgroundColor: isActive ? C.surface : 'transparent',
                     borderWidth: isActive ? 1 : 0,
                     borderColor: isActive ? C.border : 'transparent',
                     opacity: pressed ? 0.7 : 1,
-                    boxShadow: isActive ? '0 0 8px rgba(0,212,255,0.15)' : undefined,
+                    boxShadow: isActive ? `0 0 12px ${C.primary}20` : undefined,
                   })}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: isActive ? '600' : '500', color: isActive ? C.text : C.textSecondary, lineHeight: 18 }}>
+                  <m.Icon size={13} color={iconColor} />
+                  <Text style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: iconColor, lineHeight: 18 }}>
                     {m.label}
                   </Text>
                 </Pressable>
@@ -425,41 +525,107 @@ export default function TimerModal() {
             })}
           </View>
 
-          {/* Name */}
+          {/* ── Name Input ─────────────────────────────────────────────────── */}
           <View
             style={{
               backgroundColor: C.surfaceSecondary,
               borderRadius: 14,
+              borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: C.border,
               paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.03) inset',
+              overflow: 'hidden',
             }}
           >
+            {/* Left accent bar */}
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: '50%',
+                marginTop: -12,
+                width: 3,
+                height: 24,
+                borderRadius: 2,
+                backgroundColor: color,
+              }}
+            />
             <TextInput
               autoFocus={!isEditing}
               value={name}
               onChangeText={setName}
-              placeholder="Timer name"
+              placeholder="Name this timer..."
               placeholderTextColor={C.placeholder}
               returnKeyType="done"
-              style={{ fontSize: 17, color: C.text, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, margin: 0, lineHeight: 24 }}
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: C.text,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                minHeight: 44,
+                margin: 0,
+                lineHeight: 24,
+              }}
             />
           </View>
           <Text style={{ fontSize: 13, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 28, lineHeight: 19 }}>
             Give your timer a descriptive name.
           </Text>
 
-          {/* Mode-specific fields */}
+          {/* ── Mode-specific fields ───────────────────────────────────────── */}
           {mode === 'countdown' && (
             <>
+              {/* Hero Duration Display */}
+              <View
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  boxShadow: `0 2px 12px rgba(0,0,0,0.5), 0 0 40px ${color}1A`,
+                  paddingVertical: 28,
+                  paddingHorizontal: 20,
+                  marginBottom: 20,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 56,
+                    fontWeight: '800',
+                    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                    color: C.text,
+                    letterSpacing: -2.0,
+                    fontVariant: ['tabular-nums'],
+                    textAlign: 'center',
+                    lineHeight: 64,
+                  }}
+                >
+                  {heroCountdown}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: C.textSecondary,
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    marginTop: 8,
+                    lineHeight: 17,
+                  }}
+                >
+                  DURATION
+                </Text>
+              </View>
+
               <Text style={sectionLabel}>Duration</Text>
               <View
                 style={{
-                  ...durationCardStyle,
-                  padding: 20,
+                  ...refinedCard,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -480,11 +646,51 @@ export default function TimerModal() {
 
           {mode === 'interval' && (
             <>
+              {/* Hero Interval Display */}
+              <View
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  boxShadow: `0 2px 12px rgba(0,0,0,0.5), 0 0 40px ${color}1A`,
+                  paddingVertical: 28,
+                  paddingHorizontal: 20,
+                  marginBottom: 20,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: C.text,
+                    textAlign: 'center',
+                    lineHeight: 22,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {ivSummary}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: C.textSecondary,
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    marginTop: 8,
+                    lineHeight: 17,
+                  }}
+                >
+                  WORK · REST · ROUNDS
+                </Text>
+              </View>
+
               <Text style={sectionLabel}>Work Time</Text>
               <View
                 style={{
-                  ...durationCardStyle,
-                  padding: 20,
+                  ...refinedCard,
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -500,8 +706,7 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rest Time</Text>
               <View
                 style={{
-                  ...durationCardStyle,
-                  padding: 20,
+                  ...refinedCard,
                   marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -517,8 +722,7 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rounds</Text>
               <View
                 style={{
-                  ...durationCardStyle,
-                  padding: 20,
+                  ...refinedCard,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -532,26 +736,88 @@ export default function TimerModal() {
 
           {mode === 'hiit' && (
             <>
+              {/* Hero HIIT Display */}
+              <View
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  boxShadow: `0 2px 12px rgba(0,0,0,0.5), 0 0 40px ${color}1A`,
+                  paddingVertical: 28,
+                  paddingHorizontal: 20,
+                  marginBottom: 20,
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 17,
+                    fontWeight: '700',
+                    color: C.text,
+                    textAlign: 'center',
+                    lineHeight: 24,
+                  }}
+                >
+                  {hiitPresetName}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: C.text,
+                    textAlign: 'center',
+                    lineHeight: 22,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {hiitSummary}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: C.textSecondary,
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    marginTop: 4,
+                    lineHeight: 17,
+                  }}
+                >
+                  WORK · REST · ROUNDS
+                </Text>
+              </View>
+
               <Text style={sectionLabel}>Preset</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
                 {HIIT_PRESETS.map((p, idx) => {
                   const isActive = hiitPreset === idx;
+                  const isCustom = idx === 3;
+                  const presetSummary = isCustom ? null : `${p.workMs / 1000}s / ${p.restMs / 1000}s × ${p.rounds}`;
                   return (
                     <AnimatedPressable
                       key={p.label}
                       onPress={() => applyHiitPreset(idx)}
                       style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 9,
-                        borderRadius: 20,
-                        backgroundColor: isActive ? C.primary : C.surfaceSecondary,
-                        borderWidth: isActive ? 0 : 1,
-                        borderColor: C.border,
+                        paddingHorizontal: 18,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        borderCurve: 'continuous',
+                        backgroundColor: isActive ? color : 'rgba(255,255,255,0.06)',
+                        borderWidth: 1,
+                        borderColor: isActive ? 'transparent' : 'rgba(255,255,255,0.10)',
+                        alignItems: 'center',
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#0D0F14' : C.chipText, lineHeight: 18 }}>
+                      <Text style={{ fontSize: 13, fontWeight: isActive ? '700' : '600', color: isActive ? '#000' : C.textSecondary, lineHeight: 18 }}>
                         {p.label}
                       </Text>
+                      {presetSummary !== null && (
+                        <Text style={{ fontSize: 10, color: isActive ? 'rgba(0,0,0,0.6)' : C.textTertiary, marginTop: 2, lineHeight: 14 }}>
+                          {presetSummary}
+                        </Text>
+                      )}
                     </AnimatedPressable>
                   );
                 })}
@@ -562,8 +828,7 @@ export default function TimerModal() {
                   <Text style={sectionLabel}>Work Time</Text>
                   <View
                     style={{
-                      ...durationCardStyle,
-                      padding: 20,
+                      ...refinedCard,
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -579,8 +844,7 @@ export default function TimerModal() {
                   <Text style={sectionLabel}>Rest Time</Text>
                   <View
                     style={{
-                      ...durationCardStyle,
-                      padding: 20,
+                      ...refinedCard,
                       marginBottom: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -598,8 +862,7 @@ export default function TimerModal() {
               <Text style={sectionLabel}>Rounds</Text>
               <View
                 style={{
-                  ...durationCardStyle,
-                  padding: 20,
+                  ...refinedCard,
                   marginBottom: 28,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -611,9 +874,23 @@ export default function TimerModal() {
             </>
           )}
 
-          {/* Color picker */}
+          {/* ── Color Picker ───────────────────────────────────────────────── */}
           <Text style={sectionLabel}>Color</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 4, marginBottom: 28 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 4, marginBottom: 28, alignItems: 'center' }}>
+            {/* Selected color preview swatch */}
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: color,
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: `0 0 0 3px ${color}40, 0 2px 8px rgba(0,0,0,0.3)`,
+              }}
+            >
+              <Check size={18} color="#000" strokeWidth={3} />
+            </View>
             {PALETTE.map(swatch => (
               <ColorSwatch
                 key={swatch.hex}
@@ -628,7 +905,7 @@ export default function TimerModal() {
             ))}
           </View>
 
-          {/* Category section */}
+          {/* ── Category Section ───────────────────────────────────────────── */}
           <Text style={sectionLabel}>Category</Text>
           <ScrollView
             horizontal
@@ -712,14 +989,14 @@ export default function TimerModal() {
             </AnimatedPressable>
           </View>
 
-          {/* Goal section */}
+          {/* ── Goal Section ───────────────────────────────────────────────── */}
           <Text style={sectionLabel}>Goal</Text>
           <View
             style={{
               backgroundColor: C.surface,
               borderRadius: 16,
               borderWidth: 1,
-              borderColor: C.border,
+              borderColor: goalEnabled ? `${C.primary}40` : C.border,
               overflow: 'hidden',
               marginBottom: 8,
               boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 16px rgba(0,0,0,0.4)',
@@ -830,9 +1107,29 @@ export default function TimerModal() {
               </>
             )}
           </View>
-          <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 8, lineHeight: 17 }}>
+          <Text style={{ fontSize: 12, color: C.textSecondary, paddingHorizontal: 4, marginBottom: 24, lineHeight: 17 }}>
             Goal status is checked when the timer completes or is stopped.
           </Text>
+
+          {/* ── Primary Save CTA ───────────────────────────────────────────── */}
+          <AnimatedPressable
+            onPress={handleSave}
+            disabled={!canSave}
+            style={{
+              backgroundColor: saveButtonBg,
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              paddingVertical: 17,
+              alignItems: 'center',
+              marginTop: 8,
+              boxShadow: saveButtonShadow,
+              opacity: canSave ? 1 : 0.4,
+            }}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '700', color: saveButtonTextColor, lineHeight: 22 }}>
+              Save Timer
+            </Text>
+          </AnimatedPressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
