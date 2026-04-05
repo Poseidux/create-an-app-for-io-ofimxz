@@ -40,7 +40,7 @@ import * as SecureStore from "expo-secure-store";
 const extra = Constants.expoConfig?.extra || {};
 const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
-const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
+const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "unlimited_stopwatches";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
@@ -97,11 +97,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const fetchOfferingsViaRest = async () => {
     // Mock package with real prices from RevenueCat dashboard
     const mockPackage = {
-      identifier: "$rc_monthly",
+      identifier: "$rc_lifetime",
       product: {
-        title: "Monthly",
-        priceString: "$4.99/month",
-        description: "Unlock all premium features",
+        title: "Lifetime",
+        priceString: "One-time purchase",
+        description: "Unlock unlimited stopwatches forever",
       },
     };
 
@@ -211,7 +211,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
       // Use the "stopwatch_unlimited" offering if present; fall back to current offering
       const targetOffering =
-        fetchedOfferings.all["default"] ?? fetchedOfferings.current;
+        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
 
       if (targetOffering) {
         setCurrentOffering(targetOffering);
