@@ -38,7 +38,7 @@ import * as SecureStore from "expo-secure-store";
 
 // Read API keys from app.json (expo.extra)
 const extra = Constants.expoConfig?.extra || {};
-const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
+const IOS_API_KEY = Constants.expoConfig?.extra?.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
 const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
 const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
@@ -101,9 +101,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     const mockPackage = {
       identifier: "$rc_lifetime",
       product: {
-        title: "Unlimited Access",
+        title: "Unlimited",
         priceString: "$9.99",
-        description: "Unlock all premium features forever",
+        description: "Unlock all features forever",
       },
     };
 
@@ -222,23 +222,17 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      // Prefer the app-specific offering; fall back to current
       const offering =
-        fetchedOfferings.all["stopwatch_unlimited"] ??
-        fetchedOfferings.current;
-
+        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
       if (offering) {
         setCurrentOffering(offering);
-        // Sort $rc_lifetime to the front so it is pre-selected on the paywall
+        // Sort packages so $rc_lifetime appears first
         const sorted = [...offering.availablePackages].sort((a, b) => {
           if (a.identifier === "$rc_lifetime") return -1;
           if (b.identifier === "$rc_lifetime") return 1;
           return 0;
         });
         setPackages(sorted);
-        console.log(
-          `[RevenueCat] Offering loaded: "${offering.identifier}", packages: ${sorted.map(p => p.identifier).join(", ")}`
-        );
       }
     } catch (error) {
       console.error("[RevenueCat] Failed to fetch offerings:", error);

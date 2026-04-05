@@ -67,10 +67,10 @@
       "backendUrl": "https://dafyzwwbnagvwjjjea6vzmd3wy654vxp.app.specular.dev",
       "revenueCatApiKeyIos": "appl_hijcQFzALhECfodUgBcKFBevOtL",
       "revenueCatApiKeyAndroid": "goog_ZzIdCbMdneaJisbhQfnsLUZDNVo",
-      "revenueCatEntitlementId": "pro",
+      "revenueCatEntitlementId": "unlimited_stopwatches",
       "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e",
-      "revenueCatTestApiKeyIos": "test_EnNszYjMVgGYhgdTFeQOZNVPeyr",
-      "revenueCatTestApiKeyAndroid": "test_EnNszYjMVgGYhgdTFeQOZNVPeyr"
+      "revenueCatTestApiKeyIos": "test_ukPURvSDGbsOIFolkxcScGjlPlW",
+      "revenueCatTestApiKeyAndroid": "test_ukPURvSDGbsOIFolkxcScGjlPlW"
     }
   }
 }
