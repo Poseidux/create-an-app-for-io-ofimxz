@@ -32,9 +32,13 @@ import Purchases, {
   LOG_LEVEL,
 } from "react-native-purchases";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 
-// Production iOS API key
-const IOS_API_KEY = "appl_AdKKQlfQClEouHLVsyJkkDtEeWK";
+// Platform API keys — read from app.json extra, with hardcoded fallbacks
+const IOS_API_KEY: string =
+  Constants.expoConfig?.extra?.revenueCatApiKeyIos ?? "appl_AdKKQlfQClEouHLVsyJkkDtEeWK";
+const ANDROID_API_KEY: string =
+  Constants.expoConfig?.extra?.revenueCatApiKeyAndroid ?? "goog_houOesBsyvjJPRNwzVZVOpoeMyq";
 const ENTITLEMENT_ID = "unlimited_stopwatches";
 
 // Check if running on web
@@ -120,7 +124,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           setIsSubscribed(true);
         }
 
-        await Purchases.configure({ apiKey: IOS_API_KEY });
+        const apiKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
+        await Purchases.configure({ apiKey });
 
         // Listen for real-time subscription changes (e.g., purchase from another device)
         customerInfoListener = Purchases.addCustomerInfoUpdateListener(

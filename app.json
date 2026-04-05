@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.poseiduxfitness.chroniqo",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -30,7 +30,7 @@
         "backgroundColor": "#3a3a3a"
       },
       "package": "com.poseiduxfitness.chroniqo",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
