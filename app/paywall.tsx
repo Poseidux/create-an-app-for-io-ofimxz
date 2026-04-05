@@ -70,8 +70,6 @@ export default function PaywallScreen() {
     isWeb,
     purchasePackage,
     restorePurchases,
-    mockWebPurchase,
-    mockNativePurchase,
   } = useSubscription();
 
   const [selectedPackage, setSelectedPackage] =
@@ -91,15 +89,12 @@ export default function PaywallScreen() {
   // Handle purchase
   const handlePurchase = async () => {
     if (!selectedPackage) return;
-    console.log("[Paywall] Purchase button pressed, package:", selectedPackage.identifier, selectedPackage.product.priceString);
 
     try {
       setPurchasing(true);
       const success = await purchasePackage(selectedPackage);
       if (success) {
-        Alert.alert("Welcome!", "Thank you for your purchase.", [
-          { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
-        ]);
+        router.replace("/(tabs)/(home)");
       }
     } catch (error: any) {
       Alert.alert("Purchase Failed", error.message || "Please try again.");
@@ -110,14 +105,11 @@ export default function PaywallScreen() {
 
   // Handle restore
   const handleRestore = async () => {
-    console.log("[Paywall] Restore Purchases button pressed");
     try {
       setRestoring(true);
       const restored = await restorePurchases();
       if (restored) {
-        Alert.alert("Restored!", "Your subscription has been restored.", [
-          { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
-        ]);
+        router.replace("/(tabs)/(home)");
       } else {
         Alert.alert(
           "No Purchases Found",
@@ -163,71 +155,6 @@ export default function PaywallScreen() {
       ]
     );
   };
-
-  // Already subscribed - show celebration confirmation
-  if (isSubscribed) {
-    return (
-      <View style={styles.subscribedContainer}>
-        <LinearGradient
-          colors={["#667EEA", "#764BA2", "#f093fb"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.subscribedGradient}
-        >
-          {/* Decorative floating orbs */}
-          <View style={[styles.floatingOrb, styles.orb1]} />
-          <View style={[styles.floatingOrb, styles.orb2]} />
-          <View style={[styles.floatingOrb, styles.orb3]} />
-
-          <SafeAreaView edges={["top", "bottom"]} style={styles.subscribedSafeArea}>
-            {/* Close button */}
-            <TouchableOpacity style={styles.subscribedCloseButton} onPress={handleClose}>
-              <Text style={styles.subscribedCloseText}>✕</Text>
-            </TouchableOpacity>
-
-            <View style={styles.subscribedContent}>
-              {/* Celebration icon with glow */}
-              <View style={styles.celebrationIconContainer}>
-                <View style={styles.celebrationGlow} />
-                <Text style={styles.celebrationIcon}>🎉</Text>
-              </View>
-
-              {/* PRO MEMBER badge */}
-              <View style={styles.proMemberBadge}>
-                <Text style={styles.proMemberText}>PRO MEMBER</Text>
-              </View>
-
-              {/* Title */}
-              <Text style={styles.subscribedTitle}>You're All Set!</Text>
-              <Text style={styles.subscribedSubtitle}>
-                Welcome to the premium experience
-              </Text>
-
-              {/* Features card */}
-              <View style={styles.featuresCard}>
-                <Text style={styles.featuresCardTitle}>Unlocked Features</Text>
-                {FEATURES.slice(0, 3).map((feature, index) => (
-                  <View key={index} style={styles.featureCheckRow}>
-                    <View style={styles.checkCircle}>
-                      <Text style={styles.checkMark}>✓</Text>
-                    </View>
-                    <Text style={styles.featureCheckText}>{feature.title}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Start Exploring button */}
-              <TouchableOpacity style={styles.exploreButton} onPress={handleClose}>
-                <View style={styles.exploreButtonInner}>
-                  <Text style={styles.exploreButtonText}>Start Exploring</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
-      </View>
-    );
-  }
 
   // Feature icon background colors (rotating by index)
   const featureIconColors = [
@@ -382,7 +309,7 @@ export default function PaywallScreen() {
             {/* No packages available - only show on native */}
             {/* This appears in standard Expo Go because react-native-purchases */}
             {/* native module is not bundled in Expo Go. Use a dev build to test purchases. */}
-            {!isWeb && packages.length === 0 && !loading && (
+            {!isWeb && packages.length === 0 && !isLoading && (
               <View style={styles.noPackagesContainer}>
                 <Text style={styles.noPackagesText}>
                   Purchases are not available in standard Expo Go.
@@ -391,17 +318,6 @@ export default function PaywallScreen() {
                   To test purchases, use a development build or production build.
                   {"\n"}This is expected — your onboarding and storage are working correctly.
                 </Text>
-                {__DEV__ && (
-                  <TouchableOpacity
-                    style={styles.devMockButton}
-                    onPress={async () => {
-                      await mockNativePurchase();
-                      router.replace("/(tabs)/(home)");
-                    }}
-                  >
-                    <Text style={styles.devMockButtonText}>Dev: Simulate Purchase</Text>
-                  </TouchableOpacity>
-                )}
               </View>
             )}
           </ScrollView>
@@ -525,7 +441,6 @@ Price: ${selectedPackage?.product.priceString || "N/A"}`}
                   style={styles.webDialogButton}
                   onPress={() => {
                     setWebMockDialogState("hidden");
-                    mockWebPurchase();
                     router.replace("/(tabs)/(home)");
                   }}
                 >
@@ -759,21 +674,6 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.85)",
     textAlign: "center",
   },
-  devMockButton: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-    borderStyle: "dashed",
-    alignItems: "center",
-  },
-  devMockButtonText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 13,
-    textAlign: "center",
-  },
   bottomActions: {
     padding: 24,
     paddingBottom: 32,
@@ -862,20 +762,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
 
-  // Subscribed celebration styles
-  subscribedContainer: {
-    flex: 1,
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height,
-  },
-  subscribedGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  subscribedSafeArea: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
+  // Floating orb decorations
   floatingOrb: {
     position: "absolute",
     borderRadius: 999,
@@ -898,128 +785,5 @@ const styles = StyleSheet.create({
     height: 100,
     top: SCREEN_HEIGHT * 0.3,
     right: 20,
-  },
-  subscribedCloseButton: {
-    position: "absolute",
-    top: 16,
-    right: 20,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  subscribedCloseText: {
-    fontSize: 18,
-    color: "#fff",
-    fontWeight: "600",
-  },
-  subscribedContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  celebrationIconContainer: {
-    position: "relative",
-    marginBottom: 20,
-  },
-  celebrationGlow: {
-    position: "absolute",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    top: -20,
-    left: -20,
-  },
-  celebrationIcon: {
-    fontSize: 80,
-  },
-  proMemberBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  proMemberText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 1.5,
-  },
-  subscribedTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subscribedSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.85)",
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  featuresCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 20,
-    padding: 20,
-    width: "100%",
-    marginBottom: 32,
-  },
-  featuresCardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.7)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  featureCheckRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  checkCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  checkMark: {
-    fontSize: 14,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  featureCheckText: {
-    fontSize: 16,
-    color: "#fff",
-    fontWeight: "500",
-  },
-  exploreButton: {
-    width: "100%",
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  exploreButtonInner: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingVertical: 18,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    borderRadius: 16,
-  },
-  exploreButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
   },
 });
