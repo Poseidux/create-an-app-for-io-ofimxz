@@ -395,8 +395,8 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? selectedPackage.product.priceString
-                          ? `Subscribe for ${selectedPackage.product.priceString}`
-                          : "Subscribe"
+                          ? `Get Unlimited — ${selectedPackage.product.priceString}`
+                          : "Get Unlimited"
                         : "Select a plan"}
                     </Text>
                   )}
@@ -435,8 +435,8 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? (selectedPackage.product.priceString
-                            ? `Subscribe for ${selectedPackage.product.priceString}`
-                            : "Subscribe")
+                            ? `Get Unlimited — ${selectedPackage.product.priceString}`
+                            : "Get Unlimited")
                         : "Select a plan"}
                     </Text>
                   )}
@@ -457,10 +457,9 @@ export default function PaywallScreen() {
 
                 {/* Legal Text - Required by App Store */}
                 <Text style={styles.legalText}>
-                  Payment will be charged to your{" "}
+                  One-time purchase. Payment will be charged to your{" "}
                   {Platform.OS === "ios" ? "Apple ID" : "Google Play"} account.
-                  Subscription automatically renews unless canceled at least 24 hours
-                  before the end of the current period.
+                  No subscription — pay once, unlock forever.
                 </Text>
               </>
             )}

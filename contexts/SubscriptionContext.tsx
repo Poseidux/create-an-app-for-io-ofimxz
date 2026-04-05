@@ -38,7 +38,7 @@ import * as SecureStore from "expo-secure-store";
 
 // Read API keys from app.json (expo.extra)
 const extra = Constants.expoConfig?.extra || {};
-const IOS_API_KEY = Constants.expoConfig?.extra?.revenueCatApiKeyIos || "";
+const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
 const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
 const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
@@ -97,13 +97,13 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     // Fetch offerings via REST API for web platform
   const fetchOfferingsViaRest = async () => {
-    // Mock package with real prices from RevenueCat dashboard
+    // Mock lifetime package matching the RevenueCat dashboard offering
     const mockPackage = {
       identifier: "$rc_lifetime",
       product: {
-        title: "Unlimited",
-        priceString: "$9.99",
-        description: "Unlock all features forever",
+        title: "Unlimited — Lifetime",
+        priceString: "$4.99",
+        description: "One-time purchase — unlock everything forever",
       },
     };
 
@@ -222,8 +222,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
+      // Prefer the "stopwatch_unlimited" offering; fall back to current
       const offering =
         fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
+
       if (offering) {
         setCurrentOffering(offering);
         // Sort packages so $rc_lifetime appears first
