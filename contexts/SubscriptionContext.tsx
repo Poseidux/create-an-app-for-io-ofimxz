@@ -42,7 +42,7 @@ const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
 const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
 const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
-const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
+const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "unlimited_stopwatches";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
@@ -99,11 +99,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const fetchOfferingsViaRest = async () => {
     // Mock package with real prices from RevenueCat dashboard
     const mockPackage = {
-      identifier: "$rc_monthly",
+      identifier: "$rc_lifetime",
       product: {
-        title: "Premium",
-        priceString: "$4.99/month",
-        description: "Unlock all premium features",
+        title: "Unlimited Stopwatches",
+        priceString: "$4.99",
+        description: "Unlock unlimited stopwatches, timers, routines & plans",
       },
     };
 
