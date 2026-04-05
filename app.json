@@ -68,7 +68,9 @@
       "revenueCatApiKeyIos": "appl_gNiQDfaHdjTIdGdstIjyLnXwPYC",
       "revenueCatApiKeyAndroid": "goog_SdDKpXLoJrgMoRfTRJGxoXqqfaj",
       "revenueCatEntitlementId": "unlimited_stopwatches",
-      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e"
+      "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e",
+      "revenueCatTestApiKeyIos": "test_lrimfIfTwocSFoNbwWhwRVVRmSw",
+      "revenueCatTestApiKeyAndroid": "test_lrimfIfTwocSFoNbwWhwRVVRmSw"
     }
   }
 }

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import FloatingTabBar from '@/components/FloatingTabBar';
 import { Href } from 'expo-router';
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 const TABS = [
   { name: '(today)',    route: '/(tabs)/(today)'    as Href, icon: 'timer'     as const, label: 'Today'    },
@@ -12,6 +13,8 @@ const TABS = [
 ];
 
 export default function TabLayout() {
+  useSubscriptionGuard();
+
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>

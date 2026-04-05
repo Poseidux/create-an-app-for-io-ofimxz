@@ -1,7 +1,7 @@
 import "react-native-reanimated";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, Redirect, usePathname, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { SystemBars } from "react-native-edge-to-edge";
@@ -18,8 +18,9 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { StopwatchProvider } from "@/contexts/StopwatchContext";
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { CategoryProvider } from "@/contexts/CategoryContext";
-import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { isOnboardingComplete } from "@/utils/onboardingStorage";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,6 +54,15 @@ const CustomDarkTheme: Theme = {
 };
 
 function AppContent() {
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    isOnboardingComplete().then((complete) => {
+      setOnboardingComplete(complete);
+    });
+  }, [pathname]);
+
   const { colorScheme } = useThemeContext();
   const navTheme = colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme;
   const statusStyle = colorScheme === "dark" ? "light" : "dark";
@@ -60,6 +70,7 @@ function AppContent() {
   return (
     <NotificationProvider>
   <SubscriptionProvider>
+          <SubscriptionRedirect />
       <StatusBar style={statusStyle} animated />
       <NavThemeProvider value={navTheme}>
         <SafeAreaProvider>
@@ -67,7 +78,11 @@ function AppContent() {
             <StopwatchProvider>
               <CategoryProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
+                  {onboardingComplete === false && pathname !== "/auth" && pathname !== "/paywall" && pathname !== "/auth-popup" && pathname !== "/auth-callback" && <Redirect href="/onboarding" />}
+
                   <Stack>
+                    <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="stopwatch-modal"
@@ -142,6 +157,40 @@ Notifications.setNotificationHandler({
   }),
 });
 
+
+function SubscriptionRedirect() {
+  const { isSubscribed, loading } = useSubscription();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (loading) return;
+    const onOnboarding = pathname.startsWith("/onboarding");
+    if (onOnboarding) return;
+
+    let cancelled = false;
+    isOnboardingComplete().then((done) => {
+      if (cancelled) return;
+      if (!done) return;
+      const onPaywall = pathname === "/paywall";
+      if (onPaywall) return;
+      if (!isSubscribed) {
+        router.replace("/paywall");
+      }
+    }).catch(() => {
+      if (cancelled) return;
+      const onPaywall = pathname === "/paywall";
+      if (onPaywall) return;
+      if (!isSubscribed) {
+        router.replace("/paywall");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isSubscribed, loading, pathname]);
+
+  return null;
+}
+
 export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
@@ -157,7 +206,7 @@ export default function RootLayout() {
     Notifications.requestPermissionsAsync().catch(() => {});
   }, []);
 
-  if (!loaded) {
+  if (!loaded || onboardingComplete === null) {
     return null;
   }
 

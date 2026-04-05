@@ -40,11 +40,13 @@ import * as SecureStore from "expo-secure-store";
 const extra = Constants.expoConfig?.extra || {};
 const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
 const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
-const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "unlimited_stopwatches";
+const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
+const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
+const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "pro";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
-// Use projectId (unique UUID) for scoping; fall back to slug for backward compatibility
+// Use nativelyProjectId (unique UUID) for scoping; fall back to slug for backward compatibility
 const _PROJECT_SCOPE = Constants.expoConfig?.extra?.nativelyProjectId || Constants.expoConfig?.slug || "app";
 const MOCK_PURCHASE_KEY = `rc_mock_purchased_${_PROJECT_SCOPE}`;
 // Scoped native dev mock key — persists simulated subscription in Expo Go via expo-secure-store
@@ -99,9 +101,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     const mockPackage = {
       identifier: "$rc_lifetime",
       product: {
-        title: "Lifetime",
-        priceString: "One-time purchase",
-        description: "Unlock unlimited stopwatches forever",
+        title: "Lifetime Access",
+        priceString: "$9.99",
+        description: "Unlock all features forever",
       },
     };
 
@@ -149,8 +151,12 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // Use DEBUG log level in development, INFO in production
         Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
 
-        // Always use the production API key for the current platform
-        const apiKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
+        // Get API key based on platform and environment
+        // In development (__DEV__), use ANY available test key (test store works for all platforms)
+        // This allows Expo Go to work on iOS even without a platform-specific test key
+        const testKey = TEST_IOS_API_KEY || TEST_ANDROID_API_KEY;
+        const productionKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
+        const apiKey = __DEV__ && testKey ? testKey : productionKey;
 
         if (!apiKey) {
           console.warn(
@@ -161,12 +167,15 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           return;
         }
 
-        // Restore cached subscription state immediately to avoid paywall flash on bundle reload.
-        // The customerInfoUpdateListener (fired by configure() below) is the authoritative
-        // source and will immediately overwrite this with real RC Keychain data.
-        const cached = await SecureStore.getItemAsync(NATIVE_PURCHASE_KEY).catch(() => null);
-        if (cached === "true") {
-          setIsSubscribed(true);
+        if (__DEV__) {
+          console.log("[RevenueCat] Initializing in DEV mode with key:", apiKey.substring(0, 10) + "...");
+          // Restore cached subscription state immediately to avoid paywall flash on bundle reload.
+          // The customerInfoUpdateListener (fired by configure() below) is the authoritative
+          // source and will immediately overwrite this with real RC Keychain data.
+          const cached = await SecureStore.getItemAsync(NATIVE_PURCHASE_KEY).catch(() => null);
+          if (cached === "true") {
+            setIsSubscribed(true);
+          }
         }
 
         await Purchases.configure({ apiKey });
@@ -177,7 +186,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
             const hasEntitlement =
               typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !==
               "undefined";
-            setIsSubscribed(hasEntitlement);
+            // In __DEV__: don't clear subscription state — RevenueCat test store purchases are
+            // in-memory only and won't be known to RC after a configure() call on reload.
+            if (hasEntitlement || !__DEV__) {
+              setIsSubscribed(hasEntitlement);
+            }
           }
         );
 
@@ -209,25 +222,26 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      // Use the "stopwatch_unlimited" offering if present; fall back to current offering
-      const targetOffering =
-        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
+      // Prefer the named "stopwatch_unlimited" offering; fall back to current/default
+      const offering =
+        fetchedOfferings.all["stopwatch_unlimited"] ||
+        fetchedOfferings.current;
 
-      if (targetOffering) {
-        setCurrentOffering(targetOffering);
-        // Prefer the $rc_lifetime package; fall back to all available packages
-        const lifetimePkg = targetOffering.availablePackages.find(
+      if (offering) {
+        // Prefer the lifetime package if present, otherwise use all available packages
+        const lifetimePkg = offering.availablePackages.find(
           (pkg) => pkg.identifier === "$rc_lifetime"
         );
-        setPackages(
-          lifetimePkg ? [lifetimePkg] : targetOffering.availablePackages
-        );
+        setCurrentOffering(offering);
+        setPackages(lifetimePkg ? [lifetimePkg] : offering.availablePackages);
         console.log(
-          "[RevenueCat] Offering loaded:",
-          targetOffering.identifier,
-          "| package:",
-          lifetimePkg?.identifier ?? "none (using all packages)"
+          "[RevenueCat] Loaded offering:",
+          offering.identifier,
+          "packages:",
+          offering.availablePackages.map((p) => p.identifier)
         );
+      } else {
+        console.warn("[RevenueCat] No offering found (stopwatch_unlimited or current)");
       }
     } catch (error) {
       console.error("[RevenueCat] Failed to fetch offerings:", error);
@@ -240,8 +254,16 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const customerInfo = await Purchases.getCustomerInfo();
       const hasEntitlement =
         typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
-      setIsSubscribed(hasEntitlement);
-      await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
+      // In __DEV__: RC test store purchases don't survive configure(), so only update state
+      // positively — mock/test purchase state persists across reloads via SecureStore cache.
+      if (hasEntitlement || !__DEV__) {
+        setIsSubscribed(hasEntitlement);
+      }
+      if (hasEntitlement) {
+        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "true").catch(() => {});
+      } else if (!__DEV__) {
+        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "false").catch(() => {});
+      }
     } catch (error) {
       console.error("[RevenueCat] Failed to check subscription:", error);
       // Don't reset isSubscribed on error — the customerInfoUpdateListener
@@ -284,7 +306,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const hasEntitlement =
         typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
       setIsSubscribed(hasEntitlement);
-      await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
+      // In __DEV__: don't clear the cache on restore failure (test store purchases are ephemeral)
+      if (hasEntitlement || !__DEV__) {
+        await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, hasEntitlement ? "true" : "false").catch(() => {});
+      }
       return hasEntitlement;
     } catch (error) {
       console.error("[RevenueCat] Restore failed:", error);
