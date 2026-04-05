@@ -165,7 +165,7 @@ export default function PlanSessionModal() {
     );
     await savePlannedSession(planned);
     router.back();
-  }, [selectedItem, selectedDate, activeTab, scheduledTime, router]);
+  }, [selectedItem, selectedDate, activeTab, scheduledTime, router, isSubscribed]);
 
   const dateLabel = formatDateLabel(selectedDate);
   const saveLabel = `Add to ${dateLabel}`;

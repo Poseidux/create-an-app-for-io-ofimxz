@@ -40,14 +40,14 @@ const FEATURES = [
     description: "Set up unlimited countdown timers",
   },
   {
-    icon: "📋",
+    icon: "🔄",
     title: "Unlimited Routines",
     description: "Build and save as many routines as you want",
   },
   {
     icon: "📅",
-    title: "Unlimited Today's Plan",
-    description: "Plan your full day without restrictions",
+    title: "Unlimited Planned Sessions",
+    description: "Plan and schedule unlimited sessions",
   },
 ];
 
@@ -395,8 +395,8 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? selectedPackage.product.priceString
-                          ? `Get Unlimited — ${selectedPackage.product.priceString}`
-                          : "Get Unlimited"
+                          ? `Unlock Forever — ${selectedPackage.product.priceString}`
+                          : "Unlock Forever"
                         : "Select a plan"}
                     </Text>
                   )}
@@ -410,7 +410,7 @@ export default function PaywallScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.secondaryButtonText}>
-                      Restore Purchases
+                      Restore Purchase
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -435,8 +435,8 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? (selectedPackage.product.priceString
-                            ? `Get Unlimited — ${selectedPackage.product.priceString}`
-                            : "Get Unlimited")
+                            ? `Unlock Forever — ${selectedPackage.product.priceString}`
+                            : "Get Lifetime Access")
                         : "Select a plan"}
                     </Text>
                   )}
@@ -451,15 +451,14 @@ export default function PaywallScreen() {
                   {restoring ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.secondaryButtonText}>Restore Purchases</Text>
+                    <Text style={styles.secondaryButtonText}>Restore Purchase</Text>
                   )}
                 </TouchableOpacity>
 
                 {/* Legal Text - Required by App Store */}
                 <Text style={styles.legalText}>
-                  One-time purchase. Payment will be charged to your{" "}
+                  One-time purchase. No subscription. Payment will be charged to your{" "}
                   {Platform.OS === "ios" ? "Apple ID" : "Google Play"} account.
-                  No subscription — pay once, unlock forever.
                 </Text>
               </>
             )}
