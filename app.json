@@ -55,7 +55,8 @@
       ],
       "expo-font",
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "react-native-purchases"
     ],
     "scheme": "chroniqostopwatches",
     "experiments": {
@@ -66,7 +67,7 @@
       "backendUrl": "https://dafyzwwbnagvwjjjea6vzmd3wy654vxp.app.specular.dev",
       "revenueCatApiKeyIos": "appl_gNiQDfaHdjTIdGdstIjyLnXwPYC",
       "revenueCatApiKeyAndroid": "goog_SdDKpXLoJrgMoRfTRJGxoXqqfaj",
-      "revenueCatEntitlementId": "unlimited_stopwatches",
+      "revenueCatEntitlementId": "pro",
       "nativelyProjectId": "e012751f-0ebb-4a5c-acc4-e709e57f0b3e"
     }
   }
