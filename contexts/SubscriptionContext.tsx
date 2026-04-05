@@ -33,21 +33,16 @@ import Purchases, {
   PurchasesPackage,
   LOG_LEVEL,
 } from "react-native-purchases";
-import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
-// Read API keys from app.json (expo.extra)
-const extra = Constants.expoConfig?.extra || {};
-const IOS_API_KEY = extra.revenueCatApiKeyIos || "";
-const ANDROID_API_KEY = extra.revenueCatApiKeyAndroid || "";
-const TEST_IOS_API_KEY = extra.revenueCatTestApiKeyIos || "";
-const TEST_ANDROID_API_KEY = extra.revenueCatTestApiKeyAndroid || "";
-const ENTITLEMENT_ID = extra.revenueCatEntitlementId || "unlimited_stopwatches";
+// Production iOS API key — always used regardless of environment
+const IOS_API_KEY = "appl_AdKKQlfQClEouHLVsyJkkDtEeWK";
+const ENTITLEMENT_ID = "unlimited_stopwatches";
 
 // Check if running on web
 const isWeb = Platform.OS === "web";
-// Use nativelyProjectId (unique UUID) for scoping; fall back to slug for backward compatibility
-const _PROJECT_SCOPE = Constants.expoConfig?.extra?.nativelyProjectId || Constants.expoConfig?.slug || "app";
+// Scoped storage keys — hardcoded project ID to avoid dependency on Constants
+const _PROJECT_SCOPE = "e012751f-0ebb-4a5c-acc4-e709e57f0b3e";
 const MOCK_PURCHASE_KEY = `rc_mock_purchased_${_PROJECT_SCOPE}`;
 // Scoped native dev mock key — persists simulated subscription in Expo Go via expo-secure-store
 const MOCK_NATIVE_KEY = `rc_dev_native_${_PROJECT_SCOPE}`;
@@ -151,24 +146,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // Use DEBUG log level in development, INFO in production
         Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
 
-        // Get API key based on platform and environment
-        // In development (__DEV__), use ANY available test key (test store works for all platforms)
-        // This allows Expo Go to work on iOS even without a platform-specific test key
-        const testKey = TEST_IOS_API_KEY || TEST_ANDROID_API_KEY;
-        const productionKey = Platform.OS === "ios" ? IOS_API_KEY : ANDROID_API_KEY;
-        const apiKey = __DEV__ && testKey ? testKey : productionKey;
-
-        if (!apiKey) {
-          console.warn(
-            "[RevenueCat] API key not provided for this platform. " +
-            "Please add revenueCatApiKeyIos/revenueCatApiKeyAndroid to app.json extra."
-          );
-          setLoading(false);
-          return;
-        }
-
         if (__DEV__) {
-          console.log("[RevenueCat] Initializing in DEV mode with key:", apiKey.substring(0, 10) + "...");
           // Restore cached subscription state immediately to avoid paywall flash on bundle reload.
           // The customerInfoUpdateListener (fired by configure() below) is the authoritative
           // source and will immediately overwrite this with real RC Keychain data.
@@ -178,7 +156,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           }
         }
 
-        await Purchases.configure({ apiKey });
+        await Purchases.configure({ apiKey: IOS_API_KEY });
 
         // Listen for real-time subscription changes (e.g., purchase from another device)
         customerInfoListener = Purchases.addCustomerInfoUpdateListener(
