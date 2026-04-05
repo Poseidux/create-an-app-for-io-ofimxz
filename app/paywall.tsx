@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
   Linking,
   Dimensions,
 } from "react-native";
@@ -64,7 +63,9 @@ export default function PaywallScreen() {
   // Get subscription state and methods from context
   const {
     packages,
-    loading,
+    currentPackage,
+    isLoading,
+    error,
     isSubscribed,
     isWeb,
     purchasePackage,
@@ -74,22 +75,23 @@ export default function PaywallScreen() {
   } = useSubscription();
 
   const [selectedPackage, setSelectedPackage] =
-    useState<PurchasesPackage | null>(packages[0] || null);
+    useState<PurchasesPackage | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [webMockState, setWebMockState] = useState<"idle" | "processing">("idle");
   const [webMockDialogState, setWebMockDialogState] = useState<"hidden" | "selecting" | "failed">("hidden");
 
-  // Update selected package when packages load
+  // Use currentPackage (the real $rc_lifetime SDK object) as the selected package
   React.useEffect(() => {
-    if (packages.length > 0 && !selectedPackage) {
-      setSelectedPackage(packages[0]);
+    if (currentPackage && !selectedPackage) {
+      setSelectedPackage(currentPackage);
     }
-  }, [packages, selectedPackage]);
+  }, [currentPackage, selectedPackage]);
 
   // Handle purchase
   const handlePurchase = async () => {
     if (!selectedPackage) return;
+    console.log("[Paywall] Purchase button pressed, package:", selectedPackage.identifier, selectedPackage.product.priceString);
 
     try {
       setPurchasing(true);
@@ -108,6 +110,7 @@ export default function PaywallScreen() {
 
   // Handle restore
   const handleRestore = async () => {
+    console.log("[Paywall] Restore Purchases button pressed");
     try {
       setRestoring(true);
       const restored = await restorePurchases();
@@ -235,7 +238,7 @@ export default function PaywallScreen() {
   ];
 
   // Loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -253,6 +256,34 @@ export default function PaywallScreen() {
             <View style={styles.centeredContainer}>
               <ActivityIndicator size="large" color="#fff" />
               <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={["#667EEA", "#764BA2", "#f093fb"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientBackground}
+        >
+          <View style={[styles.floatingOrb, styles.orb1]} />
+          <View style={[styles.floatingOrb, styles.orb2]} />
+          <View style={[styles.floatingOrb, styles.orb3]} />
+
+          <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+            <View style={styles.centeredContainer}>
+              <Text style={styles.errorTitle}>Unable to Load</Text>
+              <Text style={styles.errorMessage}>{error}</Text>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleClose}>
+                <Text style={styles.secondaryButtonText}>Go Back</Text>
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -436,8 +467,8 @@ export default function PaywallScreen() {
                       {selectedPackage
                         ? (selectedPackage.product.priceString
                             ? `Unlock Forever — ${selectedPackage.product.priceString}`
-                            : "Get Lifetime Access")
-                        : "Select a plan"}
+                            : "Unlock Forever")
+                        : "Unlock Forever"}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -457,8 +488,7 @@ export default function PaywallScreen() {
 
                 {/* Legal Text - Required by App Store */}
                 <Text style={styles.legalText}>
-                  One-time purchase. No subscription. Payment will be charged to your{" "}
-                  {Platform.OS === "ios" ? "Apple ID" : "Google Play"} account.
+                  One-time purchase. No subscription.
                 </Text>
               </>
             )}
@@ -563,6 +593,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "rgba(255, 255, 255, 0.85)",
     marginTop: 16,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  errorMessage: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
   },
   scrollView: {
     flex: 1,

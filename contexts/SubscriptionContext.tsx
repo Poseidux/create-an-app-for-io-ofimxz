@@ -58,8 +58,14 @@ interface SubscriptionContextType {
   currentOffering: PurchasesOffering | null;
   /** Available packages in the current offering */
   packages: PurchasesPackage[];
+  /** The $rc_lifetime package from the stopwatch_unlimited offering (real SDK object) */
+  currentPackage: PurchasesPackage | null;
   /** Loading state during initialization */
   loading: boolean;
+  /** Alias for loading — used by paywall */
+  isLoading: boolean;
+  /** Error message if offerings failed to load */
+  error: string | null;
   /** Whether running on web (purchases not available) */
   isWeb: boolean;
   /** Purchase a package - returns true if successful */
@@ -88,7 +94,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [currentOffering, setCurrentOffering] =
     useState<PurchasesOffering | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
+  const [currentPackage, setCurrentPackage] = useState<PurchasesPackage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
     // Fetch offerings via REST API for web platform
   const fetchOfferingsViaRest = async () => {
@@ -197,6 +205,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const fetchOfferings = async () => {
     if (isWeb) return;
     try {
+      console.log("[RevenueCat] Fetching offerings from SDK");
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
@@ -213,9 +222,20 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           return 0;
         });
         setPackages(sorted);
+
+        // Find the $rc_lifetime package and expose it as currentPackage
+        const lifetimePkg = offering.availablePackages.find(
+          (p) => p.identifier === "$rc_lifetime"
+        ) ?? null;
+        setCurrentPackage(lifetimePkg);
+        console.log("[RevenueCat] currentPackage:", lifetimePkg?.identifier, lifetimePkg?.product?.priceString);
+      } else {
+        setError("No offerings available. Please try again later.");
+        console.warn("[RevenueCat] No offering found (stopwatch_unlimited or current)");
       }
-    } catch (error) {
-      console.error("[RevenueCat] Failed to fetch offerings:", error);
+    } catch (err: any) {
+      console.error("[RevenueCat] Failed to fetch offerings:", err);
+      setError(err?.message ?? "Failed to load offerings.");
     }
   };
 
@@ -311,7 +331,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         offerings,
         currentOffering,
         packages,
+        currentPackage,
         loading,
+        isLoading: loading,
+        error,
         isWeb,
         purchasePackage,
         restorePurchases,
