@@ -99,11 +99,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const fetchOfferingsViaRest = async () => {
     // Mock package with real prices from RevenueCat dashboard
     const mockPackage = {
-      identifier: "$rc_lifetime",
+      identifier: "$rc_monthly",
       product: {
-        title: "Lifetime Access",
-        priceString: "$9.99",
-        description: "Unlock all features forever",
+        title: "Premium",
+        priceString: "$4.99/month",
+        description: "Unlock all premium features",
       },
     };
 
@@ -222,23 +222,26 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
 
-      // Prefer the named "stopwatch_unlimited" offering; fall back to current/default
-      const offering =
-        fetchedOfferings.all["stopwatch_unlimited"] ||
-        fetchedOfferings.current;
+      // Prefer the "stopwatch_unlimited" offering; fall back to the default current offering
+      const targetOffering =
+        fetchedOfferings.all["stopwatch_unlimited"] ?? fetchedOfferings.current;
 
-      if (offering) {
-        // Prefer the lifetime package if present, otherwise use all available packages
-        const lifetimePkg = offering.availablePackages.find(
-          (pkg) => pkg.identifier === "$rc_lifetime"
-        );
-        setCurrentOffering(offering);
-        setPackages(lifetimePkg ? [lifetimePkg] : offering.availablePackages);
+      if (targetOffering) {
         console.log(
-          "[RevenueCat] Loaded offering:",
-          offering.identifier,
+          "[RevenueCat] Using offering:",
+          targetOffering.identifier,
           "packages:",
-          offering.availablePackages.map((p) => p.identifier)
+          targetOffering.availablePackages.map((p) => p.identifier).join(", ")
+        );
+        setCurrentOffering(targetOffering);
+        // Prefer the lifetime package ($rc_lifetime) if present
+        const lifetimePkg = targetOffering.availablePackages.find(
+          (p) => p.identifier === "$rc_lifetime"
+        );
+        setPackages(
+          lifetimePkg
+            ? [lifetimePkg, ...targetOffering.availablePackages.filter((p) => p.identifier !== "$rc_lifetime")]
+            : targetOffering.availablePackages
         );
       } else {
         console.warn("[RevenueCat] No offering found (stopwatch_unlimited or current)");

@@ -206,7 +206,7 @@ export default function RootLayout() {
     Notifications.requestPermissionsAsync().catch(() => {});
   }, []);
 
-  if (!loaded || onboardingComplete === null) {
+  if (!loaded) {
     return null;
   }
 

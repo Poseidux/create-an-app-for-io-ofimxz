@@ -20,10 +20,12 @@ import {
   PlannedItemType,
   PlannedSession,
   savePlannedSession,
+  getPlannedSessionsForDate,
   todayDateString,
 } from '@/utils/planned-sessions-storage';
 import { Stopwatch } from '@/types/stopwatch';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,10 +50,13 @@ type TabType = 'stopwatch' | 'timer';
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
+const FREE_PLAN_LIMIT = 3;
+
 export default function PlanSessionModal() {
   const C = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams<{
     date?: string;
     itemType?: string;
@@ -131,6 +136,15 @@ export default function PlanSessionModal() {
     if (!validTime) {
       Alert.alert('Invalid time', 'Please enter time as HH:MM (e.g. 09:30) or leave blank.');
       return;
+    }
+
+    if (!isSubscribed) {
+      const existingPlanned = await getPlannedSessionsForDate(selectedDate);
+      if (existingPlanned.length >= FREE_PLAN_LIMIT) {
+        console.log('[PlanSessionModal] Today\'s Plan limit reached, redirecting to paywall');
+        router.push('/paywall');
+        return;
+      }
     }
 
     const planned: PlannedSession = {
